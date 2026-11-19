@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+    <!-- .NET Framework 4.8：加载各库的 netstandard2.0 产物，验证功能基线（design/11）。只在 Windows 上运行 -->
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT' or '$(IncludeNetFx)' == 'true'">$(TargetFrameworks);net48</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 测试同时编译 polyfill，并经 InternalsVisibleTo 看到库中的同名内部类型；两者实现相同 -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+</Project>

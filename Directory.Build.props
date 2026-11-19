@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <Version>0.1.0</Version>
+    <Authors>AwAUI</Authors>
+    <!-- 仓库内统一的分析级别 -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <IsSrcProject Condition="$(MSBuildProjectDirectory.Replace('\','/').Contains('/src/'))">true</IsSrcProject>
+    <IsTestProject Condition="$(MSBuildProjectDirectory.Replace('\','/').Contains('/tests/'))">true</IsTestProject>
+  </PropertyGroup>
+</Project>

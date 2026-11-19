@@ -1,0 +1,10 @@
+* text=auto
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ttf binary
+*.ttc binary
+*.otf binary
+# 生成的 Unicode 数据表与官方一致性测试文件：不参与 diff 与语言统计
+src/AwAUI.Unicode/Generated/*.g.cs linguist-generated=true -diff
+tests/TestFiles/Unicode/*.txt -diff

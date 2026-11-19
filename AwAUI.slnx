@@ -1,0 +1,93 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="B8Scroll" />
+    <BuildType Name="B8Layout" />
+    <BuildType Name="B8Text" />
+    <BuildType Name="B8Polish" />
+    <BuildType Name="B9Tailwind" />
+    <BuildType Name="B9Prim" />
+    <BuildType Name="B8Int" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <Project Path="src/AwAUI.Css/AwAUI.Css.csproj" />
+    <Project Path="src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
+    <Project Path="src/AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
+    <Project Path="src/AwAUI.Foundation/AwAUI.Foundation.csproj" />
+    <Project Path="src/AwAUI.Graphics/AwAUI.Graphics.csproj" />
+    <Project Path="src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <Project Path="src/AwAUI.Layout/AwAUI.Layout.csproj" />
+    <Project Path="src/AwAUI.Platform/AwAUI.Platform.csproj" />
+    <Project Path="src/AwAUI.Render/AwAUI.Render.csproj" />
+    <Project Path="src/AwAUI.Svg/AwAUI.Svg.csproj" />
+    <Project Path="src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
+    <Project Path="src/AwAUI.Text/AwAUI.Text.csproj" />
+    <Project Path="src/AwAUI.UI/AwAUI.UI.csproj" />
+    <Project Path="src/AwAUI.Unicode/AwAUI.Unicode.csproj" />
+  </Folder>
+  <Folder Name="/src/Browser/">
+    <Project Path="src/Browser/AwAUI.Browser/AwAUI.Browser.csproj" />
+  </Folder>
+  <Folder Name="/src/Headless/">
+    <Project Path="src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+  </Folder>
+  <Folder Name="/src/Linux/">
+    <Project Path="src/Linux/AwAUI.X11/AwAUI.X11.csproj" />
+  </Folder>
+  <Folder Name="/src/MacOS/">
+    <Project Path="src/MacOS/AwAUI.MacOS/AwAUI.MacOS.csproj" />
+  </Folder>
+  <Folder Name="/src/Markup/">
+    <Project Path="src/Markup/AwAUI.Markup.Compiler/AwAUI.Markup.Compiler.csproj" />
+    <Project Path="src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" />
+  </Folder>
+  <Folder Name="/src/Rhi/">
+    <Project Path="src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
+  </Folder>
+  <Folder Name="/src/Windows/">
+    <Project Path="src/Windows/AwAUI.Win32/AwAUI.Win32.csproj" />
+  </Folder>
+  <Folder Name="/src/tools/">
+    <Project Path="src/tools/AwAUI.Generators/AwAUI.Generators.csproj" />
+    <Project Path="src/tools/CssPropertyGen/CssPropertyGen.csproj" />
+    <Project Path="src/tools/UnicodeDataGen/UnicodeDataGen.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/BrowserDemo/BrowserDemo.csproj" />
+    <Project Path="samples/Counter/Counter.csproj" />
+    <Project Path="samples/GpuDemo/GpuDemo.csproj" />
+    <Project Path="samples/RenderDemo/RenderDemo.csproj" />
+    <Project Path="samples/WasmProbe/Native/WasmProbe.Native.csproj" />
+    <Project Path="samples/WasmProbe/WasmProbe.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AwAUI.ArchitectureTests/AwAUI.ArchitectureTests.csproj" />
+    <Project Path="tests/AwAUI.Browser.Tests/AwAUI.Browser.Tests.csproj" />
+    <Project Path="tests/AwAUI.Controls.UnitTests/AwAUI.Controls.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Css.UnitTests/AwAUI.Css.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.DevTools.Tests/AwAUI.DevTools.Tests.csproj" />
+    <Project Path="tests/AwAUI.Diagnostics.UnitTests/AwAUI.Diagnostics.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Graphics.UnitTests/AwAUI.Graphics.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Imaging.UnitTests/AwAUI.Imaging.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Layout.UnitTests/AwAUI.Layout.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Markup.IntegrationTests/AwAUI.Markup.IntegrationTests.csproj" />
+    <Project Path="tests/AwAUI.Markup.UnitTests/AwAUI.Markup.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Platform.UnitTests/AwAUI.Platform.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.RenderTests/AwAUI.RenderTests.csproj" />
+    <Project Path="tests/AwAUI.Rhi.Metal.Tests/AwAUI.Rhi.Metal.Tests.csproj" />
+    <Project Path="tests/AwAUI.Samples.Tests/AwAUI.Samples.Tests.csproj" />
+    <Project Path="tests/AwAUI.Svg.UnitTests/AwAUI.Svg.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Tailwind.UnitTests/AwAUI.Tailwind.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Text.UnitTests/AwAUI.Text.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.UI.UnitTests/AwAUI.UI.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Unicode.UnitTests/AwAUI.Unicode.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/build/">
+    <File Path="build/Interop.props" />
+    <File Path="build/Polyfills.props" />
+    <File Path="build/TargetFrameworks.props" />
+    <File Path="build/Tests.props" />
+  </Folder>
+</Solution>

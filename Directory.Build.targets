@@ -1,0 +1,8 @@
+<Project>
+  <!-- src 下的项目让同名测试项目可见内部成员 -->
+  <ItemGroup Condition="'$(IsSrcProject)' == 'true'">
+    <InternalsVisibleTo Include="$(AssemblyName).UnitTests" />
+    <!-- 例如 AwAUI.Render → AwAUI.RenderTests（渲染测试需要强制切换 SIMD 内核档位） -->
+    <InternalsVisibleTo Include="$(AssemblyName)Tests" />
+  </ItemGroup>
+</Project>
