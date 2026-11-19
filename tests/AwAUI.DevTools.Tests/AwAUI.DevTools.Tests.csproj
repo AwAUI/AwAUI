@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    内嵌 DevTools 面板（AwAUI.DevTools）的端到端测试：在无窗口平台上同时运行被检查的应用（samples/Counter 的组件与样式）
+    与面板窗口，经真实的协议（进程内与 WebSocket）驱动面板，检查元素树、选中高亮与实时编辑在应用帧缓冲里的效果。
+  -->
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
+    <!-- 测试的组合根：软件后端、无窗口平台与 PNG（面板本身不引用它们） -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+    <!-- Counter 示例的组件（partial 组件的 Props 胶水由生成器产出） -->
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../samples/Counter/Components.cs" Link="Counter/Components.cs" />
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+    <None Include="../../samples/Counter/Styles/*.css" Link="Styles/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../TestFiles/Fonts/NotoSans-Regular.ttf" Link="Fonts/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

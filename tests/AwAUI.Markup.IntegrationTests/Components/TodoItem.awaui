@@ -1,0 +1,9 @@
+<div class="item" data-id="@Item.Id">
+    <span class="title">@Item.Title</span>
+    <Button class="remove" aria-label="删除 @Item.Title" @onclick="() => OnRemove?.Invoke(Item)">×</Button>
+</div>
+
+@code {
+    public TodoEntry Item { get; set; } = new(0, "");
+    public Action<TodoEntry>? OnRemove { get; set; }
+}

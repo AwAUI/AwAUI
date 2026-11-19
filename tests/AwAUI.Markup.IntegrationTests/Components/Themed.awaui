@@ -1,0 +1,11 @@
+@* 作用域样式经运行时的 CSS 引擎生效：规则只匹配本组件 Build() 产出的元素，不匹配子组件（Badge）内部的元素 *@
+<div class="themed">
+    <text class="label">标签</text>
+    <span class="badge">自己的 badge</span>
+    <Badge Count="2" />
+</div>
+
+<style>
+    .label { color: #123456; }
+    .themed > .badge, .badge::before { color: #654321; }
+</style>

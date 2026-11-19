@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">
+  <g fill="none" stroke-width="3">
+    <!-- 同一对端点的四种弧线标志组合 -->
+    <path d="M30 60 A30 20 0 0 0 80 40" stroke="#ef4444"/>
+    <path d="M30 60 A30 20 0 0 1 80 40" stroke="#22c55e"/>
+    <path d="M30 60 A30 20 0 1 0 80 40" stroke="#3b82f6"/>
+    <path d="M30 60 A30 20 0 1 1 80 40" stroke="#eab308"/>
+    <!-- 旋转的椭圆弧 + 相对弧线 -->
+    <path d="M110 20 a25 10 30 1 1 40 30 a10 10 0 0 0 20 0" stroke="#8b5cf6"/>
+    <!-- 二次曲线的 T 平滑链、三次曲线的 S 平滑链 -->
+    <path d="M10 120 Q25 90 40 120 T70 120 T100 120 T130 120" stroke="#0ea5e9"/>
+    <path d="M140 120 C150 90 165 90 175 120 S200 150 210 120 s20 -30 25 0" stroke="#f97316"/>
+  </g>
+  <!-- 填充规则 -->
+  <polygon points="200,10 211,44 182,23 218,23 189,44" fill="#6366f1"/>
+  <polygon points="200,55 211,89 182,68 218,68 189,89" fill="#6366f1" fill-rule="evenodd"/>
+  <path d="M100 70h40v40h-40z M110 80v20h20v-20z" fill="#14b8a6"/>
+  <path d="M100 70h40v40h-40z M110 80v20h20v-20z" fill="none" stroke="#134e4a"/>
+</svg>

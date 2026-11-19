@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    AwAUI.Platform 的输入类型（逻辑键值、按键位置、文本输入范围、剪贴板辅助），以及各平台后端里与系统 API 无关的纯逻辑：
+    按键表、逻辑键、UTF-16 组装、输入法组合解析、X11 选择协议状态机……
+    这些后端（Win32 / X11 / macOS）只能在各自的系统上运行，也只面向各自的 TFM，所以这里以源码链接方式编译它们的 Input/ 目录
+    （macOS 是 KeyMap.cs 与 Input/）：这些文件只依赖 AwAUI.Platform，且只用 netstandard2.0 可用的 API，因此任何系统（含 net48）都能验证。
+    新的平台纯逻辑（例如滚轮增量换算、滚动手势的平台差异）放进对应后端的 Input/ 目录，并在这里加测试。
+  -->
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <Compile Include="../../src/Windows/AwAUI.Win32/Input/**/*.cs" Link="Platforms/Win32/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../src/Linux/AwAUI.X11/Input/**/*.cs" Link="Platforms/X11/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../src/MacOS/AwAUI.MacOS/KeyMap.cs" Link="Platforms/MacOS/KeyMap.cs" />
+    <Compile Include="../../src/MacOS/AwAUI.MacOS/Input/**/*.cs" Link="Platforms/MacOS/Input/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Platform/AwAUI.Platform.csproj" />
+  </ItemGroup>
+</Project>

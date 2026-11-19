@@ -1,0 +1,5 @@
+@import "tailwindcss" prefix(tw) important;
+
+.x {
+  @apply tw:p-4 tw:hover:underline;
+}

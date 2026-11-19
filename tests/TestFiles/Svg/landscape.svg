@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="320" height="200" viewBox="0 0 320 200">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="0.55" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#fb923c"/>
+    </linearGradient>
+    <radialGradient id="sun">
+      <stop offset="0" stop-color="#fff7ed"/>
+      <stop offset="0.45" stop-color="#fdba74"/>
+      <stop offset="0.5" stop-color="#fb923c" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#fb923c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb923c" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <symbol id="tree" viewBox="0 0 20 40">
+      <rect x="8.5" y="28" width="3" height="12" fill="#3f2a1d"/>
+      <polygon points="10,0 20,30 0,30" fill="#14532d"/>
+    </symbol>
+    <g id="cloud" fill="#fff" opacity="0.85">
+      <circle cx="0" cy="0" r="10"/>
+      <circle cx="12" cy="-4" r="13"/>
+      <circle cx="26" cy="0" r="9"/>
+      <rect x="0" y="-2" width="26" height="11"/>
+    </g>
+  </defs>
+  <rect width="320" height="200" fill="url(#sky)"/>
+  <circle cx="230" cy="115" r="60" fill="url(#sun)"/>
+  <use href="#cloud" x="40" y="40"/>
+  <use href="#cloud" transform="translate(150 60) scale(0.7)"/>
+  <polygon points="0,140 60,80 110,130 160,70 230,140" fill="#312e81" fill-opacity="0.9"/>
+  <polygon points="120,140 200,95 260,125 290,100 320,120 320,140" fill="#1e1b4b"/>
+  <rect y="140" width="320" height="60" fill="url(#lake)"/>
+  <ellipse cx="230" cy="150" rx="40" ry="3" fill="#fed7aa" opacity="0.6"/>
+  <use href="#tree" x="20" y="105" width="20" height="40"/>
+  <use href="#tree" x="38" y="115" width="15" height="30"/>
+  <use xlink:href="#tree" x="285" y="95" width="25" height="50"/>
+  <!-- 嵌套视口：slice 铺满并裁剪 -->
+  <svg x="250" y="160" width="60" height="30" viewBox="0 0 10 10" preserveAspectRatio="xMidYMid slice">
+    <circle cx="5" cy="5" r="5" fill="#a5b4fc" fill-opacity="0.5"/>
+  </svg>
+</svg>

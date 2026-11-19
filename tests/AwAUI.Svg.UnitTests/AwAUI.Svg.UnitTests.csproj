@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Svg/AwAUI.Svg.csproj" />
+    <!-- 黄金图像：用软件后端渲染并编码 PNG（只在测试中引用） -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">
+  <g stroke="#334155" stroke-width="10" fill="none">
+    <line x1="20" y1="20" x2="90" y2="20" stroke-linecap="butt"/>
+    <line x1="20" y1="45" x2="90" y2="45" stroke-linecap="round"/>
+    <line x1="20" y1="70" x2="90" y2="70" stroke-linecap="square"/>
+    <polyline points="110,35 130,10 150,35" stroke-linejoin="miter"/>
+    <polyline points="160,35 180,10 200,35" stroke-linejoin="round"/>
+    <polyline points="110,75 130,50 150,75" stroke-linejoin="bevel"/>
+    <!-- 尖角超过 miterlimit：退化为斜切 -->
+    <polyline points="160,75 180,50 200,75" stroke-miterlimit="1.2"/>
+  </g>
+  <g fill="none" stroke-width="4">
+    <path d="M20 100 H220" stroke="#0ea5e9" stroke-dasharray="12 6"/>
+    <path d="M20 112 H220" stroke="#f43f5e" stroke-dasharray="10,4,2" stroke-dashoffset="5"/>
+    <path d="M20 124 H220" stroke="#22c55e" stroke-dasharray="0 8" stroke-linecap="round" stroke-width="5"/>
+    <circle cx="210" cy="135" r="12" stroke="#a855f7" stroke-dasharray="6 3"/>
+  </g>
+  <!-- 半透明描边重叠；非均匀缩放下的描边；paint-order -->
+  <g stroke-opacity="0.5" stroke-width="8">
+    <line x1="20" y1="140" x2="80" y2="150" stroke="#f97316"/>
+    <line x1="20" y1="150" x2="80" y2="140" stroke="#6366f1"/>
+  </g>
+  <rect x="45" y="80" width="10" height="8" fill="none" stroke="#000" stroke-width="1" transform="scale(2 1)"/>
+  <rect x="120" y="135" width="60" height="16" rx="4" fill="#fde047" stroke="#854d0e" stroke-width="6" paint-order="stroke"/>
+</svg>

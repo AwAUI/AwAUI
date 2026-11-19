@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    像应用一样使用 .awaui：生成器作为分析器引用，*.awaui 由 AwAUI.Markup 的 MSBuild 文件自动纳入 AdditionalFiles，
+    组件由真实的构建编译（TreatWarningsAsErrors + 可空），测试直接 new 出生成的组件类型。
+    以 NuGet 包（AwAUI.Markup）引用时 .props/.targets 由 NuGet 自动导入；仓库内的 ProjectReference 需要像下面这样显式导入。
+  -->
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- 与 .awaui 混用的手写 C# 组件由 C# 胶水生成器处理 -->
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
+</Project>

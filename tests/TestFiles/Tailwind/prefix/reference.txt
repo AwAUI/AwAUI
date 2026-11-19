@@ -1,0 +1,54 @@
+### tw:flex
+.tw\:flex {
+  display: flex !important;
+}
+### tw:hover:bg-red-500
+@media (hover: hover) {
+  .tw\:hover\:bg-red-500:hover {
+    background-color: var(--tw-color-red-500) !important;
+  }
+}
+### flex
+(none)
+### tw:group-hover:flex
+@media (hover: hover) {
+  :is(:where(.tw\:group):hover .tw\:group-hover\:flex) {
+    display: flex !important;
+  }
+}
+### tw:peer-checked/name:block
+:is(:where(.tw\:peer\/name):checked ~ .tw\:peer-checked\/name\:block) {
+  display: block !important;
+}
+### tw:p-4!
+.tw\:p-4\! {
+  padding: calc(var(--tw-spacing) * 4) !important;
+}
+### tw:bg-red-500/50
+.tw\:bg-red-500\/50 {
+  background-color: color-mix(in oklab, var(--tw-color-red-500) 50%, transparent) !important;
+}
+### tw:[--x:1]
+.tw\:\[--x\:1\] {
+  --x: 1 !important;
+}
+### tw:[&_svg]:size-4
+.tw\:\[\&_svg\]\:size-4 svg {
+  width: calc(var(--tw-spacing) * 4) !important;
+  height: calc(var(--tw-spacing) * 4) !important;
+}
+### tw:md:max-lg:grid
+@media (width >= 48rem) {
+  @media (width < 64rem) {
+    .tw\:md\:max-lg\:grid {
+      display: grid !important;
+    }
+  }
+}
+### --tw-color-red-500
+(none)
+### tw:text-sm/6
+.tw\:text-sm\/6 {
+  font-size: var(--tw-text-sm) !important;
+  line-height: calc(var(--tw-spacing) * 6) !important;
+}

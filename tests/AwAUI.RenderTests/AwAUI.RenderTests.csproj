@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+    <!-- 字形绘制场景用真实字体整形（测试不受 Render → Text 的依赖规则约束） -->
+    <ProjectReference Include="../../src/AwAUI.Text/AwAUI.Text.csproj" />
+  </ItemGroup>
+</Project>

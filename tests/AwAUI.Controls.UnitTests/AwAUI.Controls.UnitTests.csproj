@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 复杂度测试用线程 CPU 时间代替墙钟（机器负载高时更稳定） -->
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Floating UI 的参考输出（由 Popper/floating-ui-gen.mjs 生成，测试不依赖 Node） -->
+    <EmbeddedResource Include="Popper/floating-ui-cases.txt" LogicalName="floating-ui-cases.txt" />
+    <None Include="Popper/floating-ui-gen.mjs" />
+    <!-- Radix Popper 的中间件组合（PopperLayout）的参考输出（由 Popper/floating-ui-radix-gen.mjs 生成） -->
+    <EmbeddedResource Include="Popper/floating-ui-radix-cases.txt" LogicalName="floating-ui-radix-cases.txt" />
+    <None Include="Popper/floating-ui-radix-gen.mjs" />
+  </ItemGroup>
+</Project>

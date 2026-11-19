@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    示例应用的端到端测试（design/07 M1 验收）：samples/Counter 的纯 C# 版与 .awaui 版在无窗口平台上执行同样的操作，
+    逐步比较元素树与渲染出的帧；并经真实的 DevTools 协议检查、实时修改计数器的样式。
+  -->
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <PropertyGroup>
+    <!-- 不参与 net48：示例应用面向 net10.0（它是应用，不是库） -->
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../samples/Counter/Counter.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 与 UI 单元测试共用的进程内 DevTools 客户端 -->
+    <Compile Include="../AwAUI.UI.UnitTests/DevToolsSupport.cs" Link="DevToolsSupport.cs" />
+  </ItemGroup>
+</Project>

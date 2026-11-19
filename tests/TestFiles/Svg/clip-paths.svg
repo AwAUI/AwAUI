@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
+  <defs>
+    <clipPath id="avatar">
+      <circle cx="50" cy="50" r="40"/>
+    </clipPath>
+    <clipPath id="rounded" clipPathUnits="objectBoundingBox">
+      <rect x="0.05" y="0.05" width="0.9" height="0.9" rx="0.25"/>
+    </clipPath>
+    <clipPath id="ring">
+      <path clip-rule="evenodd" d="M150 10a40 40 0 1 1 0 80a40 40 0 1 1 0-80zM150 30a20 20 0 1 0 0 40a20 20 0 1 0 0-40z"/>
+    </clipPath>
+    <clipPath id="union">
+      <rect x="95" y="0" width="10" height="100"/>
+      <rect x="0" y="45" width="200" height="10" transform="rotate(-20 100 50)"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#avatar)">
+    <rect width="100" height="100" fill="#fde68a"/>
+    <g transform="rotate(30 50 50)" fill="#f59e0b">
+      <rect x="-20" y="0" width="12" height="100"/>
+      <rect x="4" y="0" width="12" height="100"/>
+      <rect x="28" y="0" width="12" height="100"/>
+      <rect x="52" y="0" width="12" height="100"/>
+      <rect x="76" y="0" width="12" height="100"/>
+      <rect x="100" y="0" width="12" height="100"/>
+    </g>
+    <circle cx="50" cy="42" r="16" fill="#92400e"/>
+    <ellipse cx="50" cy="95" rx="32" ry="26" fill="#92400e"/>
+  </g>
+  <rect x="80" y="60" width="40" height="40" fill="#6366f1" clip-path="url(#rounded)"/>
+  <rect x="100" y="0" width="100" height="100" fill="#10b981" clip-path="url(#ring)"/>
+  <rect width="200" height="100" fill="#ef4444" fill-opacity="0.6" clip-path="url(#union)"/>
+</svg>

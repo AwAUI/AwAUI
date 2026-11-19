@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <PropertyGroup>
+    <!-- 不参与 net48：测试大量使用现代 API（ClientWebSocket 的 Memory 重载、string.Create 等）。
+         netstandard2.0 产物的覆盖由 NetStandardBuildTests 在 .NET 10/11 中单独加载完成。 -->
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
+  </ItemGroup>
+
+  <!-- NetStandardBuildTests 在 net10/net11 测试进程里加载库的 netstandard2.0 产物：先确保它已构建，并把路径写进程序集元数据 -->
+  <PropertyGroup>
+    <DiagnosticsNetStandardPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../src/AwAUI.Diagnostics/bin/$(Configuration)/netstandard2.0/AwAUI.Diagnostics.dll'))</DiagnosticsNetStandardPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="AwAUI.Diagnostics.NetStandardPath" Value="$(DiagnosticsNetStandardPath)" />
+  </ItemGroup>
+  <Target Name="BuildDiagnosticsNetStandard" BeforeTargets="BeforeBuild" Condition="'$(TargetFramework)' != '' and '$(TargetFramework)' != 'net48'">
+    <MSBuild Projects="../../src/AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" Targets="Build" Properties="TargetFramework=netstandard2.0;Configuration=$(Configuration)" />
+  </Target>
+</Project>

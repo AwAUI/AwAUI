@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Foundation/AwAUI.Foundation.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Graphics/AwAUI.Graphics.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Platform/AwAUI.Platform.csproj" />
+    <ProjectReference Include="../../src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+    <ProjectReference Include="../../src/MacOS/AwAUI.MacOS/AwAUI.MacOS.csproj" />
+    <ProjectReference Include="../../src/Windows/AwAUI.Win32/AwAUI.Win32.csproj" />
+    <ProjectReference Include="../../src/Linux/AwAUI.X11/AwAUI.X11.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Unicode/AwAUI.Unicode.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Css/AwAUI.Css.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Text/AwAUI.Text.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Layout/AwAUI.Layout.csproj" />
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <ProjectReference Include="../../src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Svg/AwAUI.Svg.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
+    <ProjectReference Include="../../src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Compiler/AwAUI.Markup.Compiler.csproj" />
+  </ItemGroup>
+</Project>

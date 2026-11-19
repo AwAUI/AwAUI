@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
+    <!-- 只在测试中引用：用 AwAUI.Css 的公开解析器统计生成样式表中引擎尚不支持的部分（design/23「引擎前置条件」） -->
+    <ProjectReference Include="../../src/AwAUI.Css/AwAUI.Css.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+  </ItemGroup>
+</Project>

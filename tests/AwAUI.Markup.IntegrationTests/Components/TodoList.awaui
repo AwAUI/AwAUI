@@ -1,0 +1,33 @@
+<div class="todo">
+    <div class="row">
+        <input class="draft" @bind="draft" placeholder="要做什么？" @onsubmit="Add" />
+        <Button class="add" @onclick="Add">添加</Button>
+    </div>
+    @if (items.Value.Count == 0)
+    {
+        <text class="empty">暂无事项</text>
+    }
+    else
+    {
+        @foreach (var item in items.Value)
+        {
+            <TodoItem @key="item.Id" Item="item" OnRemove="Remove" />
+        }
+    }
+    <Badge Count="@items.Value.Count" />
+</div>
+
+@code {
+    int nextId = 1;
+    readonly State<List<TodoEntry>> items = new(new List<TodoEntry>());
+    readonly State<string> draft = new("");
+
+    void Add()
+    {
+        if (draft.Value.Length == 0) return;
+        items.Value = items.Value.Append(new TodoEntry(nextId++, draft.Value)).ToList();
+        draft.Value = "";
+    }
+
+    void Remove(TodoEntry entry) => items.Value = items.Value.Where(x => x.Id != entry.Id).ToList();
+}

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    AwAUI.Browser 的纯 C# 部分（Translation/：按键映射、DPR 换算、事件翻译、帧调度、输入法状态机）在普通 .NET 上的单元测试。
+    Win32 / X11 / macOS 后端的纯逻辑测试在 tests/AwAUI.Platform.UnitTests。
+    AwAUI.Browser 本身只有 net10.0-browser 目标，普通 TFM 不能引用它，所以这里以源码链接的方式编译 Translation/ 下的文件
+    （它们只依赖 AwAUI.Platform，且只用 netstandard2.0 可用的 API，因此 net48 也能编译）。
+    浏览器内的端到端验证见 node/（真实无头 Chromium 经 CDP 驱动，以及 Node + DOM 垫片）。
+  -->
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <Compile Include="../../src/Browser/AwAUI.Browser/Translation/**/*.cs" Link="Translation/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="node/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Platform/AwAUI.Platform.csproj" />
+  </ItemGroup>
+</Project>

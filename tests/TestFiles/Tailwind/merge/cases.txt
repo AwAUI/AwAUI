@@ -1,0 +1,1277 @@
+px-2 py-1 p-3	p-3
+p-3 px-2	p-3 px-2
+px-2 p-3 py-1	p-3 py-1
+text-sm text-red-500	text-sm text-red-500
+text-red-500 text-blue-500	text-blue-500
+text-sm/6 leading-7	text-sm/6 leading-7
+leading-7 text-sm/6	text-sm/6
+text-sm leading-7 text-lg	text-lg
+hover:bg-red-500 bg-blue-500 hover:bg-green-500	bg-blue-500 hover:bg-green-500
+md:hover:p-2 hover:md:p-4	hover:md:p-4
+bg-red-500/50 bg-blue-500	bg-blue-500
+!p-2 p-4	!p-2 p-4
+p-4! !p-2	!p-2
+border-2 border-red-500 border-4	border-red-500 border-4
+rounded-md rounded-t-lg rounded-lg	rounded-lg
+inset-0 top-2	inset-0 top-2
+top-2 inset-0	inset-0
+grid-cols-2 grid-cols-[1fr_auto]	grid-cols-[1fr_auto]
+w-4 size-8	size-8
+size-8 w-4	size-8 w-4
+h-9 has-[>svg]:px-3 px-4 has-[>svg]:px-2	h-9 px-4 has-[>svg]:px-2
+shadow-xs shadow-none	shadow-none
+shadow-lg shadow-red-500	shadow-lg shadow-red-500
+ring-2 ring-ring/50 ring-[3px]	ring-ring/50 ring-[3px]
+outline-none outline-hidden	outline-hidden
+focus-visible:ring-[3px] focus-visible:ring-4	focus-visible:ring-4
+[mask-type:luminance] [mask-type:alpha]	[mask-type:alpha]
+[--x:1] [--x:2]	[--x:2]
+data-[state=open]:bg-red-500 data-[state=open]:bg-blue-500	data-[state=open]:bg-blue-500
+group-hover:flex group-hover:hidden	group-hover:hidden
+[&_svg]:size-4 [&_svg]:size-3	[&_svg]:size-3
+gap-2 gap-x-4	gap-2 gap-x-4
+gap-x-4 gap-2	gap-2
+font-bold font-[600]	font-[600]
+font-sans font-mono	font-mono
+tracking-tight tracking-[0.1em]	tracking-[0.1em]
+translate-x-2 -translate-x-1/2	-translate-x-1/2
+scale-95 scale-x-110	scale-95 scale-x-110
+transition transition-all	transition-all
+duration-200 duration-[1s]	duration-[1s]
+animate-spin animate-none	animate-none
+bg-linear-to-r bg-radial	bg-radial
+from-red-500 from-10%	from-red-500 from-10%
+line-clamp-2 overflow-auto	line-clamp-2 overflow-auto
+overflow-auto line-clamp-2	line-clamp-2
+block flex	flex
+hidden md:flex flex	md:flex flex
+sr-only not-sr-only	not-sr-only
+touch-pan-x touch-none	touch-none
+touch-none touch-pan-x touch-pinch-zoom	touch-pan-x touch-pinch-zoom
+@container @container/main	@container/main
+container mx-auto	container mx-auto
+stroke-2 stroke-red-500	stroke-2 stroke-red-500
+fill-red-500 fill-none	fill-none
+bg-(--a) bg-(--b)	bg-(--b)
+p-(--a) px-(--b)	p-(--a) px-(--b)
+text-(length:--x) text-(--c)	text-(length:--x) text-(--c)
+mt-2 -mt-4	-mt-4
+z-10 z-[999]	z-[999]
+opacity-50 opacity-[.67]	opacity-[.67]
+dark:text-white dark:text-black	dark:text-black
+before:content-[""] before:content-none	before:content-none
+aria-invalid:border-red-500 aria-invalid:border-transparent	aria-invalid:border-transparent
+not-first:mt-2 not-first:mt-4	not-first:mt-4
+*:p-2 *:p-4	*:p-4
+file:border-0 file:border	file:border
+cursor-pointer cursor-[url(a.cur),_pointer]	cursor-[url(a.cur),_pointer]
+col-span-2 col-start-1	col-span-2 col-start-1
+row-span-2 row-end-3	row-span-2 row-end-3
+justify-start justify-center	justify-center
+items-center items-start	items-start
+self-auto self-end	self-end
+decoration-2 decoration-red-500 decoration-4	decoration-red-500 decoration-4
+underline no-underline	no-underline
+whitespace-nowrap whitespace-normal	whitespace-normal
+text-ellipsis truncate	truncate
+truncate text-clip	text-clip
+overflow-x-hidden pt-0 pt-0	overflow-x-hidden pt-0
+break-keep break-words pt-0 break-after-page break-after-page	break-words pt-0 break-after-page
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 to-green-500/50 data-[state=closed]:zoom-out-95	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 to-green-500/50 data-[state=closed]:zoom-out-95
+[mask-type:luminance] [mask-type:luminance] fixed w-full [mask-type:luminance]	fixed w-full [mask-type:luminance]
+diagonal-fractions diagonal-fractions	diagonal-fractions
+origin-[33%_75%] scheme-dark backface-hidden break-keep origin-[33%_75%]	scheme-dark backface-hidden break-keep origin-[33%_75%]
+line-clamp-[7] auto-cols-fr	line-clamp-[7] auto-cols-fr
+p-4! p-[3px] placeholder-gray-400	p-4! p-[3px] placeholder-gray-400
+p-6 p-0.5 p-2 p-1 size-4 p-(--pad)	size-4 p-(--pad)
+tab-4 tab-4 tab-4 lowercase	tab-4 lowercase
+static p-6 static static static	p-6 static
+not-sr-only not-sr-only not-sr-only @container-normal mask-t-from-50% not-sr-only	@container-normal mask-t-from-50% not-sr-only
+bg-[length:200px] not-sr-only origin-(--radix-select-content-transform-origin) isolate line-clamp-[7]	bg-[length:200px] not-sr-only origin-(--radix-select-content-transform-origin) isolate line-clamp-[7]
+my-1 my-1	my-1
+pt-0 pt-0 pt-0 order-first	pt-0 order-first
+perspective-dramatic origin-(--radix-dropdown-menu-content-transform-origin) perspective-dramatic perspective-dramatic perspective-dramatic	origin-(--radix-dropdown-menu-content-transform-origin) perspective-dramatic
+pt-0 size-4	pt-0 size-4
+box-border box-border py-4 box-border	py-4 box-border
+clear-both gap-1 clear-both clear-both	gap-1 clear-both
+box-border box-border box-border	box-border
+col-span-full col-[1/3]	col-[1/3]
+indent-4 indent-4 indent-4 indent-4 indent-4 tab-4	indent-4 tab-4
+py-6 py-4 py-3	py-3
+snap-mandatory snap-x snap-start snap-x snap-mandatory	snap-start snap-x snap-mandatory
+] skew-x-6 aria-invalid:ring-destructive/20	] skew-x-6 aria-invalid:ring-destructive/20
+overflow-x-auto tracking-tight ] data-[state=closed]:zoom-out-95 tracking-tight	overflow-x-auto ] data-[state=closed]:zoom-out-95 tracking-tight
+mbs-3 *:data-[slot=select-value]:gap-2 blur gap-1 gap-y-0.5 gap-[--spacing(var(--gap))]	mbs-3 *:data-[slot=select-value]:gap-2 blur gap-[--spacing(var(--gap))]
+ms-1 break-words auto-rows-min ease-out	ms-1 break-words auto-rows-min ease-out
+overscroll-contain overscroll-contain overscroll-contain overscroll-contain isolate overscroll-contain	isolate overscroll-contain
+container contain-paint	container contain-paint
+font-mono bg-[length:200px]	font-mono bg-[length:200px]
+py-4 py-2	py-2
+file:inline-flex 2xl:inline invisible inline	file:inline-flex 2xl:inline invisible inline
+pe-1 pe-1 left-[50%] pe-1 pe-1 pe-1	left-[50%] pe-1
+pt-0 size-4 invisible invisible	pt-0 size-4 invisible
+diagonal-fractions hue-rotate-90	diagonal-fractions hue-rotate-90
+size-4 size-4 size-4 size-4 auto-rows-min	size-4 auto-rows-min
+table text-[length:var(--x)]	table text-[length:var(--x)]
+py-2 py-2 py-2 py-6	py-6
+size-4 list-disc list-disc list-disc ease-linear list-inside	size-4 list-disc ease-linear list-inside
+col-start-2 col-start-2 contrast-125 to-green-500/50 col-start-2 col-start-2	contrast-125 to-green-500/50 col-start-2
+invisible invisible invisible invisible invisible invisible	invisible
+translate-x-2 start-4 -translate-x-1/2 data-[side=right]:translate-x-1	start-4 -translate-x-1/2 data-[side=right]:translate-x-1
+snap-mandatory snap-mandatory	snap-mandatory
+slashed-zero slashed-zero slashed-zero slashed-zero slashed-zero font-['Inter']	slashed-zero font-['Inter']
+to-green-500/50 to-green-500/50 to-green-500/50 to-green-500/50 to-green-500/50	to-green-500/50
+from-[#fff] fixed from-red-500 from-[#fff]	fixed from-[#fff]
+lowercase [color:red] lowercase [color:red] align-middle [color:red]	lowercase align-middle [color:red]
+bottom-full mask-[url(/m.png)] bottom-full bottom-0	mask-[url(/m.png)] bottom-0
+select-none items-center select-none perspective-dramatic	items-center select-none perspective-dramatic
+saturate-150 aria-invalid:border-red-500	saturate-150 aria-invalid:border-red-500
+[color:red] table-cell size-4 table-auto	[color:red] table-cell size-4 table-auto
+focus-visible:outline-ring not-sr-only outline-dashed	focus-visible:outline-ring not-sr-only outline-dashed
+blur auto-rows-[100px] contain-size	blur auto-rows-[100px] contain-size
+[&_tr:last-child]:border-0 contrast-125 select-none select-none saturate-150	[&_tr:last-child]:border-0 contrast-125 select-none saturate-150
+bg-[length:200px] ms-1 ms-1 font-mono ms-1 perspective-dramatic	bg-[length:200px] font-mono ms-1 perspective-dramatic
+scheme-dark invisible blur relative invisible invisible	scheme-dark blur relative invisible
+scheme-dark hue-rotate-90 list-item	scheme-dark hue-rotate-90 list-item
+data-[state=open]:fade-in-0 backface-hidden	data-[state=open]:fade-in-0 backface-hidden
+inline-block inline-full subpixel-antialiased [mask-type:luminance] inline-full file:inline-flex	inline-block subpixel-antialiased [mask-type:luminance] inline-full file:inline-flex
+start-4 subpixel-antialiased start-4 start-4 start-4	subpixel-antialiased start-4
+border-[length:2px] py-1 border-[length:2px] border-[length:2px] tracking-tight border-[length:2px]	py-1 tracking-tight border-[length:2px]
+my-1 skew-3 my-1 my-1	skew-3 my-1
+fill-current fill-none	fill-none
+disabled:opacity-50 group-data-[disabled=true]:opacity-50 not-hover:opacity-50	disabled:opacity-50 group-data-[disabled=true]:opacity-50 not-hover:opacity-50
+@container-normal @container	@container
+-left-full size-4 slashed-zero hue-rotate-90 slashed-zero slashed-zero	-left-full size-4 hue-rotate-90 slashed-zero
+hue-rotate-90 hue-rotate-90 border-[length:2px] hue-rotate-90 hue-rotate-90 [mask-image:linear-gradient(black,transparent)]	border-[length:2px] hue-rotate-90 [mask-image:linear-gradient(black,transparent)]
+pe-1 pe-1 container	pe-1 container
+inline-full inline-flex inline-grid inline -order-2 inline-block	inline-full -order-2 inline-block
+font-medium font-['Inter'] font-['Inter'] font-['Inter']	font-['Inter']
+static static	static
+container break-inside-avoid container border-[length:2px] container container	break-inside-avoid border-[length:2px] container
+scheme-dark scheme-dark scheme-dark	scheme-dark
+start-4 start-4 start-4 start-4	start-4
+bottom-full origin-(--radix-select-content-transform-origin)	bottom-full origin-(--radix-select-content-transform-origin)
+-order-2 overflow-y-scroll data-[state=closed]:zoom-out-95 grow	-order-2 overflow-y-scroll data-[state=closed]:zoom-out-95 grow
+overscroll-contain data-[orientation=vertical]:w-1.5 overscroll-contain slashed-zero overscroll-contain	data-[orientation=vertical]:w-1.5 slashed-zero overscroll-contain
+truncate truncate fill-primary absolute truncate [&.is-dragging]:cursor-grabbing	fill-primary absolute truncate [&.is-dragging]:cursor-grabbing
+dark:data-[state=active]:border-input auto-cols-fr	dark:data-[state=active]:border-input auto-cols-fr
+focus:outline-hidden -outline-offset-1 outline-2	focus:outline-hidden -outline-offset-1 outline-2
+touch-none touch-pan-x z-10 touch-none touch-pan-x bg-[length:200px]	z-10 touch-pan-x bg-[length:200px]
+to-green-500/50 to-green-500/50 to-green-500/50 to-green-500/50	to-green-500/50
+not-sr-only not-sr-only	not-sr-only
+focus:outline-hidden [mask-image:linear-gradient(black,transparent)] blur outline-hidden outline focus-visible:outline-1	focus:outline-hidden [mask-image:linear-gradient(black,transparent)] blur outline-hidden outline focus-visible:outline-1
+diagonal-fractions z-10 cursor-pointer cursor-pointer	diagonal-fractions z-10 cursor-pointer
+disabled:opacity-50 from-10%	disabled:opacity-50 from-10%
+break-inside-avoid snap-x relative	break-inside-avoid snap-x relative
+snap-x relative [mask-image:linear-gradient(black,transparent)]	snap-x relative [mask-image:linear-gradient(black,transparent)]
+isolate isolate isolate isolate touch-none	isolate touch-none
+mask-conic-90 mask-radial-[100%_100%] -mask-linear-12 mask-cover mask-radial-from-10 mask-none	mask-conic-90 mask-radial-[100%_100%] -mask-linear-12 mask-cover mask-radial-from-10 mask-none
+indent-4 indent-4 indent-4 indent-4 indent-4 backdrop-filter	indent-4 backdrop-filter
+outline-ring/50 outline-offset-2 [&>tr]:last:border-b-0 outline-ring/50 focus-visible:outline-1	outline-offset-2 [&>tr]:last:border-b-0 outline-ring/50 focus-visible:outline-1
+backdrop-invert-0 backdrop-filter backdrop-blur-sm backdrop-filter	backdrop-invert-0 backdrop-blur-sm backdrop-filter
+space-y-0 items-start -space-x-2	space-y-0 items-start -space-x-2
+*:[span]:last:items-center relative relative relative -outline-offset-1 relative	*:[span]:last:items-center -outline-offset-1 relative
+-left-full -left-full left-1/2	left-1/2
+items-center items-center *:[span]:last:items-center items-center items-baseline-last *:[span]:last:items-center	items-baseline-last *:[span]:last:items-center
+overscroll-contain overflow-x-auto overflow-y-scroll backdrop-filter	overscroll-contain overflow-x-auto overflow-y-scroll backdrop-filter
+space-y-0 @container-normal	space-y-0 @container-normal
+backdrop-saturate-100 text-[length:var(--x)] contain-paint	backdrop-saturate-100 text-[length:var(--x)] contain-paint
+relative relative backdrop-blur-sm relative relative	backdrop-blur-sm relative
+origin-top-left origin-(--radix-select-content-transform-origin) origin-[33%_75%] overline fixed	origin-[33%_75%] overline fixed
+saturate-150 [mask-image:linear-gradient(black,transparent)] dark:border-input [mask-image:linear-gradient(black,transparent)] py-4 pt-0	saturate-150 dark:border-input [mask-image:linear-gradient(black,transparent)] py-4 pt-0
+object-cover align-middle truncate tab-4 align-middle align-[4px]	object-cover truncate tab-4 align-[4px]
+slashed-zero indent-4 pe-1	slashed-zero indent-4 pe-1
+invisible diagonal-fractions diagonal-fractions diagonal-fractions	invisible diagonal-fractions
+lowercase lowercase lowercase lowercase	lowercase
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] @container-normal [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	@container-normal [mask-image:linear-gradient(black,transparent)]
+touch-none [mask-image:linear-gradient(black,transparent)] pl-2	touch-none [mask-image:linear-gradient(black,transparent)] pl-2
+table-cell table-auto cursor-not-allowed	table-cell table-auto cursor-not-allowed
+blur blur pl-8 blur align-top [color:red]	pl-8 blur align-top [color:red]
+pt-0 object-cover	pt-0 object-cover
+translate-3d outline outline-red-500	translate-3d outline outline-red-500
+[&>[role=checkbox]]:translate-y-[2px] translate-x-2 translate-y-0.5 scheme-dark	[&>[role=checkbox]]:translate-y-[2px] translate-x-2 translate-y-0.5 scheme-dark
+data-[state=closed]:zoom-out-95 not-sr-only ease-in-out	data-[state=closed]:zoom-out-95 not-sr-only ease-in-out
+[mask-image:linear-gradient(black,transparent)] translate-y-0.5 clear-both	[mask-image:linear-gradient(black,transparent)] translate-y-0.5 clear-both
+-space-x-2 indent-4 indent-4	-space-x-2 indent-4
+align-middle align-middle align-[4px] align-top align-middle	align-middle
+ease-in-out items-center ease-initial relative ease-initial ease-out	items-center relative ease-out
+container container container	container
+tab-4 py-6 tab-4 p-4!	py-6 tab-4 p-4!
+mask-conic-from-black mask-alpha	mask-conic-from-black mask-alpha
+normal-case align-middle contrast-125	normal-case align-middle contrast-125
+align-[4px] static static static relative	align-[4px] relative
+table-cell table-cell bg-[length:200px] pe-1 table-auto	table-cell bg-[length:200px] pe-1 table-auto
+font-['Inter'] static pt-0	font-['Inter'] static pt-0
+size-4 size-4 size-4	size-4
+subpixel-antialiased data-[orientation=horizontal]:w-full	subpixel-antialiased data-[orientation=horizontal]:w-full
+fade-in-0 fade-in-0 fade-in-0 data-[state=open]:fade-in-0	fade-in-0 fade-in-0 fade-in-0 data-[state=open]:fade-in-0
+scheme-dark data-[state=open]:fade-in-0	scheme-dark data-[state=open]:fade-in-0
+delay-150 table-cell delay-150 delay-150	table-cell delay-150
+space-y-0 invisible invisible invisible	space-y-0 invisible
+tracking-tight subpixel-antialiased tracking-tight pb-4	subpixel-antialiased tracking-tight pb-4
+list-none table size-4 mbs-3 mbs-3	list-none table size-4 mbs-3
+] to-green-500/50 order-1	] to-green-500/50 order-1
+container slashed-zero container container container ring-[#fff]	slashed-zero container ring-[#fff]
+touch-pan-x touch-none [color:red] touch-pinch-zoom touch-pinch-zoom touch-pinch-zoom	touch-pan-x [color:red] touch-pinch-zoom
+cursor-[url(hand.cur),_pointer] [&.is-dragging]:cursor-grabbing cursor-pointer cursor-[url(hand.cur),_pointer]	[&.is-dragging]:cursor-grabbing cursor-[url(hand.cur),_pointer]
+not-sr-only not-sr-only not-sr-only	not-sr-only
+saturate-150 saturate-150	saturate-150
+translate-none cursor-[url(hand.cur),_pointer] subpixel-antialiased disabled:cursor-not-allowed	translate-none cursor-[url(hand.cur),_pointer] subpixel-antialiased disabled:cursor-not-allowed
+delay-150 delay-150 delay-150 mask-clip-border	delay-150 mask-clip-border
+py-6 origin-(--radix-popover-content-transform-origin) hue-rotate-90	py-6 origin-(--radix-popover-content-transform-origin) hue-rotate-90
+[mask-type:luminance] [mask-type:luminance] [mask-type:luminance] data-[orientation=horizontal]:w-full [mask-type:luminance] [mask-type:luminance]	data-[orientation=horizontal]:w-full [mask-type:luminance]
+pe-1 p-2 data-[state=open]:fade-in-0 pe-1 pe-1 pe-1	p-2 data-[state=open]:fade-in-0 pe-1
+border-[length:2px] touch-none font-['Inter'] touch-none	border-[length:2px] font-['Inter'] touch-none
+fill-primary fill-primary	fill-primary
+object-cover object-cover	object-cover
+border-spacing-2 @container aria-invalid:border-red-500 border-x lowercase	border-spacing-2 @container aria-invalid:border-red-500 border-x lowercase
+fill-none fill-red-500 scheme-dark mask-b-to-10	fill-red-500 scheme-dark mask-b-to-10
+table table table-auto	table table-auto
+grow invisible grow-0 blur table-cell	invisible grow-0 blur table-cell
+data-[inset]:pl-8 pl-8	data-[inset]:pl-8 pl-8
+to-green-500/50 bg-[length:200px]	to-green-500/50 bg-[length:200px]
+focus-visible:ring-4 placeholder-gray-400	focus-visible:ring-4 placeholder-gray-400
+p-1 to-green-500/50 w-full cursor-[url(hand.cur),_pointer]	p-1 to-green-500/50 w-full cursor-[url(hand.cur),_pointer]
+list-image-none contain-size mbs-3 mbs-3 mbs-3	list-image-none contain-size mbs-3
+skew-x-6 skew-x-6	skew-x-6
+static static	static
+border-[length:2px] border-[length:2px] border-[length:2px] border-[length:2px]	border-[length:2px]
+translate-x-[calc(100%-2px)] data-[state=open]:fade-in-0 left-1/2 data-[state=open]:fade-in-0	translate-x-[calc(100%-2px)] data-[state=open]:fade-in-0 left-1/2 data-[state=open]:fade-in-0
+slashed-zero slashed-zero slashed-zero slashed-zero saturate-150 slashed-zero	saturate-150 slashed-zero
+my-1 my-1 my-1 my-1 my-1 indent-4	my-1 indent-4
+list-item hue-rotate-90 hue-rotate-90 hue-rotate-90	list-item hue-rotate-90
+] overflow-x-hidden overflow-y-auto overflow-hidden	] overflow-hidden
+ring-2 focus:ring-offset-2 ring-[3px] ring has-[:focus]:ring-2 aria-invalid:ring-destructive/20	focus:ring-offset-2 ring has-[:focus]:ring-2 aria-invalid:ring-destructive/20
+to-green-500/50 left-1/2 to-green-500/50	left-1/2 to-green-500/50
+-mask-linear-12 invisible file:inline-flex invisible	-mask-linear-12 file:inline-flex invisible
+h-auto group-data-[orientation=vertical]/tabs:h-fit [mask-type:luminance] group-data-[orientation=horizontal]/tabs:h-9	h-auto group-data-[orientation=vertical]/tabs:h-fit [mask-type:luminance] group-data-[orientation=horizontal]/tabs:h-9
+fixed fixed	fixed
+data-[inset]:pl-8 touch-none pl-2 bg-[length:200px]	data-[inset]:pl-8 touch-none pl-2 bg-[length:200px]
+clear-both auto-rows-min	clear-both auto-rows-min
+translate-x-2 focus-visible:z-10 z-auto z-10 z-[999]	translate-x-2 focus-visible:z-10 z-[999]
+not-sr-only contain-paint not-sr-only not-sr-only	contain-paint not-sr-only
+fill-current fill-foreground fill-primary fill-foreground saturate-150 table-cell	fill-foreground saturate-150 table-cell
+[color:red] [color:red] [color:red] [color:red] [color:red] [color:red]	[color:red]
+fill-primary perspective-dramatic fill-foreground	perspective-dramatic fill-foreground
+opacity-[.67] ring-[#fff] opacity-[.67] col-start-2	ring-[#fff] opacity-[.67] col-start-2
+auto-rows-min auto-cols-fr focus-visible:outline-1	auto-rows-min auto-cols-fr focus-visible:outline-1
+start-4 start-4 start-4 file:inline-flex start-4	file:inline-flex start-4
+border-spacing-2 font-['Inter']	border-spacing-2 font-['Inter']
+pe-1 pe-1 pe-1 pe-1 pe-1	pe-1
+mask-center mask-radial-from-10 col-span-2 mask-cover opacity-[.67] mask-b-to-10	mask-center mask-radial-from-10 col-span-2 mask-cover opacity-[.67] mask-b-to-10
+select-none select-none	select-none
+rounded-[2px] indent-4 indent-4 indent-4 translate-x-2 indent-4	rounded-[2px] translate-x-2 indent-4
+py-1.5 py-1 py-0.5 diagonal-fractions	py-0.5 diagonal-fractions
+auto-rows-min gap-y-0.5 auto-rows-[100px] after:absolute auto-rows-min	gap-y-0.5 after:absolute auto-rows-min
+outline-ring/50 backface-hidden	outline-ring/50 backface-hidden
+ease-[cubic-bezier(0.95,0.05,0.795,0.035)] border-[length:2px] ease-[cubic-bezier(0.95,0.05,0.795,0.035)] ease-initial ease-in-out	border-[length:2px] ease-in-out
+normal-case w-full	normal-case w-full
+focus:z-10 blur blur	focus:z-10 blur
+truncate diagonal-fractions absolute absolute border-t-transparent absolute	truncate diagonal-fractions border-t-transparent absolute
+subpixel-antialiased invisible subpixel-antialiased subpixel-antialiased ring-offset-white	invisible subpixel-antialiased ring-offset-white
+scheme-dark scheme-dark container	scheme-dark container
+from-[#fff] subpixel-antialiased tab-4	from-[#fff] subpixel-antialiased tab-4
+border-[length:2px] placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400	border-[length:2px] placeholder-gray-400
+static fill-primary break-all border-primary border-collapse	static fill-primary break-all border-primary border-collapse
+subpixel-antialiased subpixel-antialiased overflow-hidden subpixel-antialiased overscroll-contain mbs-3	overflow-hidden subpixel-antialiased overscroll-contain mbs-3
+origin-top-left py-1.5 align-top origin-center origin-center	py-1.5 align-top origin-center
+contrast-125 contrast-125 contrast-125	contrast-125
+py-1.5 has-[>svg]:gap-x-3 py-6 py-6 py-6 py-1.5	has-[>svg]:gap-x-3 py-1.5
+left-[50%] font-mono left-[50%] -left-full	font-mono -left-full
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	[mask-image:linear-gradient(black,transparent)]
+align-top delay-150 delay-150 ms-1 delay-150 delay-150	align-top ms-1 delay-150
+data-[state=closed]:fade-out-0 perspective-dramatic ease-initial fade-in-0	data-[state=closed]:fade-out-0 perspective-dramatic ease-initial fade-in-0
+contain-paint [&.is-dragging]:cursor-grabbing	contain-paint [&.is-dragging]:cursor-grabbing
+size-4 diagonal-fractions fill-none fill-current	size-4 diagonal-fractions fill-current
+box-border box-border truncate box-border box-border box-border	truncate box-border
+cursor-default slashed-zero fill-red-500 ms-1	cursor-default slashed-zero fill-red-500 ms-1
+mbs-3 fill-none line-clamp-3 start-4 slashed-zero	mbs-3 fill-none line-clamp-3 start-4 slashed-zero
+bottom-full group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-0	group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-0
+isolate [&.is-dragging]:cursor-grabbing	isolate [&.is-dragging]:cursor-grabbing
+border-collapse isolate overflow-x-auto isolate isolate isolate	border-collapse overflow-x-auto isolate
+contrast-125 my-1 contrast-125	my-1 contrast-125
+bg-[length:200px] subpixel-antialiased pt-0 ms-1 bg-[length:200px]	subpixel-antialiased pt-0 ms-1 bg-[length:200px]
+p-4 @container-size @container-normal @container @container-normal size-4	p-4 @container-normal size-4
+h-auto break-after-page break-keep	h-auto break-after-page break-keep
+-skew-y-12 fill-none left-[50%]	-skew-y-12 fill-none left-[50%]
+clear-both clear-both	clear-both
+cursor-[url(hand.cur),_pointer] peer-disabled:cursor-not-allowed cursor-default	peer-disabled:cursor-not-allowed cursor-default
+backface-hidden font-mono border-[length:2px]	backface-hidden font-mono border-[length:2px]
+delay-150 [color:red] align-top align-top align-[4px]	delay-150 [color:red] align-[4px]
+group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 overscroll-contain	group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 overscroll-contain
+clear-both clear-both clear-both clear-both	clear-both
+size-4 size-4	size-4
+table-cell table-auto table-auto table-auto	table-cell table-auto
+data-[size=default]:h-9 data-[size=default]:h-9	data-[size=default]:h-9
+file:inline-flex inline ] file:inline-flex tracking-tight	inline ] file:inline-flex tracking-tight
+w-3xs origin-top-left	w-3xs origin-top-left
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 @container-normal data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 @container-normal data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95
+text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] hue-rotate-90	text-[length:var(--x)] hue-rotate-90
+relative backface-hidden	relative backface-hidden
+saturate-150 saturate-150	saturate-150
+z-auto [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] tab-4	z-auto [mask-image:linear-gradient(black,transparent)] tab-4
+size-4 size-4 size-4 size-4 size-4 blur	size-4 blur
+grow-0 grow grow-[2] -order-2 grow-[2] grow-[2]	-order-2 grow-[2]
+subpixel-antialiased ease-in-out fixed fixed fixed fixed	subpixel-antialiased ease-in-out fixed
+invisible line-clamp-3 line-clamp-3 py-4	invisible line-clamp-3 py-4
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 indent-4	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 indent-4
+object-cover object-cover delay-150 object-cover object-cover	delay-150 object-cover
+backface-hidden backface-hidden backface-hidden backface-hidden backface-hidden saturate-150	backface-hidden saturate-150
+contain-paint translate-y-0.5 clear-both translate-x-2 object-cover	contain-paint translate-y-0.5 clear-both translate-x-2 object-cover
+backface-hidden backface-hidden from-10% overline	backface-hidden from-10% overline
+lowercase break-after-page disabled:opacity-50 break-all break-inside-avoid break-words	lowercase break-after-page disabled:opacity-50 break-inside-avoid break-words
+bg-[length:200px] bg-[length:200px] bg-[length:200px]	bg-[length:200px]
+contain-size my-1	contain-size my-1
+@container-size @container-size @container-size @container-size	@container-size
+scheme-dark scheme-dark absolute	scheme-dark absolute
+tracking-tight tracking-tight	tracking-tight
+truncate truncate truncate	truncate
+object-cover perspective-dramatic disabled:opacity-50	object-cover perspective-dramatic disabled:opacity-50
+text-[length:var(--x)] text-[length:var(--x)] mask-x-from-red-500 border-[length:2px] text-[length:var(--x)] line-clamp-[7]	mask-x-from-red-500 border-[length:2px] text-[length:var(--x)] line-clamp-[7]
+py-1 fixed	py-1 fixed
+subpixel-antialiased backface-hidden subpixel-antialiased	backface-hidden subpixel-antialiased
+hue-rotate-90 hue-rotate-90 ]	hue-rotate-90 ]
+box-border box-border	box-border
+list-image-none font-['Inter'] list-inside	list-image-none font-['Inter'] list-inside
+snap-mandatory snap-mandatory	snap-mandatory
+focus:ring-offset-2 -space-x-2	focus:ring-offset-2 -space-x-2
+pe-1 pe-1 pe-1	pe-1
+contrast-125 contrast-125 slashed-zero contrast-125	slashed-zero contrast-125
+focus-visible:outline-1 outline-hidden focus-visible:outline-1	outline-hidden focus-visible:outline-1
+fade-in-0 blur fill-red-500 placeholder-gray-400	fade-in-0 blur fill-red-500 placeholder-gray-400
+gap-1.5 gap-[3px]	gap-[3px]
+] ] ] ]	] ] ] ]
+backface-hidden backface-hidden backface-hidden	backface-hidden
+overscroll-contain indent-4 overscroll-contain overscroll-contain group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	indent-4 overscroll-contain group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+*:[span]:last:items-center items-start group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	*:[span]:last:items-center items-start group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+delay-150 [mask-type:luminance] delay-150 delay-150 py-2	[mask-type:luminance] delay-150 py-2
+align-[4px] align-top @container-normal align-top	@container-normal align-top
+[mask-image:linear-gradient(black,transparent)] ring-offset-background inline-grid hover:ring-4 focus:ring-offset-2 hover:ring-4	[mask-image:linear-gradient(black,transparent)] ring-offset-background inline-grid focus:ring-offset-2 hover:ring-4
+has-data-[slot=alert-dialog-media]:gap-x-6 peer-disabled:cursor-not-allowed my-1	has-data-[slot=alert-dialog-media]:gap-x-6 peer-disabled:cursor-not-allowed my-1
+skew-x-6 -skew-y-12 skew-x-6 p-unknown skew-3	-skew-y-12 skew-x-6 p-unknown skew-3
+my-1 snap-x perspective-dramatic my-1 my-1 my-1	snap-x perspective-dramatic my-1
+size-4 list-item placeholder-gray-400 border-[length:2px] size-4 size-4	list-item placeholder-gray-400 border-[length:2px] size-4
+text-[length:var(--x)] text-[length:var(--x)]	text-[length:var(--x)]
+indent-4 bottom-0 pt-0 @container-normal bottom-full	indent-4 pt-0 @container-normal bottom-full
+py-3 py-4 py-2 py-3 py-1 py-3	py-3
+snap-x snap-x	snap-x
+py-2 inline-block border-[length:2px] border-[length:2px] start-4	py-2 inline-block border-[length:2px] start-4
+overscroll-contain @container-normal @container-normal @container-normal	overscroll-contain @container-normal
+select-none table static pe-1 fill-none pe-1	select-none table static fill-none pe-1
+hue-rotate-90 to-green-500/50 break-all ease-linear align-[4px]	hue-rotate-90 to-green-500/50 break-all ease-linear align-[4px]
+origin-top-left grow-[2] lowercase skew-3 contrast-125	origin-top-left grow-[2] lowercase skew-3 contrast-125
+[color:red] [color:red] [color:red] [color:red] auto-rows-[100px]	[color:red] auto-rows-[100px]
+touch-pan-x touch-none touch-pinch-zoom touch-pan-x	touch-pinch-zoom touch-pan-x
+table table table-auto table-auto ring-ring/50 table-cell	table-auto ring-ring/50 table-cell
+ease-in-out snap-x ease-in-out ease-initial	snap-x ease-initial
+truncate data-[orientation=horizontal]:w-full data-[orientation=horizontal]:w-full inline-block group-data-[orientation=vertical]/tabs:w-full w-[calc(100%-theme(spacing.4))]	truncate data-[orientation=horizontal]:w-full inline-block group-data-[orientation=vertical]/tabs:w-full w-[calc(100%-theme(spacing.4))]
+auto-rows-[100px] list-image-none	auto-rows-[100px] list-image-none
+space-y-0 -space-x-2 -space-x-2	space-y-0 -space-x-2
+contain-none indent-4 contain-size	contain-none indent-4 contain-size
+fixed fixed fixed	fixed
+subpixel-antialiased -z-10 -z-10 z-10 bg-[length:200px] from-[#fff]	subpixel-antialiased z-10 bg-[length:200px] from-[#fff]
+snap-mandatory snap-x snap-start snap-mandatory	snap-x snap-start snap-mandatory
+scheme-dark scheme-dark truncate scheme-dark	truncate scheme-dark
+overscroll-contain overscroll-contain overscroll-contain overscroll-contain	overscroll-contain
+w-3xs opacity-50	w-3xs opacity-50
+[mask-type:luminance] [mask-type:luminance] [mask-type:luminance]	[mask-type:luminance]
+fixed clear-both	fixed clear-both
+normal-case object-cover normal-case normal-case touch-none	object-cover normal-case touch-none
+ease-out ease-out ease-out	ease-out
+w-[calc(100%-theme(spacing.4))] data-[orientation=horizontal]:w-full	w-[calc(100%-theme(spacing.4))] data-[orientation=horizontal]:w-full
+gap-4 font-mono invisible	gap-4 font-mono invisible
+align-middle align-[4px] box-border tracking-tight align-middle align-[4px]	box-border tracking-tight align-[4px]
+data-[state=open]:fade-in-0 [mask-type:luminance]	data-[state=open]:fade-in-0 [mask-type:luminance]
+table-auto mbs-3	table-auto mbs-3
+scheme-dark left-[50%] slashed-zero left-1/2	scheme-dark slashed-zero left-1/2
+tracking-tight placeholder-gray-400 from-red-500 my-1	tracking-tight placeholder-gray-400 from-red-500 my-1
+relative outline-offset-2	relative outline-offset-2
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95
+bottom-full ease-[cubic-bezier(0.95,0.05,0.795,0.035)] group-data-[disabled=true]:opacity-50 from-10% not-hover:opacity-50 backface-hidden	bottom-full ease-[cubic-bezier(0.95,0.05,0.795,0.035)] group-data-[disabled=true]:opacity-50 from-10% not-hover:opacity-50 backface-hidden
+blur blur border-[length:2px]	blur border-[length:2px]
+tracking-tight invisible bg-[length:200px] bg-[length:200px] snap-start	tracking-tight invisible bg-[length:200px] snap-start
+*:data-[slot=avatar]:ring-2 ring-inset ring-red-500 ring-[#fff]	*:data-[slot=avatar]:ring-2 ring-inset ring-[#fff]
+ms-1 ms-1 ms-1	ms-1
+col-auto col-end-3 col-span-2 table	col-end-3 col-span-2 table
+absolute overflow-x-auto overflow-y-auto	absolute overflow-x-auto overflow-y-auto
+not-sr-only table table blur	not-sr-only table blur
+saturate-150 [color:red] [color:red]	saturate-150 [color:red]
+file:inline-flex bottom-full inline inline-full file:inline-flex	bottom-full inline inline-full file:inline-flex
+border-[length:2px] border-[length:2px] border-[length:2px] [mask-image:linear-gradient(black,transparent)]	border-[length:2px] [mask-image:linear-gradient(black,transparent)]
+snap-mandatory fill-none snap-x snap-start snap-start snap-x	snap-mandatory fill-none snap-start snap-x
+invisible fixed fixed fixed	invisible fixed
+order-none text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)]	order-none text-[length:var(--x)]
+overflow-x-hidden overflow-x-auto data-[orientation=horizontal]:h-1.5	overflow-x-auto data-[orientation=horizontal]:h-1.5
+*:data-[slot=select-value]:items-center focus:z-10	*:data-[slot=select-value]:items-center focus:z-10
+my-1 data-[state=closed]:zoom-out-95 my-1 mask-[url(/m.png)] my-1	data-[state=closed]:zoom-out-95 mask-[url(/m.png)] my-1
+select-none select-none select-none select-none select-none	select-none
+space-y-0 space-y-0 saturate-150	space-y-0 saturate-150
+slashed-zero font-mono	slashed-zero font-mono
+static bg-[length:200px] delay-150 delay-150 delay-150	static bg-[length:200px] delay-150
+static ms-1 col-span-2 blur col-span-full	static ms-1 blur col-span-full
+[mask-image:linear-gradient(black,transparent)] lowercase lowercase [mask-image:linear-gradient(black,transparent)]	lowercase [mask-image:linear-gradient(black,transparent)]
+bg-linear-to-b/oklch bg-destructive select-none	bg-linear-to-b/oklch bg-destructive select-none
+overflow-y-auto bg-[length:200px] bg-[length:200px] bg-[length:200px] bg-[length:200px] bg-[length:200px]	overflow-y-auto bg-[length:200px]
+overline overline overline overline	overline
+object-cover select-none ms-1	object-cover select-none ms-1
+line-clamp-[7] line-clamp-1 line-clamp-[7] line-clamp-[7]	line-clamp-[7]
+auto-cols-fr perspective-dramatic perspective-dramatic list-inside	auto-cols-fr perspective-dramatic list-inside
+delay-150 object-cover delay-150 pe-1	object-cover delay-150 pe-1
+to-green-500/50 to-green-500/50 data-[state=closed]:zoom-out-95 to-green-500/50 pe-1	data-[state=closed]:zoom-out-95 to-green-500/50 pe-1
+left-[50%] cursor-[url(hand.cur),_pointer] h-lh origin-(--radix-popover-content-transform-origin)	left-[50%] cursor-[url(hand.cur),_pointer] h-lh origin-(--radix-popover-content-transform-origin)
+line-clamp-1 placeholder-gray-400 placeholder-gray-400 placeholder-red-500/50 placeholder-gray-400 placeholder-gray-400	line-clamp-1 placeholder-gray-400
+] @container @container-normal @container-normal @container-size to-green-500/50	] @container-size to-green-500/50
+gap-1.5 start-4 pe-1 pe-1	gap-1.5 start-4 pe-1
+diagonal-fractions diagonal-fractions	diagonal-fractions
+!p-4 left-[50%] @container-size contrast-125	!p-4 left-[50%] @container-size contrast-125
+size-4 not-sr-only scheme-dark normal-case	size-4 not-sr-only scheme-dark normal-case
+auto-rows-[100px] to-green-500/50 to-green-500/50 to-green-500/50	auto-rows-[100px] to-green-500/50
+invisible order-first my-1	invisible order-first my-1
+overflow-x-auto overflow-x-hidden py-0.5 overflow-y-auto	overflow-x-hidden py-0.5 overflow-y-auto
+break-all break-words list-none mbs-3 list-inside [mask-image:linear-gradient(black,transparent)]	break-words list-none mbs-3 list-inside [mask-image:linear-gradient(black,transparent)]
+tracking-tight align-middle tracking-tight opacity-50 tracking-tight align-[4px]	opacity-50 tracking-tight align-[4px]
+backface-hidden font-['Inter'] border-[length:2px]	backface-hidden font-['Inter'] border-[length:2px]
+normal-case diagonal-fractions diagonal-fractions	normal-case diagonal-fractions
+data-[orientation=horizontal]:w-full data-[orientation=horizontal]:w-full subpixel-antialiased data-[orientation=vertical]:w-1.5 table w-1/2	data-[orientation=horizontal]:w-full subpixel-antialiased data-[orientation=vertical]:w-1.5 table w-1/2
+z-10 indent-4 z-10 focus:z-10 inline-block	indent-4 z-10 focus:z-10 inline-block
+contrast-125 relative	contrast-125 relative
+diagonal-fractions left-[50%] left-1/2 -left-full	diagonal-fractions -left-full
+font-medium col-end-3	font-medium col-end-3
+py-3 table-cell py-6	table-cell py-6
+slashed-zero focus:z-10 slashed-zero	focus:z-10 slashed-zero
+tracking-tight ms-1 ms-1	tracking-tight ms-1
+not-sr-only auto-cols-fr auto-rows-[100px]	not-sr-only auto-cols-fr auto-rows-[100px]
+skew-3 -skew-y-12 -skew-y-12	skew-3 -skew-y-12
+break-inside-avoid snap-start break-words translate-3d break-inside-avoid break-keep	snap-start translate-3d break-inside-avoid break-keep
+contrast-125 contrast-125 contrast-125 table-cell contrast-125 contrast-125	table-cell contrast-125
+truncate truncate	truncate
+grow-[2] grow-0	grow-0
+hover:ring-4 focus-visible:ring-ring/50	hover:ring-4 focus-visible:ring-ring/50
+list-inside list-disc list-item list-item	list-inside list-disc list-item
+break-keep hue-rotate-90	break-keep hue-rotate-90
+contain-size clear-both blur	contain-size clear-both blur
+disabled:cursor-not-allowed lowercase	disabled:cursor-not-allowed lowercase
+contrast-125 pe-1 pe-1 pe-1 table-cell static	contrast-125 pe-1 table-cell static
+diagonal-fractions ease-out ease-initial	diagonal-fractions ease-initial
+pl-2 placeholder-gray-400 placeholder-gray-400	pl-2 placeholder-gray-400
+my-1 not-has-[svg]:p-2 my-1 my-1 my-1 my-1	not-has-[svg]:p-2 my-1
+snap-x snap-x snap-x snap-x	snap-x
+outline-offset-2 outline-offset-2 delay-150 order-first	outline-offset-2 delay-150 order-first
+data-[state=closed]:fade-out-0 cursor-not-allowed backface-hidden fade-in-0 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0	data-[state=closed]:fade-out-0 cursor-not-allowed backface-hidden fade-in-0 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0
+relative relative diagonal-fractions relative relative	diagonal-fractions relative
+skew-x-6 truncate	skew-x-6 truncate
+touch-none p-0.5 backface-hidden touch-none size-4 touch-none	p-0.5 backface-hidden size-4 touch-none
+has-[>svg]:gap-x-3 [--scroll-offset:56px] gap-(--gap)	has-[>svg]:gap-x-3 [--scroll-offset:56px] gap-(--gap)
+contain-paint contain-none contain-size contain-size absolute align-top	contain-paint contain-none contain-size contain-size absolute align-top
+touch-pinch-zoom touch-none *:[span]:last:items-center touch-pan-x touch-pan-x	touch-pinch-zoom *:[span]:last:items-center touch-pan-x
+tab-4 tab-4 snap-x start-4 tab-4	snap-x start-4 tab-4
+select-none fixed fixed	select-none fixed
+diagonal-fractions lowercase pl-2 pl-8	diagonal-fractions lowercase pl-8
+align-top ms-1	align-top ms-1
+text-[length:var(--x)] pt-0 pt-0	text-[length:var(--x)] pt-0
+to-green-500/50 backface-hidden backface-hidden	to-green-500/50 backface-hidden
+bg-[length:200px] bg-[length:200px] [mask-image:linear-gradient(black,transparent)] tab-4	bg-[length:200px] [mask-image:linear-gradient(black,transparent)] tab-4
+inline inline-block opacity-50	inline-block opacity-50
+absolute pe-1 pe-1 pe-1 pe-1	absolute pe-1
+clear-both bg-[length:200px] bg-[length:200px]	clear-both bg-[length:200px]
+indent-4 indent-4 indent-4 truncate	indent-4 truncate
+space-y-1.5 space-y-1.5 contain-paint perspective-dramatic -space-x-2	space-y-1.5 contain-paint perspective-dramatic -space-x-2
+not-hover:opacity-50 [color:red] [color:red] [color:red]	not-hover:opacity-50 [color:red]
+slashed-zero slashed-zero	slashed-zero
+lowercase ease-linear skew-3	lowercase ease-linear skew-3
+normal-case normal-case normal-case normal-case ms-1	normal-case ms-1
+diagonal-fractions diagonal-fractions diagonal-fractions origin-(--radix-popover-content-transform-origin)	diagonal-fractions origin-(--radix-popover-content-transform-origin)
+fixed size-4 static indent-4	size-4 static indent-4
+from-red-500 contain-none from-[#fff]	contain-none from-[#fff]
+tab-4 snap-start subpixel-antialiased tab-4 tab-4 ms-1	snap-start subpixel-antialiased tab-4 ms-1
+table-auto focus-visible:border-ring border-red-500 dark:data-[state=active]:border-input border-spacing-x-1	table-auto focus-visible:border-ring border-red-500 dark:data-[state=active]:border-input border-spacing-x-1
+perspective-dramatic perspective-dramatic perspective-dramatic font-['Inter']	perspective-dramatic font-['Inter']
+overscroll-contain overscroll-contain overscroll-contain overscroll-contain overscroll-contain	overscroll-contain
+contain-paint contain-none contain-paint contain-none contain-size contain-paint	contain-paint contain-none contain-paint contain-none contain-size contain-paint
+[mask-type:luminance] [mask-type:luminance] [mask-type:luminance] [mask-type:luminance]	[mask-type:luminance]
+backface-hidden backface-hidden backface-hidden backface-hidden backface-hidden	backface-hidden
+cursor-[url(hand.cur),_pointer] outline-none outline-[3px] peer-disabled:cursor-not-allowed	cursor-[url(hand.cur),_pointer] outline-none outline-[3px] peer-disabled:cursor-not-allowed
+gap-y-0.5 truncate *:data-[slot=select-value]:gap-2 ms-1 w-full gap-1	truncate *:data-[slot=select-value]:gap-2 ms-1 w-full gap-1
+grow-0 grow-[2] left-[50%] grow grow grow-[2]	left-[50%] grow-[2]
+from-10% from-10% invisible from-10% not-sr-only from-red-500	invisible from-10% not-sr-only from-red-500
+tracking-tight focus:z-10 tracking-tight left-[50%]	focus:z-10 tracking-tight left-[50%]
+contrast-125 placeholder-gray-400	contrast-125 placeholder-gray-400
+border-[length:2px] border-[length:2px] border-[length:2px] border-[length:2px]	border-[length:2px]
+overline data-[inset]:pl-8 py-1.5 pl-8 pl-8 pl-8	overline data-[inset]:pl-8 py-1.5 pl-8
+size-4 static font-['Inter'] static static	size-4 font-['Inter'] static
+h-full group-data-[orientation=horizontal]/tabs:after:h-0.5 h-screen h-px translate-none data-[size=sm]:h-8	group-data-[orientation=horizontal]/tabs:after:h-0.5 h-px translate-none data-[size=sm]:h-8
+diagonal-fractions diagonal-fractions	diagonal-fractions
+blur fill-current	blur fill-current
+[&.is-dragging]:cursor-grabbing disabled:cursor-not-allowed bg-[length:200px] cursor-[url(hand.cur),_pointer] cursor-[url(hand.cur),_pointer] disabled:cursor-not-allowed	[&.is-dragging]:cursor-grabbing bg-[length:200px] cursor-[url(hand.cur),_pointer] disabled:cursor-not-allowed
+font-['Inter'] font-medium font-['Inter']	font-['Inter']
+data-[state=checked]:translate-x-[calc(100%-2px)] [&>[role=checkbox]]:translate-y-[2px]	data-[state=checked]:translate-x-[calc(100%-2px)] [&>[role=checkbox]]:translate-y-[2px]
+delay-150 delay-150 select-none delay-150 file:h-7 delay-150	select-none file:h-7 delay-150
+contain-paint mask-radial-[100%_100%] mask-linear-from-20% mask-[url(/m.png)]	contain-paint mask-radial-[100%_100%] mask-linear-from-20% mask-[url(/m.png)]
+start-4 start-4 start-4 size-4	start-4 size-4
+subpixel-antialiased subpixel-antialiased z-50	subpixel-antialiased z-50
+fixed clear-both fixed	clear-both fixed
+col-[1/3] col-span-2 col-start-2 col-end-3	col-span-2 col-start-2 col-end-3
+backface-hidden backface-hidden backface-hidden backface-hidden box-border	backface-hidden box-border
+diagonal-fractions text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)]	diagonal-fractions text-[length:var(--x)]
+@container @container-size @container-size	@container-size
+object-cover my-1 my-1 my-1 items-start	object-cover my-1 items-start
+w-[calc(100%-theme(spacing.4))] w-full w-1/2 w-[calc(100%-theme(spacing.4))] w-[calc(100%-theme(spacing.4))] data-[orientation=horizontal]:w-full	w-[calc(100%-theme(spacing.4))] data-[orientation=horizontal]:w-full
+indent-4 origin-(--radix-tooltip-content-transform-origin) indent-4	origin-(--radix-tooltip-content-transform-origin) indent-4
+slashed-zero slashed-zero static slashed-zero slashed-zero slashed-zero	static slashed-zero
+focus-visible:z-10 bg-[length:200px] overscroll-contain overscroll-contain overscroll-contain	focus-visible:z-10 bg-[length:200px] overscroll-contain
+align-[4px] align-[4px]	align-[4px]
+saturate-150 mask-t-from-50% contrast-125 items-baseline-last contrast-125	saturate-150 mask-t-from-50% items-baseline-last contrast-125
+data-[inset]:pl-8 pl-2 pe-1 pl-2 pl-8	data-[inset]:pl-8 pe-1 pl-8
+h-[1.15rem] ] ] ] ]	h-[1.15rem] ] ] ] ]
+@container-size @container-size snap-mandatory @container-normal @container-size	snap-mandatory @container-size
+tab-4 tab-4 tab-4 tab-4 font-medium tab-4	font-medium tab-4
+static auto-cols-fr	static auto-cols-fr
+@container-normal fill-primary fill-none overflow-hidden fill-primary	@container-normal overflow-hidden fill-primary
+bg-[length:200px] list-item list-item	bg-[length:200px] list-item
+saturate-150 saturate-150 list-inside saturate-150 saturate-150 skew-x-6	list-inside saturate-150 skew-x-6
+normal-case normal-case normal-case tracking-tight	normal-case tracking-tight
+select-none select-none select-none select-none	select-none
+break-inside-avoid absolute absolute	break-inside-avoid absolute
+backface-hidden backface-hidden invisible data-[state=closed]:zoom-out-95	backface-hidden invisible data-[state=closed]:zoom-out-95
+tracking-tight text-[length:var(--x)] tracking-tight invisible	text-[length:var(--x)] tracking-tight invisible
+aria-invalid:ring-destructive/20 focus-visible:ring-destructive/20 blur object-cover ring-offset-background	aria-invalid:ring-destructive/20 focus-visible:ring-destructive/20 blur object-cover ring-offset-background
+overline normal-case box-border tab-4	overline normal-case box-border tab-4
+contrast-125 touch-pinch-zoom tracking-tight tracking-tight	contrast-125 touch-pinch-zoom tracking-tight
+auto-rows-[100px] auto-cols-fr	auto-rows-[100px] auto-cols-fr
+absolute absolute absolute fade-in-0	absolute fade-in-0
+relative bottom-full group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	relative bottom-full group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+left-[50%] -left-full left-[50%] saturate-150 [mask-type:luminance]	left-[50%] saturate-150 [mask-type:luminance]
+line-clamp-1 list-item from-red-500 from-10% from-red-500 from-red-500	line-clamp-1 list-item from-10% from-red-500
+fixed hue-rotate-90 blur fixed delay-150	hue-rotate-90 blur fixed delay-150
+[color:red] py-0.5 [color:red] [color:red]	py-0.5 [color:red]
+absolute @container-size [mask-type:luminance] contrast-125 contrast-125 contrast-125	absolute @container-size [mask-type:luminance] contrast-125
+overscroll-contain -order-2 order-none order-1	overscroll-contain order-1
+data-[inset]:pl-8 pl-2 pl-8 data-[inset]:pl-8 data-[inset]:pl-8	pl-8 data-[inset]:pl-8
+overline @container @container-size @container @container	overline @container
+saturate-150 saturate-150 overflow-x-hidden saturate-150 data-[state=closed]:zoom-out-95	overflow-x-hidden saturate-150 data-[state=closed]:zoom-out-95
+indent-4 hue-rotate-90	indent-4 hue-rotate-90
+table-auto table-auto table-auto	table-auto
+fixed fixed box-border	fixed box-border
+inline-full cursor-pointer space-y-0 inline	inline-full cursor-pointer space-y-0 inline
+break-all break-inside-avoid break-inside-avoid grow ring-[#fff]	break-all break-inside-avoid grow ring-[#fff]
+text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)]	text-[length:var(--x)]
+overline truncate truncate	overline truncate
+auto-rows-min auto-rows-min mask-none auto-cols-fr	auto-rows-min mask-none auto-cols-fr
+container focus:ring-2	container focus:ring-2
+auto-cols-fr box-border backface-hidden backface-hidden backface-hidden	auto-cols-fr box-border backface-hidden
+ring-[3px] break-inside-avoid break-keep	ring-[3px] break-inside-avoid break-keep
+not-sr-only origin-(--radix-dropdown-menu-content-transform-origin) not-sr-only	origin-(--radix-dropdown-menu-content-transform-origin) not-sr-only
+z-50 -z-10 clear-both slashed-zero	-z-10 clear-both slashed-zero
+text-[length:var(--x)] overline text-[length:var(--x)] text-[length:var(--x)]	overline text-[length:var(--x)]
+ms-1 truncate truncate truncate z-[999]	ms-1 truncate z-[999]
+break-keep break-inside-avoid truncate isolation-auto break-after-page	break-keep break-inside-avoid truncate isolation-auto break-after-page
+clear-both clear-both clear-both clear-both	clear-both
+from-red-500 from-red-500 line-clamp-[7] from-[#fff] from-10% from-10%	line-clamp-[7] from-[#fff] from-10%
+placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400	placeholder-gray-400
+my-1 hover:opacity-100	my-1 hover:opacity-100
+-space-x-2 space-y-1.5	-space-x-2 space-y-1.5
+isolate isolate hue-rotate-90 line-clamp-3	isolate hue-rotate-90 line-clamp-3
+size-4 perspective-dramatic space-y-0 size-4 size-4 size-4	perspective-dramatic space-y-0 size-4
+*:data-[slot=select-value]:gap-2 h-full truncate auto-rows-min	*:data-[slot=select-value]:gap-2 h-full truncate auto-rows-min
+tracking-tight list-disc space-y-1.5	tracking-tight list-disc space-y-1.5
+fill-primary scheme-dark relative font-medium relative relative	fill-primary scheme-dark font-medium relative
+left-[50%] left-1/2 -left-full	-left-full
+backdrop-saturate-100 backdrop-invert-0 backdrop-saturate-100 select-none to-green-500/50	backdrop-invert-0 backdrop-saturate-100 select-none to-green-500/50
+ms-1 ms-1 ms-1 ms-1 ms-1	ms-1
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	[mask-image:linear-gradient(black,transparent)]
+blur truncate snap-mandatory blur blur blur	truncate snap-mandatory blur
+data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=closed]:fade-out-0	data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=closed]:fade-out-0
+from-red-500 not-has-[svg]:p-2 auto-rows-[100px] from-10% from-red-500	not-has-[svg]:p-2 auto-rows-[100px] from-10% from-red-500
+-left-full left-[50%] left-[50%]	left-[50%]
+to-green-500/50 to-green-500/50 to-green-500/50 to-green-500/50 to-green-500/50	to-green-500/50
+normal-case disabled:opacity-50 touch-pinch-zoom touch-pinch-zoom	normal-case disabled:opacity-50 touch-pinch-zoom
+z-[999] break-keep z-auto z-50 z-auto	break-keep z-auto
+relative slashed-zero container container	relative slashed-zero container
+auto-cols-fr auto-rows-[100px] auto-rows-[100px] auto-cols-fr -left-full	auto-rows-[100px] auto-cols-fr -left-full
+font-medium to-green-500/50 from-[#fff] font-mono data-[state=closed]:fade-out-0	font-medium to-green-500/50 from-[#fff] font-mono data-[state=closed]:fade-out-0
+overscroll-contain ms-1 ms-1 pl-2	overscroll-contain ms-1 pl-2
+] ] left-[50%] ]	] ] left-[50%] ]
+sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2 sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2	sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2
+font-medium pt-0 pt-0	font-medium pt-0
+focus-visible:z-10 focus-visible:z-10 focus-visible:z-10 -z-10	focus-visible:z-10 -z-10
+group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] space-y-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] lowercase	space-y-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] lowercase
+slashed-zero pe-1 pe-1 pe-1	slashed-zero pe-1
+fill-foreground overscroll-contain	fill-foreground overscroll-contain
+backdrop-opacity-50 backdrop-saturate-100	backdrop-opacity-50 backdrop-saturate-100
+isolate data-[orientation=horizontal]:w-full	isolate data-[orientation=horizontal]:w-full
+data-[orientation=horizontal]:h-full box-border bg-[length:200px]	data-[orientation=horizontal]:h-full box-border bg-[length:200px]
+@container-normal size-2 @container-size	size-2 @container-size
+left-1/2 left-1/2	left-1/2
+py-6 py-4 align-middle py-6 font-mono	align-middle py-6 font-mono
+text-[length:var(--x)] [&_tr:last-child]:border-0 text-[length:var(--x)] my-1 text-[length:var(--x)] start-4	[&_tr:last-child]:border-0 my-1 text-[length:var(--x)] start-4
+invisible data-[state=closed]:zoom-out-95 invisible invisible invisible	data-[state=closed]:zoom-out-95 invisible
+focus-visible:outline-ring overflow-hidden opacity-[.67] not-hover:opacity-50 opacity-[.67]	focus-visible:outline-ring overflow-hidden not-hover:opacity-50 opacity-[.67]
+peer-disabled:cursor-not-allowed cursor-default cursor-[url(hand.cur),_pointer]	peer-disabled:cursor-not-allowed cursor-[url(hand.cur),_pointer]
+backface-hidden overflow-y-auto backface-hidden	overflow-y-auto backface-hidden
+grow-[2] grow-0 grow grow overscroll-contain	grow overscroll-contain
+absolute overline start-4	absolute overline start-4
+ease-[cubic-bezier(0.95,0.05,0.795,0.035)] mask-conic-from-black	ease-[cubic-bezier(0.95,0.05,0.795,0.035)] mask-conic-from-black
+backdrop-invert-0 inline-block backdrop-saturate-100 col-span-2 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	backdrop-invert-0 inline-block backdrop-saturate-100 col-span-2 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+left-1/2 left-[50%] -left-full left-[50%]	left-[50%]
+bottom-full bottom-full overline bottom-full bottom-full	overline bottom-full
+to-green-500/50 overflow-x-auto to-green-500/50 to-green-500/50 fixed to-green-500/50	overflow-x-auto fixed to-green-500/50
+py-1 @container-size	py-1 @container-size
+mbs-3 w-[calc(100%-theme(spacing.4))] w-3xs opacity-[.67]	mbs-3 w-3xs opacity-[.67]
+translate-y-0.5 -translate-x-1/2 select-none translate-y-0.5 data-[side=right]:translate-x-1 [&>[role=checkbox]]:translate-y-[2px]	-translate-x-1/2 select-none translate-y-0.5 data-[side=right]:translate-x-1 [&>[role=checkbox]]:translate-y-[2px]
+select-none perspective-dramatic gap-3 has-[>svg]:gap-x-3 ]	select-none perspective-dramatic gap-3 has-[>svg]:gap-x-3 ]
+py-6 saturate-150 py-1 bg-[length:200px]	saturate-150 py-1 bg-[length:200px]
+perspective-dramatic data-[state=closed]:zoom-out-95 saturate-150 perspective-dramatic perspective-dramatic	data-[state=closed]:zoom-out-95 saturate-150 perspective-dramatic
+absolute absolute absolute absolute	absolute
+overscroll-contain overscroll-contain outline-ring/50 overscroll-contain	outline-ring/50 overscroll-contain
+space-y-1.5 -outline-offset-1 left-1/2	space-y-1.5 -outline-offset-1 left-1/2
+origin-top-left border-[length:2px] border-[length:2px] border-[length:2px] border-[length:2px] border-[length:2px]	origin-top-left border-[length:2px]
+bg-[length:200px] pl-8 data-[inset]:pl-8	bg-[length:200px] pl-8 data-[inset]:pl-8
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95
+size-4 size-4 fixed size-4 size-4 *:data-[slot=select-value]:items-center	fixed size-4 *:data-[slot=select-value]:items-center
+grow-[2] backface-hidden grow-[2] grow-[2] grow	backface-hidden grow
+items-start *:data-[slot=select-value]:items-center items-start	*:data-[slot=select-value]:items-center items-start
+table placeholder-gray-400 table table-auto	placeholder-gray-400 table table-auto
+delay-150 backface-hidden data-[state=closed]:fade-out-0 delay-150 delay-150	backface-hidden data-[state=closed]:fade-out-0 delay-150
+border-none ease-in-out ease-in-out ease-[cubic-bezier(0.95,0.05,0.795,0.035)]	border-none ease-[cubic-bezier(0.95,0.05,0.795,0.035)]
+size-4 [color:red]	size-4 [color:red]
+grow-0 diagonal-fractions diagonal-fractions diagonal-fractions ]	grow-0 diagonal-fractions ]
+static static	static
+ms-1 ms-1 ms-1 ms-1 ms-1	ms-1
+outline-dashed translate-none	outline-dashed translate-none
+origin-[33%_75%] gap-1.5 text-[length:var(--x)] perspective-dramatic	origin-[33%_75%] gap-1.5 text-[length:var(--x)] perspective-dramatic
+pl-2 data-[inset]:pl-8 align-middle	pl-2 data-[inset]:pl-8 align-middle
+[color:red] [color:red] [color:red]	[color:red]
+z-10 border-[length:2px] to-green-500/50	z-10 border-[length:2px] to-green-500/50
+list-item list-inside start-4 fill-red-500	list-item list-inside start-4 fill-red-500
+!p-4 break-keep p-4 touch-pinch-zoom	!p-4 break-keep p-4 touch-pinch-zoom
+-left-full hue-rotate-90 hue-rotate-90 hue-rotate-90 hue-rotate-90 hue-rotate-90	-left-full hue-rotate-90
+@container-normal @container backface-hidden data-[state=closed]:fade-out-0 @container-normal fill-none	backface-hidden data-[state=closed]:fade-out-0 @container-normal fill-none
+overflow-x-auto static static static static static	overflow-x-auto static
+object-cover overflow-x-auto placeholder-gray-400	object-cover overflow-x-auto placeholder-gray-400
+text-[length:var(--x)] placeholder-gray-400 text-[length:var(--x)] text-[length:var(--x)]	placeholder-gray-400 text-[length:var(--x)]
+border-[length:2px] delay-150 ]	border-[length:2px] delay-150 ]
+perspective-dramatic perspective-dramatic indent-4 perspective-dramatic perspective-dramatic	indent-4 perspective-dramatic
+snap-x snap-mandatory snap-mandatory	snap-x snap-mandatory
+hue-rotate-90 *:[span]:last:items-center hue-rotate-90 hue-rotate-90 hue-rotate-90	*:[span]:last:items-center hue-rotate-90
+align-middle align-[4px] align-middle ring-0 py-1	align-middle ring-0 py-1
+saturate-150 saturate-150	saturate-150
+container container container table-auto container	table-auto container
+fill-current opacity-50 origin-[33%_75%] fill-current normal-case not-sr-only	opacity-50 origin-[33%_75%] fill-current normal-case not-sr-only
+opacity-[.67] w-1/2 w-1/2 w-full @container-normal	opacity-[.67] w-full @container-normal
+fixed snap-mandatory	fixed snap-mandatory
+tab-4 start-4 start-4 subpixel-antialiased list-item col-span-full	tab-4 start-4 subpixel-antialiased list-item col-span-full
+contain-size [mask-type:luminance] contain-paint	contain-size [mask-type:luminance] contain-paint
+fixed fixed fixed	fixed
+focus-visible:ring-4 focus-visible:ring-4 ring-background order-first dark:aria-invalid:ring-destructive/40	focus-visible:ring-4 ring-background order-first dark:aria-invalid:ring-destructive/40
+indent-4 mask-none mask-conic-from-black mask-radial-at-top mask-alpha mask-alpha	indent-4 mask-none mask-conic-from-black mask-radial-at-top mask-alpha
+fade-in-0 fade-in-0 translate-y-[-50%] data-[state=closed]:fade-out-0 ring-[3px] grow	fade-in-0 fade-in-0 translate-y-[-50%] data-[state=closed]:fade-out-0 ring-[3px] grow
+mask-radial-[100%_100%] snap-mandatory start-4 -skew-y-12 inline-full clear-both	mask-radial-[100%_100%] snap-mandatory start-4 -skew-y-12 inline-full clear-both
+ease-[cubic-bezier(0.95,0.05,0.795,0.035)] ease-out group-data-[disabled=true]:opacity-50 pt-0 align-[4px]	ease-out group-data-[disabled=true]:opacity-50 pt-0 align-[4px]
+scheme-dark box-border select-none box-border box-border	scheme-dark select-none box-border
+text-[length:var(--x)] auto-rows-[100px] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	text-[length:var(--x)] auto-rows-[100px] [mask-image:linear-gradient(black,transparent)]
+pt-0 contain-none py-1 py-1.5	contain-none py-1.5
+pt-0 gap-y-0.5 gap-1 gap-2	pt-0 gap-2
+order-none from-red-500	order-none from-red-500
+h-full sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2 py-4 normal-case text-[length:var(--x)] sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2	h-full py-4 normal-case text-[length:var(--x)] sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2
+-left-full focus:ring-2 dark:aria-invalid:ring-destructive/40 grow *:data-[slot=avatar]:ring-2 ring-[#fff]	-left-full focus:ring-2 dark:aria-invalid:ring-destructive/40 grow *:data-[slot=avatar]:ring-2 ring-[#fff]
+box-border data-[state=closed]:fade-out-0 fade-in-0	box-border data-[state=closed]:fade-out-0 fade-in-0
+my-1 saturate-150 saturate-150 saturate-150	my-1 saturate-150
+fixed -order-2 font-medium inline fixed fixed	-order-2 font-medium inline fixed
+clear-both indent-4 ms-1 clear-both clear-both clear-both	indent-4 ms-1 clear-both
+absolute absolute *:data-[slot=select-value]:gap-2 absolute absolute	*:data-[slot=select-value]:gap-2 absolute
+py-2 py-1 py-1.5 ms-1 py-3	ms-1 py-3
+tracking-tight line-clamp-[7] line-clamp-3 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	tracking-tight line-clamp-3 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+border-[length:2px] from-red-500 border-[length:2px] font-medium border-[length:2px]	from-red-500 font-medium border-[length:2px]
+inline-block start-4	inline-block start-4
+size-4 size-4 size-4 size-4 size-4	size-4
+clear-both fixed fixed group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] [mask-type:luminance] ms-1	clear-both fixed group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] [mask-type:luminance] ms-1
+group-data-[disabled=true]:opacity-50 border-[length:2px] border-[length:2px] border-[length:2px] h-[var(--radix-select-trigger-height)]	group-data-[disabled=true]:opacity-50 border-[length:2px] h-[var(--radix-select-trigger-height)]
+ring-[3px] ring-0 ring-[#fff] *:data-[slot=avatar]:ring-background data-[state=closed]:zoom-out-95 origin-center	ring-0 ring-[#fff] *:data-[slot=avatar]:ring-background data-[state=closed]:zoom-out-95 origin-center
+pt-0 pt-0 pt-0 pt-0 pt-0 pt-0	pt-0
+mask-radial-from-10 mask-conic-90 align-[4px]	mask-radial-from-10 mask-conic-90 align-[4px]
+isolate line-clamp-3 snap-x	isolate line-clamp-3 snap-x
+origin-center box-border container origin-(--radix-dropdown-menu-content-transform-origin)	box-border container origin-(--radix-dropdown-menu-content-transform-origin)
+left-1/2 left-1/2 left-[50%]	left-[50%]
+bg-[length:200px] bg-[length:200px] bg-[length:200px] bg-[length:200px] bg-[length:200px] bg-[length:200px]	bg-[length:200px]
+clear-both inline-flex static inline-full	clear-both inline-flex static inline-full
+h-auto [color:red] file:h-7 h-[var(--radix-select-trigger-height)] h-dvh -space-x-2	[color:red] file:h-7 h-dvh -space-x-2
+slashed-zero slashed-zero	slashed-zero
+py-2 origin-(--radix-select-content-transform-origin)	py-2 origin-(--radix-select-content-transform-origin)
+select-none select-none select-none select-none select-none select-none	select-none
+translate-x-2 relative	translate-x-2 relative
+indent-4 indent-4 p-0.5	indent-4 p-0.5
+truncate gap-4 gap-4 gap-2 mask-radial-[100%_100%] gap-[--spacing(var(--gap))]	truncate mask-radial-[100%_100%] gap-[--spacing(var(--gap))]
+opacity-50 items-baseline-last	opacity-50 items-baseline-last
+font-['Inter'] data-[state=checked]:border-primary [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	font-['Inter'] data-[state=checked]:border-primary [mask-image:linear-gradient(black,transparent)]
+text-[length:var(--x)] text-[length:var(--x)] box-border text-[length:var(--x)] ease-out	box-border text-[length:var(--x)] ease-out
+p-px p-1 p-[ !p-4 !p-4 p-1	p-[ !p-4 p-1
+] ease-linear ] ]	] ease-linear ] ]
+file:inline-flex container container container	file:inline-flex container
+-skew-y-12 left-[50%] bottom-full	-skew-y-12 left-[50%] bottom-full
+pe-1 pe-1	pe-1
+py-0.5 py-6 tracking-tight from-10% saturate-150	py-6 tracking-tight from-10% saturate-150
+-skew-y-12 pe-1	-skew-y-12 pe-1
+text-[length:var(--x)] text-[length:var(--x)] line-clamp-[7] text-[length:var(--x)]	line-clamp-[7] text-[length:var(--x)]
+w-full w-full	w-full
+contrast-125 contrast-125 contrast-125 contrast-125 table-cell	contrast-125 table-cell
+[color:red] box-border clear-both scheme-dark box-border	[color:red] clear-both scheme-dark box-border
+box-border overflow-y-auto	box-border overflow-y-auto
+saturate-150 saturate-150 saturate-150 saturate-150 order-first saturate-150	order-first saturate-150
+text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)]	text-[length:var(--x)]
+container [color:red] container container container	[color:red] container
+diagonal-fractions diagonal-fractions diagonal-fractions diagonal-fractions diagonal-fractions diagonal-fractions	diagonal-fractions
+*:data-[slot=avatar]:ring-2 ring-[3px] start-4 truncate ring-[3px]	*:data-[slot=avatar]:ring-2 start-4 truncate ring-[3px]
+touch-pan-x truncate mbs-3 mbs-3 mbs-3	touch-pan-x truncate mbs-3
+mask-alpha tracking-tight	mask-alpha tracking-tight
+font-mono data-[state=open]:fade-in-0 font-medium [mask-type:luminance]	font-mono data-[state=open]:fade-in-0 font-medium [mask-type:luminance]
+] ] col-span-full ] ]	] ] col-span-full ] ]
+contain-size placeholder-gray-400 outline-[3px] fill-foreground	contain-size placeholder-gray-400 outline-[3px] fill-foreground
+overscroll-contain data-[side=right]:translate-x-1 snap-start delay-150 overscroll-contain overscroll-contain	data-[side=right]:translate-x-1 snap-start delay-150 overscroll-contain
+[mask-type:luminance] [mask-type:luminance] absolute [mask-type:luminance] touch-pan-x [mask-type:luminance]	absolute touch-pan-x [mask-type:luminance]
+py-2 touch-none	py-2 touch-none
+my-1 my-1 delay-150 my-1	delay-150 my-1
+mbs-3 saturate-150 mbs-3 lowercase	saturate-150 mbs-3 lowercase
+not-sr-only not-sr-only not-sr-only translate-3d not-sr-only origin-(--radix-tooltip-content-transform-origin)	translate-3d not-sr-only origin-(--radix-tooltip-content-transform-origin)
+-translate-x-1/2 fill-primary	-translate-x-1/2 fill-primary
+opacity-50 fill-foreground fill-current	opacity-50 fill-current
+] ] ] ] table-auto	] ] ] ] table-auto
+backdrop-blur-sm perspective-origin-top backdrop-filter backdrop-invert-0 backdrop-blur-sm backdrop-invert-0	perspective-origin-top backdrop-filter backdrop-blur-sm backdrop-invert-0
+skew-3 -skew-y-12	skew-3 -skew-y-12
+bottom-0 bottom-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	bottom-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+origin-center skew-3 pt-0 indent-4 pt-0 pt-0	origin-center skew-3 indent-4 pt-0
+mask-radial-from-10 space-y-1.5 ease-linear ]	mask-radial-from-10 space-y-1.5 ease-linear ]
+focus-visible:outline-1 w-3xs isolate w-full w-[calc(100%-theme(spacing.4))] peer-disabled:cursor-not-allowed	focus-visible:outline-1 isolate w-[calc(100%-theme(spacing.4))] peer-disabled:cursor-not-allowed
+font-medium font-mono font-medium font-medium font-medium	font-mono font-medium
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	[mask-image:linear-gradient(black,transparent)]
+dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent border-separate overflow-x-hidden	dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent border-separate overflow-x-hidden
+tab-4 my-1 tab-4 contrast-125 backdrop-blur-sm	my-1 tab-4 contrast-125 backdrop-blur-sm
+truncate clear-both truncate table	clear-both truncate table
+mbs-3 placeholder-gray-400 mbs-3	placeholder-gray-400 mbs-3
+lowercase not-sr-only	lowercase not-sr-only
+start-4 start-4 delay-150 start-4 container start-4	delay-150 container start-4
+indent-4 mbs-3 mbs-3 py-1.5 mbs-3	indent-4 py-1.5 mbs-3
+@container @container-normal subpixel-antialiased bg-[length:200px]	@container-normal subpixel-antialiased bg-[length:200px]
+line-clamp-1 p-0.5 line-clamp-1 skew-3 tracking-tight line-clamp-3	p-0.5 skew-3 tracking-tight line-clamp-3
+subpixel-antialiased [mask-type:luminance] subpixel-antialiased subpixel-antialiased	[mask-type:luminance] subpixel-antialiased
+lowercase lowercase pt-0	lowercase pt-0
+py-3 break-keep break-after-page break-keep	py-3 break-after-page break-keep
+not-sr-only touch-pinch-zoom data-[state=closed]:zoom-out-95 touch-none	not-sr-only data-[state=closed]:zoom-out-95 touch-none
+pe-1 pe-1	pe-1
+ease-out -left-full touch-none -outline-offset-1	ease-out -left-full touch-none -outline-offset-1
+border-[length:2px] table-cell	border-[length:2px] table-cell
+p-2 bg-[length:200px] p-4 p-unknown not-has-[svg]:p-2 p-0.5	bg-[length:200px] p-unknown not-has-[svg]:p-2 p-0.5
+mbs-3 mbs-3 mask-radial-at-top mbs-3	mask-radial-at-top mbs-3
+cursor-default [mask-type:luminance] slashed-zero	cursor-default [mask-type:luminance] slashed-zero
+bg-[length:200px] perspective-dramatic bg-[length:200px]	perspective-dramatic bg-[length:200px]
+fixed indent-4 border-spacing-x-1 file:border-0	fixed indent-4 border-spacing-x-1 file:border-0
+pe-1 pe-1 pe-1 pe-1 col-end-3 backface-hidden	pe-1 col-end-3 backface-hidden
+gap-x-6 inline-full inline-flex	gap-x-6 inline-full inline-flex
+snap-start snap-mandatory snap-start tab-4 snap-start data-[state=closed]:fade-out-0	snap-mandatory tab-4 snap-start data-[state=closed]:fade-out-0
+pt-0 overflow-y-auto pt-0 pt-0	overflow-y-auto pt-0
+py-3 py-0.5	py-0.5
+data-[size=default]:h-9 file:h-7	data-[size=default]:h-9 file:h-7
+break-all break-words normal-case break-keep	normal-case break-keep
+my-1 my-1 my-1	my-1
+container py-1 container container container	py-1 container
+not-has-[svg]:p-2 p-1	not-has-[svg]:p-2 p-1
+not-sr-only not-sr-only not-sr-only not-sr-only	not-sr-only
+container subpixel-antialiased container container	subpixel-antialiased container
+pe-1 to-green-500/50 pe-1 pe-1 pe-1 pe-1	to-green-500/50 pe-1
+static p-6 static	p-6 static
+[mask-type:luminance] pl-2	[mask-type:luminance] pl-2
+break-after-page opacity-50 container container container	break-after-page opacity-50 container
+data-[state=checked]:translate-x-[calc(100%-2px)] backdrop-blur-sm backdrop-saturate-100	data-[state=checked]:translate-x-[calc(100%-2px)] backdrop-blur-sm backdrop-saturate-100
+ring-offset-2 bg-[length:200px] grow bg-[length:200px] bg-[length:200px] bg-[length:200px]	ring-offset-2 grow bg-[length:200px]
+relative normal-case relative	normal-case relative
+start-4 fill-red-500 fill-none -translate-x-1/2	start-4 fill-none -translate-x-1/2
+-skew-y-12 -skew-y-12 isolate skew-3 backface-hidden skew-x-6	-skew-y-12 isolate skew-3 backface-hidden skew-x-6
+@container-size @container-size ms-1 [&.is-dragging]:cursor-grabbing object-cover @container-normal	ms-1 [&.is-dragging]:cursor-grabbing object-cover @container-normal
+saturate-150 isolate lowercase ] z-auto	saturate-150 isolate lowercase ] z-auto
+align-middle mask-center mask-radial-from-10 mask-x-from-red-500	align-middle mask-center mask-radial-from-10 mask-x-from-red-500
+-outline-offset-1 data-[state=closed]:zoom-out-95 -outline-offset-1	data-[state=closed]:zoom-out-95 -outline-offset-1
+diagonal-fractions tab-4 break-all	diagonal-fractions tab-4 break-all
+translate-x-2 blur start-4	translate-x-2 blur start-4
+!p-4 p-4 p-6 hue-rotate-90 !p-4 p-1	hue-rotate-90 !p-4 p-1
+scheme-dark items-baseline-last scheme-dark scheme-dark scheme-dark scheme-dark	items-baseline-last scheme-dark
+scheme-dark perspective-dramatic scheme-dark	perspective-dramatic scheme-dark
+overflow-x-auto clear-both origin-[33%_75%] static overflow-y-auto	overflow-x-auto clear-both origin-[33%_75%] static overflow-y-auto
+[color:red] [color:red] [color:red] overscroll-contain [color:red] [color:red]	overscroll-contain [color:red]
+overline overline overline focus:z-10 overline	focus:z-10 overline
+@container-size @container	@container
+] ] ] ] saturate-150	] ] ] ] saturate-150
+border-[length:2px] backdrop-invert-0	border-[length:2px] backdrop-invert-0
+to-90% scheme-dark col-auto to-green-500/50 to-green-500/50	to-90% scheme-dark col-auto to-green-500/50
+object-cover object-cover object-cover *:[span]:last:items-center break-keep	object-cover *:[span]:last:items-center break-keep
+indent-4 indent-4 indent-4 *:[span]:last:items-center indent-4	*:[span]:last:items-center indent-4
+list-item perspective-dramatic perspective-dramatic perspective-dramatic perspective-dramatic perspective-dramatic	list-item perspective-dramatic
+@container-size break-keep to-green-500/50 @container-size @container	break-keep to-green-500/50 @container
+grow-[2] grow-0	grow-0
+subpixel-antialiased auto-rows-min fill-none subpixel-antialiased subpixel-antialiased	auto-rows-min fill-none subpixel-antialiased
+mask-b-to-10 mask-cover mask-radial-at-top mask-circle my-1 mask-radial-at-top	mask-b-to-10 mask-cover mask-circle my-1 mask-radial-at-top
+mask-radial-[100%_100%] mask-radial-[100%_100%] mask-linear-from-20% mask-radial-[100%_100%]	mask-linear-from-20% mask-radial-[100%_100%]
+box-border box-border box-border	box-border
+isolate pt-0 saturate-150	isolate pt-0 saturate-150
+pt-0 [mask-type:luminance] tracking-tight	pt-0 [mask-type:luminance] tracking-tight
+fixed data-[state=closed]:zoom-out-95 skew-x-6 fixed	data-[state=closed]:zoom-out-95 skew-x-6 fixed
+lowercase line-clamp-1 lowercase @container	line-clamp-1 lowercase @container
+to-green-500/50 to-green-500/50 to-green-500/50 start-4 contrast-125	to-green-500/50 start-4 contrast-125
+pl-8 pl-8 pl-8 pl-8 data-[inset]:pl-8	pl-8 data-[inset]:pl-8
+data-[state=checked]:translate-x-[calc(100%-2px)] scheme-dark from-[#fff] from-[#fff]	data-[state=checked]:translate-x-[calc(100%-2px)] scheme-dark from-[#fff]
+cursor-not-allowed peer-disabled:cursor-not-allowed peer-disabled:cursor-not-allowed	cursor-not-allowed peer-disabled:cursor-not-allowed
+ring-ring/50 tracking-tight ring-red-500/50 ring-red-500/50	tracking-tight ring-red-500/50
+space-y-0 p-6 p-px invisible items-start p-4!	space-y-0 p-px invisible items-start p-4!
+placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400	placeholder-gray-400
+from-red-500 indent-4	from-red-500 indent-4
+fixed fixed fixed fixed	fixed
+absolute contrast-125	absolute contrast-125
+overflow-x-hidden overflow-x-auto slashed-zero overflow-x-hidden overflow-hidden	slashed-zero overflow-hidden
+skew-3 snap-start	skew-3 snap-start
+ms-1 columns-2 columns-2 columns-2	ms-1 columns-2
+relative relative relative relative	relative
+break-all bg-[length:200px]	break-all bg-[length:200px]
+fixed tab-4	fixed tab-4
+perspective-dramatic perspective-dramatic perspective-dramatic perspective-dramatic diagonal-fractions	perspective-dramatic diagonal-fractions
+bottom-0 data-[state=closed]:zoom-out-95 overscroll-contain data-[state=closed]:zoom-out-95 diagonal-fractions data-[state=closed]:zoom-out-95	bottom-0 data-[state=closed]:zoom-out-95 overscroll-contain data-[state=closed]:zoom-out-95 diagonal-fractions data-[state=closed]:zoom-out-95
+line-clamp-1 line-clamp-1 line-clamp-[7] line-clamp-1 pl-8	line-clamp-1 pl-8
+skew-3 not-sr-only gap-(--gap) gap-3	skew-3 not-sr-only gap-3
+mbs-3 slashed-zero ease-initial mbs-3 mbs-3 mbs-3	slashed-zero ease-initial mbs-3
+table-cell table table	table
+overscroll-contain [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] mbs-3 snap-x	overscroll-contain [mask-image:linear-gradient(black,transparent)] mbs-3 snap-x
+fixed to-green-500/50	fixed to-green-500/50
+w-[calc(100%-theme(spacing.4))] isolate w-3xs	isolate w-3xs
+list-item [mask-type:luminance]	list-item [mask-type:luminance]
+gap-3 gap-4 gap-1.5 font-['Inter'] ring	gap-1.5 font-['Inter'] ring
+subpixel-antialiased subpixel-antialiased	subpixel-antialiased
+fixed diagonal-fractions diagonal-fractions diagonal-fractions diagonal-fractions	fixed diagonal-fractions
+break-after-page break-words break-keep	break-after-page break-keep
+indent-4 focus-visible:ring-4 focus-visible:ring-ring/50 ring-[3px]	indent-4 focus-visible:ring-4 focus-visible:ring-ring/50 ring-[3px]
+truncate col-auto col-start-2 fade-in-0 col-start-2	truncate col-auto fade-in-0 col-start-2
+fixed static fixed fixed	fixed
+pe-1 focus:ring-ring ring focus:ring-ring *:data-[slot=avatar]:ring-background	pe-1 ring focus:ring-ring *:data-[slot=avatar]:ring-background
+scheme-dark scheme-dark scheme-dark scheme-dark	scheme-dark
+touch-pan-x container backdrop-blur-sm	touch-pan-x container backdrop-blur-sm
+hover:opacity-100 opacity-50 opacity-50	hover:opacity-100 opacity-50
+not-sr-only not-sr-only to-green-500/50 not-sr-only not-sr-only	to-green-500/50 not-sr-only
+box-border [color:red] snap-start box-border	[color:red] snap-start box-border
+mbs-3 mbs-3 mbs-3 mbs-3 mbs-3	mbs-3
+cursor-not-allowed table-auto not-sr-only	cursor-not-allowed table-auto not-sr-only
+inline-grid font-['Inter']	inline-grid font-['Inter']
+truncate truncate truncate truncate truncate truncate	truncate
+fill-current saturate-150 backface-hidden slashed-zero indent-4	fill-current saturate-150 backface-hidden slashed-zero indent-4
+[color:red] [color:red] [color:red] [color:red]	[color:red]
+snap-x box-border box-border box-border auto-rows-[100px]	snap-x box-border auto-rows-[100px]
+border-[length:2px] border-[length:2px] border-[length:2px] border-[length:2px]	border-[length:2px]
+mask-alpha hue-rotate-90	mask-alpha hue-rotate-90
+to-green-500/50 backdrop-filter p-2 cursor-not-allowed	to-green-500/50 backdrop-filter p-2 cursor-not-allowed
+placeholder-gray-400 placeholder-gray-400 placeholder-gray-400	placeholder-gray-400
+outline clear-both	outline clear-both
+tracking-tight tracking-tight tracking-tight tracking-tight border-[length:2px] tracking-tight	border-[length:2px] tracking-tight
+*:[span]:last:items-center scheme-dark items-baseline-last indent-4 *:[span]:last:items-center	scheme-dark items-baseline-last indent-4 *:[span]:last:items-center
+py-6 backface-hidden fixed fixed fixed	py-6 backface-hidden fixed
+gap-(--gap) gap-2 gap-x-6	gap-2 gap-x-6
+scheme-dark 2xl:inline	scheme-dark 2xl:inline
+invisible align-middle snap-mandatory snap-mandatory	invisible align-middle snap-mandatory
+[color:red] ease-in-out ease-[cubic-bezier(0.95,0.05,0.795,0.035)] ease-linear	[color:red] ease-linear
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] invisible	[mask-image:linear-gradient(black,transparent)] invisible
+my-1 my-1 contain-none my-1 origin-center	contain-none my-1 origin-center
+overflow-hidden diagonal-fractions	overflow-hidden diagonal-fractions
+ms-1 [mask-image:linear-gradient(black,transparent)] to-green-500/50 -skew-y-12	ms-1 [mask-image:linear-gradient(black,transparent)] to-green-500/50 -skew-y-12
+origin-center origin-[33%_75%] origin-(--radix-popover-content-transform-origin)	origin-(--radix-popover-content-transform-origin)
+to-green-500/50 skew-x-6	to-green-500/50 skew-x-6
+slashed-zero slashed-zero slashed-zero table slashed-zero	table slashed-zero
+clear-both container container container cursor-not-allowed	clear-both container cursor-not-allowed
+pl-2 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	pl-2 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+grow-[2] hue-rotate-90	grow-[2] hue-rotate-90
+left-[50%] placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 size-4	left-[50%] placeholder-gray-400 size-4
+slashed-zero slashed-zero slashed-zero backdrop-opacity-50 from-red-500	slashed-zero backdrop-opacity-50 from-red-500
+bg-[length:200px] bg-[length:200px] mbs-3	bg-[length:200px] mbs-3
+font-mono touch-pan-x	font-mono touch-pan-x
+inline-full font-medium touch-pinch-zoom	inline-full font-medium touch-pinch-zoom
+relative static border-[length:2px]	static border-[length:2px]
+truncate delay-150	truncate delay-150
+not-sr-only contain-size auto-rows-[100px]	not-sr-only contain-size auto-rows-[100px]
+pe-1 pe-1 normal-case	pe-1 normal-case
+hue-rotate-90 hue-rotate-90 hue-rotate-90 hue-rotate-90 perspective-dramatic hue-rotate-90	perspective-dramatic hue-rotate-90
+scheme-dark to-green-500/50 scheme-dark container	to-green-500/50 scheme-dark container
+grow-0 data-[inset]:pl-8	grow-0 data-[inset]:pl-8
+fade-in-0 fade-in-0 data-[state=closed]:fade-out-0	fade-in-0 fade-in-0 data-[state=closed]:fade-out-0
+static left-[50%]	static left-[50%]
+normal-case normal-case	normal-case
+sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2 sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2 col-span-full col-start-2	sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2 col-span-full col-start-2
+truncate truncate truncate truncate truncate	truncate
+skew-3 truncate	skew-3 truncate
+ease-initial border-[length:2px]	ease-initial border-[length:2px]
+ring-offset-2 my-1 my-1	ring-offset-2 my-1
+w-3xs border-l-[3px]	w-3xs border-l-[3px]
+invisible slashed-zero grow-0 container subpixel-antialiased subpixel-antialiased	invisible slashed-zero grow-0 container subpixel-antialiased
+fade-in-0 items-baseline-last overflow-y-auto	fade-in-0 items-baseline-last overflow-y-auto
+absolute bg-[length:200px] absolute my-1 absolute absolute	bg-[length:200px] my-1 absolute
+group-data-[disabled=true]:opacity-50 z-10 ] disabled:opacity-50 contrast-125 group-data-[disabled=true]:opacity-50	z-10 ] disabled:opacity-50 contrast-125 group-data-[disabled=true]:opacity-50
+cursor-pointer space-y-1.5	cursor-pointer space-y-1.5
+start-4 hover:opacity-100 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 group-data-[disabled=true]:opacity-50 opacity-[.67]	start-4 hover:opacity-100 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 group-data-[disabled=true]:opacity-50 opacity-[.67]
+overflow-y-auto overflow-y-scroll py-4 my-1 overflow-y-auto	py-4 my-1 overflow-y-auto
+has-[>svg]:gap-x-3 scheme-dark snap-start	has-[>svg]:gap-x-3 scheme-dark snap-start
+list-image-none list-image-none list-item ]	list-image-none list-item ]
+ring-background ring-inset -mask-linear-12 focus-visible:ring-4 focus:ring-2	ring-background ring-inset -mask-linear-12 focus-visible:ring-4 focus:ring-2
+] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] align-top invisible	] [mask-image:linear-gradient(black,transparent)] align-top invisible
+py-0.5 py-1.5 py-1 py-1.5	py-1.5
+overflow-y-auto overflow-x-hidden	overflow-y-auto overflow-x-hidden
+hue-rotate-90 -translate-x-1/2 hue-rotate-90 hue-rotate-90 hue-rotate-90	-translate-x-1/2 hue-rotate-90
+placeholder-gray-400 scheme-dark	placeholder-gray-400 scheme-dark
+grow-[2] overline grow grow-[2] grow	overline grow
+group-data-[disabled=true]:opacity-50 contrast-125 contrast-125 contrast-125 contrast-125 size-4	group-data-[disabled=true]:opacity-50 contrast-125 size-4
+to-green-500/50 py-0.5 to-green-500/50 gap-1	py-0.5 to-green-500/50 gap-1
+truncate fixed tracking-tight data-[state=open]:fade-in-0 fill-primary tracking-tight	truncate fixed data-[state=open]:fade-in-0 fill-primary tracking-tight
+size-4 size-4 z-auto size-4 normal-case	z-auto size-4 normal-case
+clear-both skew-3	clear-both skew-3
+hue-rotate-90 bg-[length:200px]	hue-rotate-90 bg-[length:200px]
+saturate-150 start-4 overscroll-contain overscroll-contain overscroll-contain overscroll-contain	saturate-150 start-4 overscroll-contain
+fixed contain-paint -end-2 -end-2	fixed contain-paint -end-2
+bottom-full indent-4 outline-offset-2 indent-4 outline-ring/50 data-[state=open]:fade-in-0	bottom-full outline-offset-2 indent-4 outline-ring/50 data-[state=open]:fade-in-0
+subpixel-antialiased subpixel-antialiased fill-primary col-span-2 subpixel-antialiased items-baseline-last	fill-primary col-span-2 subpixel-antialiased items-baseline-last
+select-none tab-4	select-none tab-4
+cursor-pointer absolute	cursor-pointer absolute
+subpixel-antialiased border-[length:2px] subpixel-antialiased subpixel-antialiased subpixel-antialiased	border-[length:2px] subpixel-antialiased
+object-cover object-cover object-cover object-cover	object-cover
+mbs-3 not-sr-only static mbs-3 mbs-3	not-sr-only static mbs-3
+lowercase group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] lowercase	group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] lowercase
+table-cell scheme-dark scheme-dark scheme-dark scheme-dark	table-cell scheme-dark
+*:[span]:last:items-center touch-pinch-zoom items-baseline-last touch-pan-x ms-1 [mask-image:linear-gradient(black,transparent)]	*:[span]:last:items-center touch-pinch-zoom items-baseline-last touch-pan-x ms-1 [mask-image:linear-gradient(black,transparent)]
+group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] saturate-150 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full	saturate-150 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full
+pl-2 pl-8 data-[inset]:pl-8 lowercase	pl-8 data-[inset]:pl-8 lowercase
+translate-none translate-y-0.5 translate-none data-[side=right]:translate-x-1 truncate	translate-none data-[side=right]:translate-x-1 truncate
+fill-primary ring-2 ease-[cubic-bezier(0.95,0.05,0.795,0.035)] group-data-[orientation=vertical]/tabs:w-full	fill-primary ring-2 ease-[cubic-bezier(0.95,0.05,0.795,0.035)] group-data-[orientation=vertical]/tabs:w-full
+text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)]	text-[length:var(--x)]
+select-none select-none select-none select-none select-none select-none	select-none
+fade-in-0 normal-case bg-[length:200px] normal-case	fade-in-0 bg-[length:200px] normal-case
+perspective-dramatic line-clamp-3 gap-1 z-10 z-10 z-10	perspective-dramatic line-clamp-3 gap-1 z-10
+backface-hidden group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full	backface-hidden group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full
+items-baseline-last *:[span]:last:items-center *:data-[slot=select-value]:items-center *:data-[slot=select-value]:items-center text-[length:var(--x)] mask-circle	items-baseline-last *:[span]:last:items-center *:data-[slot=select-value]:items-center text-[length:var(--x)] mask-circle
+delay-150 delay-150	delay-150
+pt-0 line-clamp-3	pt-0 line-clamp-3
+auto-rows-[100px] lowercase	auto-rows-[100px] lowercase
+tab-4 tab-4 tab-4 tab-4 tab-4	tab-4
+left-[50%] contrast-125 contrast-125 contrast-125 contrast-125 contrast-125	left-[50%] contrast-125
+grow-[2] grow-0 grow-[2] grow grow-[2]	grow-[2]
+contrast-125 ms-1 contrast-125	ms-1 contrast-125
+mbs-3 mbs-3 my-1	my-1
+pt-0 pt-0	pt-0
+[mask-type:luminance] space-y-0 space-y-1.5 space-y-0	[mask-type:luminance] space-y-0
+*:[span]:last:gap-2 auto-rows-min	*:[span]:last:gap-2 auto-rows-min
+table ease-in-out table-auto	table ease-in-out table-auto
+isolate ms-1 absolute list-image-none	isolate ms-1 absolute list-image-none
+contrast-125 gap-y-0.5 mask-none	contrast-125 gap-y-0.5 mask-none
+perspective-dramatic line-clamp-3 *:[span]:last:items-center	perspective-dramatic line-clamp-3 *:[span]:last:items-center
+border-[length:2px] start-4 start-4 start-4 [color:red]	border-[length:2px] start-4 [color:red]
+contrast-125 [color:red] [color:red] [color:red]	contrast-125 [color:red]
+h-[calc(100%-1px)] from-red-500 [mask-type:luminance]	h-[calc(100%-1px)] from-red-500 [mask-type:luminance]
+-z-10 invisible	-z-10 invisible
+touch-none skew-x-6	touch-none skew-x-6
+table-cell table-auto table	table-auto table
+clear-both break-inside-avoid	clear-both break-inside-avoid
+clear-both h-auto clear-both clear-both	h-auto clear-both
+delay-150 data-[orientation=vertical]:w-1.5 group-data-[orientation=vertical]/tabs:w-full w-full	delay-150 data-[orientation=vertical]:w-1.5 group-data-[orientation=vertical]/tabs:w-full w-full
+from-red-500 from-red-500 ease-in-out from-red-500 from-red-500	ease-in-out from-red-500
+normal-case indent-4 pe-1 normal-case normal-case	indent-4 pe-1 normal-case
+data-[inset]:pl-8 pl-8 pl-2 col-span-2 pl-2 col-span-2	data-[inset]:pl-8 pl-2 col-span-2
+file:inline-flex diagonal-fractions -space-x-2 diagonal-fractions	file:inline-flex -space-x-2 diagonal-fractions
+perspective-dramatic perspective-dramatic [color:red]	perspective-dramatic [color:red]
+@container-size @container @container-normal @container	@container
+mask-circle static static static	mask-circle static
+font-medium bg-[length:200px] py-4 p-0.5 py-4	font-medium bg-[length:200px] p-0.5 py-4
+blur-sm blur blur blur blur blur	blur
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 not-sr-only	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 not-sr-only
+font-medium from-red-500 ]	font-medium from-red-500 ]
+2xl:inline contain-size	2xl:inline contain-size
+data-[side=bottom]:translate-y-1 text-[length:var(--x)]	data-[side=bottom]:translate-y-1 text-[length:var(--x)]
+[color:red] [color:red] [color:red] translate-x-[calc(100%-2px)]	[color:red] translate-x-[calc(100%-2px)]
+data-[inset]:pl-8 mask-t-from-50%	data-[inset]:pl-8 mask-t-from-50%
+[color:red] [color:red] [color:red] [color:red] [color:red]	[color:red]
+ms-1 ms-1 skew-x-6 ms-1	skew-x-6 ms-1
+inline-grid hue-rotate-90 hue-rotate-90	inline-grid hue-rotate-90
+overline grow relative grow-[2] grow-[2] grow-[2]	overline relative grow-[2]
+z-[999] [mask-image:linear-gradient(black,transparent)]	z-[999] [mask-image:linear-gradient(black,transparent)]
+[mask-image:linear-gradient(black,transparent)] object-cover [mask-image:linear-gradient(black,transparent)]	object-cover [mask-image:linear-gradient(black,transparent)]
+backface-hidden backface-hidden table-auto backface-hidden	table-auto backface-hidden
+@container @container @container	@container
+placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 [color:red] placeholder-gray-400	[color:red] placeholder-gray-400
+-skew-y-12 table table-cell table-auto	-skew-y-12 table-cell table-auto
+data-[state=open]:fade-in-0 data-[state=open]:fade-in-0 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 auto-rows-min	data-[state=open]:fade-in-0 data-[state=open]:fade-in-0 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 auto-rows-min
+overline fill-current overline	fill-current overline
+container container container data-[state=closed]:fade-out-0	container data-[state=closed]:fade-out-0
+normal-case [mask-type:luminance] @container delay-150	normal-case [mask-type:luminance] @container delay-150
+[mask-image:linear-gradient(black,transparent)] normal-case skew-x-6 [mask-image:linear-gradient(black,transparent)]	normal-case skew-x-6 [mask-image:linear-gradient(black,transparent)]
+normal-case break-inside-avoid diagonal-fractions backface-hidden diagonal-fractions	normal-case break-inside-avoid backface-hidden diagonal-fractions
+start-4 start-4 start-4 start-4 start-4	start-4
+size-4 [mask-type:luminance] [mask-type:luminance] [mask-type:luminance] [mask-type:luminance] *:data-[slot=select-value]:items-center	size-4 [mask-type:luminance] *:data-[slot=select-value]:items-center
+opacity-[.67] opacity-[.67] disabled:opacity-50	opacity-[.67] disabled:opacity-50
+fixed fixed origin-top-left slashed-zero fixed	origin-top-left slashed-zero fixed
+group-data-[orientation=vertical]/tabs:w-full overline overline	group-data-[orientation=vertical]/tabs:w-full overline
+tab-4 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	tab-4 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+backface-hidden inline-block backface-hidden	inline-block backface-hidden
+tab-4 bg-[length:200px] tab-4 tab-4 hue-rotate-90 tab-4	bg-[length:200px] hue-rotate-90 tab-4
+left-[50%] -left-full left-[50%]	left-[50%]
+perspective-dramatic perspective-dramatic w-1/2 ] perspective-dramatic	w-1/2 ] perspective-dramatic
+relative relative mbs-3 relative relative relative	mbs-3 relative
+saturate-150 tracking-tight saturate-150	tracking-tight saturate-150
+pt-0 pt-0 ms-1	pt-0 ms-1
+start-4 mbs-3 my-1	start-4 my-1
+perspective-dramatic mask-b-to-10	perspective-dramatic mask-b-to-10
+bg-[length:200px] saturate-150 order-none -order-2 order-1	bg-[length:200px] saturate-150 order-1
+normal-case normal-case	normal-case
+size-4 overscroll-contain mbs-3 mbs-3	size-4 overscroll-contain mbs-3
+group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-0 bottom-full size-4 bottom-full	group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] size-4 bottom-full
+snap-start grow saturate-150 saturate-150 -space-x-2	snap-start grow saturate-150 -space-x-2
+select-none fade-in-0 data-[state=closed]:fade-out-0	select-none fade-in-0 data-[state=closed]:fade-out-0
+invisible start-4 start-4 start-4 -left-full perspective-dramatic	invisible start-4 -left-full perspective-dramatic
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] h-auto [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	h-auto [mask-image:linear-gradient(black,transparent)]
+border-[length:2px] overscroll-contain from-10% ms-1 ms-1	border-[length:2px] overscroll-contain from-10% ms-1
+tab-4 saturate-150 static truncate	tab-4 saturate-150 static truncate
+object-cover object-cover object-cover object-cover object-cover	object-cover
+overline cursor-default outline bg-[length:200px] bg-[length:200px]	overline cursor-default outline bg-[length:200px]
+skew-3 skew-x-6 skew-x-6 text-[length:var(--x)] skew-x-6	skew-3 text-[length:var(--x)] skew-x-6
+overscroll-contain overscroll-contain list-inside overline overscroll-contain overscroll-contain	list-inside overline overscroll-contain
+cursor-default invisible peer-disabled:cursor-not-allowed	cursor-default invisible peer-disabled:cursor-not-allowed
+slashed-zero slashed-zero slashed-zero truncate slashed-zero	truncate slashed-zero
+@container-size object-cover fixed clear-both @container-size	object-cover fixed clear-both @container-size
+group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full bottom-full	group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full
+text-[length:var(--x)] font-medium font-mono	text-[length:var(--x)] font-medium font-mono
+overscroll-contain overscroll-contain overscroll-contain	overscroll-contain
+contain-size contain-paint contain-size contain-paint contain-size	contain-size contain-paint contain-size contain-paint contain-size
+data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 backdrop-saturate-100 scheme-dark fade-in-0	data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 backdrop-saturate-100 scheme-dark fade-in-0
+text-[length:var(--x)] data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95	text-[length:var(--x)] data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95
+[mask-type:luminance] outline-2 grow -skew-y-12 grow-0	[mask-type:luminance] outline-2 -skew-y-12 grow-0
+2xl:inline relative	2xl:inline relative
+start-4 contain-paint diagonal-fractions start-4	contain-paint diagonal-fractions start-4
+saturate-150 saturate-150 auto-rows-[100px] to-green-500/50 saturate-150 saturate-150	auto-rows-[100px] to-green-500/50 saturate-150
+overflow-y-auto absolute overflow-y-auto overflow-x-hidden	absolute overflow-y-auto overflow-x-hidden
+pl-8 pl-2	pl-2
+disabled:opacity-50 not-has-[svg]:p-2 p-6 tracking-tight fill-current p-[	disabled:opacity-50 not-has-[svg]:p-2 p-6 tracking-tight fill-current p-[
+touch-pan-x [mask-image:linear-gradient(black,transparent)] tracking-tight data-[size=sm]:h-8 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:h-full	touch-pan-x [mask-image:linear-gradient(black,transparent)] tracking-tight data-[size=sm]:h-8 data-[orientation=horizontal]:h-full
+indent-4 indent-4 indent-4 indent-4 fixed indent-4	fixed indent-4
+invisible invisible	invisible
+slashed-zero slashed-zero slashed-zero	slashed-zero
+perspective-dramatic skew-3 perspective-dramatic perspective-dramatic perspective-dramatic perspective-dramatic	skew-3 perspective-dramatic
+truncate truncate truncate truncate	truncate
+subpixel-antialiased subpixel-antialiased subpixel-antialiased w-1/2	subpixel-antialiased w-1/2
+lowercase lowercase scheme-dark lowercase start-4	scheme-dark lowercase start-4
+object-cover origin-(--radix-dropdown-menu-content-transform-origin) [mask-image:linear-gradient(black,transparent)] py-3	object-cover origin-(--radix-dropdown-menu-content-transform-origin) [mask-image:linear-gradient(black,transparent)] py-3
+overscroll-contain 2xl:inline	overscroll-contain 2xl:inline
+pe-1 backdrop-saturate-100	pe-1 backdrop-saturate-100
+tracking-tight invisible invisible	tracking-tight invisible
+[mask-type:luminance] [mask-type:luminance]	[mask-type:luminance]
+delay-150 delay-150 data-[state=closed]:zoom-out-95 table-cell delay-150 delay-150	data-[state=closed]:zoom-out-95 table-cell delay-150
+focus-visible:z-10 z-[999] z-50	focus-visible:z-10 z-50
+disabled:cursor-not-allowed overline overline	disabled:cursor-not-allowed overline
+align-top align-middle align-middle align-[4px] align-[4px]	align-[4px]
+bottom-full bottom-full group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	bottom-full group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+contain-size contain-paint contain-paint contain-none absolute	contain-size contain-paint contain-paint contain-none absolute
+origin-(--radix-tooltip-content-transform-origin) perspective-dramatic space-y-1.5	origin-(--radix-tooltip-content-transform-origin) perspective-dramatic space-y-1.5
+backface-hidden box-border	backface-hidden box-border
+subpixel-antialiased static translate-none origin-(--radix-select-content-transform-origin) invisible	subpixel-antialiased static translate-none origin-(--radix-select-content-transform-origin) invisible
+blur blur touch-pan-x	blur touch-pan-x
+origin-center origin-(--radix-select-content-transform-origin) static list-item origin-(--radix-tooltip-content-transform-origin) border-[length:2px]	static list-item origin-(--radix-tooltip-content-transform-origin) border-[length:2px]
+normal-case normal-case	normal-case
+static not-has-[svg]:p-2 static static	not-has-[svg]:p-2 static
+-skew-y-12 skew-3 skew-x-6	-skew-y-12 skew-3 skew-x-6
+perspective-dramatic hue-rotate-90 order-none hue-rotate-90 [mask-image:linear-gradient(black,transparent)] hue-rotate-90	perspective-dramatic order-none [mask-image:linear-gradient(black,transparent)] hue-rotate-90
+origin-[33%_75%] bottom-full	origin-[33%_75%] bottom-full
+diagonal-fractions diagonal-fractions diagonal-fractions perspective-dramatic	diagonal-fractions perspective-dramatic
+ms-1 normal-case	ms-1 normal-case
+isolate not-sr-only not-sr-only	isolate not-sr-only
+saturate-150 saturate-150 fill-current saturate-150 saturate-150 saturate-150	fill-current saturate-150
+tracking-tight mask-t-from-50% mbs-3 subpixel-antialiased mask-no-repeat	tracking-tight mask-t-from-50% mbs-3 subpixel-antialiased mask-no-repeat
+contain-size contain-paint	contain-size contain-paint
+2xl:inline fill-red-500	2xl:inline fill-red-500
+invisible invisible invisible invisible skew-3	invisible skew-3
+overscroll-contain blur overscroll-contain overscroll-contain	blur overscroll-contain
+list-none space-y-1.5 list-disc list-image-none	space-y-1.5 list-disc list-image-none
+diagonal-fractions box-border box-border box-border box-border	diagonal-fractions box-border
+table-cell align-[4px]	table-cell align-[4px]
+left-1/2 col-start-2 size-4 lowercase size-4	left-1/2 col-start-2 lowercase size-4
+bg-[length:200px] touch-none	bg-[length:200px] touch-none
+py-3 line-clamp-[7] *:[span]:last:items-center data-[state=closed]:zoom-out-95 items-start items-start	py-3 line-clamp-[7] *:[span]:last:items-center data-[state=closed]:zoom-out-95 items-start
+[&_tr:last-child]:border-0 border-x-blue-500 blur slashed-zero	[&_tr:last-child]:border-0 border-x-blue-500 blur slashed-zero
+box-border auto-rows-[100px] box-border has-data-[slot=alert-dialog-media]:gap-x-6 box-border box-border	auto-rows-[100px] has-data-[slot=alert-dialog-media]:gap-x-6 box-border
+start-4 start-4 start-4	start-4
+col-span-full col-auto	col-auto
+] ] fixed ]	] ] fixed ]
+[color:red] [color:red]	[color:red]
+contain-none contain-paint contain-paint contain-paint container contain-none	contain-none contain-paint contain-paint contain-paint container contain-none
+list-item origin-(--radix-select-content-transform-origin) placeholder-gray-400 list-none pl-8	list-item origin-(--radix-select-content-transform-origin) placeholder-gray-400 list-none pl-8
+mbs-3 mbs-3 static mbs-3 size-4	static mbs-3 size-4
+hover:opacity-100 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 hover:opacity-100 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 not-hover:opacity-50 opacity-50	hover:opacity-100 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 not-hover:opacity-50 opacity-50
+[&.is-dragging]:cursor-grabbing cursor-pointer data-[size=default]:h-9 peer-disabled:cursor-not-allowed to-green-500/50 line-clamp-1	[&.is-dragging]:cursor-grabbing cursor-pointer data-[size=default]:h-9 peer-disabled:cursor-not-allowed to-green-500/50 line-clamp-1
+file:inline-flex 2xl:inline disabled:cursor-not-allowed break-after-page 2xl:inline inline-grid	file:inline-flex disabled:cursor-not-allowed break-after-page 2xl:inline inline-grid
+gap-[--spacing(var(--gap))] from-[#fff] gap-[--spacing(var(--gap))] gap-6	from-[#fff] gap-6
+clear-both clear-both	clear-both
+not-sr-only not-sr-only not-sr-only not-sr-only my-1 not-sr-only	my-1 not-sr-only
+pt-0 my-1 bottom-full group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]	pt-0 my-1 bottom-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px]
+] fill-current relative	] fill-current relative
+hue-rotate-90 hue-rotate-90	hue-rotate-90
+ms-1 ms-1 ms-1 ms-1	ms-1
+has-[>svg]:gap-x-3 *:data-[slot=select-value]:gap-2 gap-1.5 *:data-[slot=select-value]:gap-2 to-green-500/50	has-[>svg]:gap-x-3 gap-1.5 *:data-[slot=select-value]:gap-2 to-green-500/50
+[mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)] [mask-image:linear-gradient(black,transparent)]	[mask-image:linear-gradient(black,transparent)]
+origin-(--radix-popover-content-transform-origin) disabled:cursor-not-allowed origin-top-left from-red-500 origin-[33%_75%]	disabled:cursor-not-allowed from-red-500 origin-[33%_75%]
+gap-[--spacing(var(--gap))] has-[>svg]:gap-x-3 has-[>svg]:gap-x-3 gap-1.5	has-[>svg]:gap-x-3 gap-1.5
+overline contain-paint contrast-125 overline overline overline	contain-paint contrast-125 overline
+start-4 start-4 start-4 touch-pan-x start-4 z-50	touch-pan-x start-4 z-50
+[color:red] py-2 font-mono [color:red] [color:red] truncate	py-2 font-mono [color:red] truncate
+overline size-4 lowercase lowercase lowercase	overline size-4 lowercase
+contrast-125 contrast-125 contrast-125 contrast-125	contrast-125
+tracking-tight object-cover box-border list-item	tracking-tight object-cover box-border list-item
+normal-case cursor-pointer col-end-3 fill-red-500	normal-case cursor-pointer col-end-3 fill-red-500
+table-auto backface-hidden overscroll-contain	table-auto backface-hidden overscroll-contain
+data-[side=bottom]:translate-y-1 skew-x-6 ease-in-out text-[length:var(--x)] translate-x-[calc(100%-2px)]	data-[side=bottom]:translate-y-1 skew-x-6 ease-in-out text-[length:var(--x)] translate-x-[calc(100%-2px)]
+-mask-linear-12 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 opacity-[.67]	-mask-linear-12 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100 opacity-[.67]
+normal-case normal-case normal-case	normal-case
+relative data-[state=closed]:zoom-out-95 [mask-type:luminance] [mask-type:luminance] [mask-type:luminance] [mask-type:luminance]	relative data-[state=closed]:zoom-out-95 [mask-type:luminance]
+subpixel-antialiased contain-size contain-none contain-size	subpixel-antialiased contain-size contain-none contain-size
+bg-[length:200px] bg-[length:200px]	bg-[length:200px]
+fill-none dark:border-input font-mono font-['Inter']	fill-none dark:border-input font-mono font-['Inter']
+my-1 my-1	my-1
+order-1 truncate indent-4 truncate backdrop-saturate-100 select-none	order-1 indent-4 truncate backdrop-saturate-100 select-none
+cursor-pointer items-start items-baseline-last items-center *:[span]:last:items-center disabled:cursor-not-allowed	cursor-pointer items-center *:[span]:last:items-center disabled:cursor-not-allowed
+relative container @container-size container	relative @container-size container
+pe-1 pe-1 pe-1 hue-rotate-90 pe-1	hue-rotate-90 pe-1
+ease-[cubic-bezier(0.95,0.05,0.795,0.035)] clear-both clear-both h-10 clear-both	ease-[cubic-bezier(0.95,0.05,0.795,0.035)] h-10 clear-both
+perspective-dramatic contain-size contain-none	perspective-dramatic contain-size contain-none
+text-[length:var(--x)] bg-[length:200px] text-[length:var(--x)] text-[length:var(--x)] slashed-zero	bg-[length:200px] text-[length:var(--x)] slashed-zero
+relative relative gap-6	relative gap-6
+overline overline items-center clear-both clear-both clear-both	overline items-center clear-both
+gap-1.5 gap-1.5 bottom-0	gap-1.5 bottom-0
+outline-[3px] perspective-dramatic outline-hidden outline-dashed blur outline-none	outline-[3px] perspective-dramatic blur outline-none
+pe-1 perspective-dramatic	pe-1 perspective-dramatic
+overscroll-contain line-clamp-3 overscroll-contain	line-clamp-3 overscroll-contain
+[mask-type:luminance] columns-2 columns-2 columns-2	[mask-type:luminance] columns-2
+translate-y-[-50%] placeholder-gray-400	translate-y-[-50%] placeholder-gray-400
+table -left-full left-[50%]	table left-[50%]
+overline grid	overline grid
+tab-4 relative tab-4 tab-4	relative tab-4
+skew-3 skew-3 skew-x-6	skew-3 skew-x-6
+data-[state=closed]:fade-out-0 fade-in-0 relative fade-in-0 data-[state=closed]:fade-out-0	data-[state=closed]:fade-out-0 fade-in-0 relative fade-in-0 data-[state=closed]:fade-out-0
+left-[50%] cursor-[url(hand.cur),_pointer] cursor-[url(hand.cur),_pointer]	left-[50%] cursor-[url(hand.cur),_pointer]
+lowercase ] tab-4 auto-rows-min lowercase lowercase	] tab-4 auto-rows-min lowercase
+lowercase lowercase lowercase	lowercase
+pe-1 absolute contain-size	pe-1 absolute contain-size
+start-4 start-4	start-4
+tabular-nums -left-full	tabular-nums -left-full
+to-green-500/50 mask-linear-from-20% mask-radial-[100%_100%] mask-radial-[100%_100%] mask-[url(/m.png)]	to-green-500/50 mask-linear-from-20% mask-radial-[100%_100%] mask-[url(/m.png)]
+snap-x object-cover	snap-x object-cover
+invisible p-(--pad)	invisible p-(--pad)
+not-hover:opacity-50 table-auto table-cell	not-hover:opacity-50 table-auto table-cell
+placeholder-gray-400 invisible [mask-type:luminance] invisible invisible	placeholder-gray-400 [mask-type:luminance] invisible
+p-0.5 p-[ indent-4	p-0.5 p-[ indent-4
+my-1 start-4	my-1 start-4
+[color:red] data-[orientation=vertical]:w-1.5 [color:red] [color:red]	data-[orientation=vertical]:w-1.5 [color:red]
+origin-(--radix-popover-content-transform-origin) scheme-dark object-cover object-cover	origin-(--radix-popover-content-transform-origin) scheme-dark object-cover
+contain-paint text-[length:var(--x)]	contain-paint text-[length:var(--x)]
+pe-1 pe-1 lowercase [mask-type:luminance] pe-1 pe-1	lowercase [mask-type:luminance] pe-1
+*:data-[slot=select-value]:gap-2 list-item fill-current clear-both data-[state=closed]:zoom-out-95	*:data-[slot=select-value]:gap-2 list-item fill-current clear-both data-[state=closed]:zoom-out-95
+focus-visible:ring-ring/50 indent-4 focus-visible:ring-[3px] h-dvh overline	focus-visible:ring-ring/50 indent-4 focus-visible:ring-[3px] h-dvh overline
+my-1 my-1	my-1
+not-sr-only not-sr-only not-sr-only not-sr-only not-sr-only not-sr-only	not-sr-only
+ring-offset-white focus-visible:ring-destructive/20 [color:red] ring-ring/50 ring-background ring	ring-offset-white focus-visible:ring-destructive/20 [color:red] ring-background ring
+start-4 mbs-3 start-4 pt-0	mbs-3 start-4 pt-0
+select-none to-green-500/50 select-none select-none	to-green-500/50 select-none
+-left-full left-[50%] left-[50%] left-1/2 saturate-150 -left-full	saturate-150 -left-full
+data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 saturate-150 data-[state=closed]:zoom-out-95 object-cover data-[state=closed]:zoom-out-95	data-[state=closed]:zoom-out-95 data-[state=closed]:zoom-out-95 saturate-150 data-[state=closed]:zoom-out-95 object-cover data-[state=closed]:zoom-out-95
+my-1 my-1 my-1	my-1
+skew-3 skew-3 skew-x-6 skew-x-6 z-[999] skew-3	skew-x-6 z-[999] skew-3
+-left-full left-1/2 left-[50%] -left-full	-left-full
+font-medium font-medium font-mono my-1 font-medium	font-mono my-1 font-medium
+my-1 my-1 my-1 my-1 my-1	my-1
+container container	container
+[mask-type:luminance] [mask-type:luminance] [mask-type:luminance] select-none *:[span]:last:items-center [mask-type:luminance]	select-none *:[span]:last:items-center [mask-type:luminance]
+inline-full lowercase	inline-full lowercase
+py-1.5 py-0.5 py-1 py-1.5	py-1.5
+lowercase indent-4 lowercase	indent-4 lowercase
+start-4 break-after-page break-words break-after-page break-words	start-4 break-after-page break-words
+tracking-tight tracking-tight tracking-tight tracking-tight tracking-tight	tracking-tight
+ease-[cubic-bezier(0.95,0.05,0.795,0.035)] ease-initial	ease-initial
+ring-0 scheme-dark	ring-0 scheme-dark
+space-y-1.5 space-y-1.5 space-y-0 -space-x-2	space-y-0 -space-x-2
+overflow-hidden overflow-x-hidden overflow-hidden overflow-hidden overflow-x-hidden overflow-x-hidden	overflow-hidden overflow-x-hidden
+pe-1 pe-1 data-[orientation=horizontal]:h-1.5	pe-1 data-[orientation=horizontal]:h-1.5
+opacity-[.67] delay-150	opacity-[.67] delay-150
+absolute absolute absolute absolute absolute absolute	absolute
+select-none select-none select-none start-4 select-none ease-initial	start-4 select-none ease-initial
+indent-4 data-[state=closed]:fade-out-0 -skew-y-12 cursor-[url(hand.cur),_pointer] contain-size	indent-4 data-[state=closed]:fade-out-0 -skew-y-12 cursor-[url(hand.cur),_pointer] contain-size
+*:data-[slot=select-value]:items-center *:data-[slot=select-value]:items-center *:data-[slot=select-value]:items-center *:[span]:last:items-center left-[50%] items-baseline-last	*:data-[slot=select-value]:items-center *:[span]:last:items-center left-[50%] items-baseline-last
+overline [mask-type:luminance] pl-2	overline [mask-type:luminance] pl-2
+[mask-type:luminance] slashed-zero [mask-type:luminance] [mask-type:luminance] [mask-image:linear-gradient(black,transparent)]	slashed-zero [mask-type:luminance] [mask-image:linear-gradient(black,transparent)]
+subpixel-antialiased size-4 size-4 size-4 @container-size	subpixel-antialiased size-4 @container-size
+pt-0 pt-0 left-[50%] pt-0 pt-0	left-[50%] pt-0
+2xl:inline *:data-[slot=select-value]:gap-2 contrast-125 mbs-3 -left-full align-top	2xl:inline *:data-[slot=select-value]:gap-2 contrast-125 mbs-3 -left-full align-top
+normal-case touch-pan-x align-[4px]	normal-case touch-pan-x align-[4px]
+[color:red] -space-x-2	[color:red] -space-x-2
+subpixel-antialiased subpixel-antialiased subpixel-antialiased subpixel-antialiased	subpixel-antialiased
+invisible [color:red] normal-case	invisible [color:red] normal-case
+-space-x-2 from-[#fff] overflow-y-scroll	-space-x-2 from-[#fff] overflow-y-scroll
+scheme-dark bg-[length:200px] [&.is-dragging]:cursor-grabbing bg-[length:200px] bg-[length:200px]	scheme-dark [&.is-dragging]:cursor-grabbing bg-[length:200px]
+auto-rows-[100px] auto-rows-[100px] auto-cols-fr slashed-zero auto-rows-min	auto-cols-fr slashed-zero auto-rows-min
+slashed-zero fill-primary border-[length:2px] slashed-zero slashed-zero	fill-primary border-[length:2px] slashed-zero
+py-1 [mask-type:luminance] to-green-500/50	py-1 [mask-type:luminance] to-green-500/50
+box-border backface-hidden col-[1/3]	box-border backface-hidden col-[1/3]
+contain-none col-span-2 data-[orientation=horizontal]:w-full	contain-none col-span-2 data-[orientation=horizontal]:w-full
+left-1/2 not-sr-only	left-1/2 not-sr-only
+2xl:inline inline inline-block 2xl:inline	inline-block 2xl:inline
+list-disc list-item object-cover placeholder-gray-400 list-none	list-item object-cover placeholder-gray-400 list-none
+box-border size-4 size-4 relative size-4 size-4	box-border relative size-4
+fill-red-500 fill-none fill-none	fill-none
+not-sr-only not-sr-only not-sr-only	not-sr-only
+contrast-125 line-clamp-[7] blur line-clamp-[7] p-4! size-4	contrast-125 blur line-clamp-[7] p-4! size-4
+snap-mandatory ease-out border-(--c) lowercase lowercase	snap-mandatory ease-out border-(--c) lowercase
+] ] touch-none	] ] touch-none
+snap-mandatory snap-x snap-x snap-x snap-start	snap-mandatory snap-x snap-start
+translate-y-[-50%] py-1 data-[state=checked]:translate-x-[calc(100%-2px)] translate-3d tracking-tight translate-y-[-50%]	py-1 data-[state=checked]:translate-x-[calc(100%-2px)] translate-3d tracking-tight translate-y-[-50%]
+tab-4 border-[length:2px] [mask-image:linear-gradient(black,transparent)]	tab-4 border-[length:2px] [mask-image:linear-gradient(black,transparent)]
+not-italic invisible	not-italic invisible
+absolute absolute	absolute
+text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)] fixed text-[length:var(--x)] text-[length:var(--x)]	fixed text-[length:var(--x)]
+translate-x-[calc(100%-2px)] delay-150	translate-x-[calc(100%-2px)] delay-150
+overflow-y-scroll overflow-y-auto my-1	overflow-y-auto my-1
+contrast-125 overscroll-contain overscroll-y-none	contrast-125 overscroll-contain overscroll-y-none
+[mask-type:luminance] [mask-type:luminance] [mask-type:luminance]	[mask-type:luminance]
+ms-1 data-[inset]:pl-8 invisible	ms-1 data-[inset]:pl-8 invisible
+tab-4 bottom-0 scheme-dark invisible scheme-dark scheme-dark	tab-4 bottom-0 invisible scheme-dark
+truncate saturate-150 saturate-150	truncate saturate-150
+subpixel-antialiased focus:ring-ring border-dashed	subpixel-antialiased focus:ring-ring border-dashed
+ms-1 size-4 size-4 size-4 size-4	ms-1 size-4
+isolate text-[length:var(--x)] isolate ms-1 isolate	text-[length:var(--x)] ms-1 isolate
+] ] ] indent-4 lowercase ]	] ] ] indent-4 lowercase ]
+peer-disabled:cursor-not-allowed skew-x-6 cursor-not-allowed font-mono peer-disabled:cursor-not-allowed contrast-125	skew-x-6 cursor-not-allowed font-mono peer-disabled:cursor-not-allowed contrast-125
+contain-size contain-size contain-none hue-rotate-90	contain-size contain-size contain-none hue-rotate-90
+pl-2 saturate-150 saturate-150 saturate-150 saturate-150 hue-rotate-90	pl-2 saturate-150 hue-rotate-90
+[mask-image:linear-gradient(black,transparent)] box-border overscroll-contain	[mask-image:linear-gradient(black,transparent)] box-border overscroll-contain
+p-4 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400 placeholder-gray-400	p-4 placeholder-gray-400
+size-4 size-4	size-4
+ms-1 ms-1	ms-1
+indent-4 [color:red] [&>tr]:last:border-b-0 [color:red]	indent-4 [&>tr]:last:border-b-0 [color:red]
+order-first static static static	order-first static
+fade-in-0 ease-in-out has-[>svg]:gap-x-3 gap-1.5 *:[span]:last:gap-2 absolute	fade-in-0 ease-in-out has-[>svg]:gap-x-3 gap-1.5 *:[span]:last:gap-2 absolute
+isolate table table-cell table	isolate table
+auto-rows-[100px] static list-inside cursor-[url(hand.cur),_pointer] list-none list-none	auto-rows-[100px] static list-inside cursor-[url(hand.cur),_pointer] list-none
+grow grow clear-both	grow clear-both
+inline-grid space-y-0 inline inline-block inline-full	space-y-0 inline-block inline-full
+ease-linear select-none skew-x-6	ease-linear select-none skew-x-6
+absolute box-border absolute absolute absolute	box-border absolute
+text-[length:var(--x)] skew-3 text-[length:var(--x)] text-[length:var(--x)] text-[length:var(--x)]	skew-3 text-[length:var(--x)]
+snap-x snap-mandatory [mask-type:luminance] snap-mandatory snap-mandatory snap-mandatory	snap-x [mask-type:luminance] snap-mandatory
+grow-0 blur	grow-0 blur
+pe-1 pe-1 ms-1 pe-1 pe-1	ms-1 pe-1
+2xl:inline inline-grid invisible disabled:opacity-50 @container inline-grid	2xl:inline invisible disabled:opacity-50 @container inline-grid
+subpixel-antialiased tracking-tight tracking-tight auto-cols-fr tracking-tight tracking-tight	subpixel-antialiased auto-cols-fr tracking-tight
+object-cover object-cover object-cover snap-mandatory	object-cover snap-mandatory
+subpixel-antialiased placeholder-gray-400	subpixel-antialiased placeholder-gray-400
+group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full	group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] bottom-full
+font-medium font-['Inter'] font-['Inter'] pt-0 font-mono	font-['Inter'] pt-0 font-mono
+overscroll-contain overscroll-contain focus:ring-offset-2 scheme-dark overscroll-contain overscroll-contain	focus:ring-offset-2 scheme-dark overscroll-contain
+from-[#fff] select-none from-[#fff] space-y-1.5	select-none from-[#fff] space-y-1.5
+ease-initial grow ease-initial	grow ease-initial
+not-sr-only not-sr-only not-sr-only not-sr-only	not-sr-only
+pt-0 pt-0 pt-0 pt-0 pt-0	pt-0
+data-[orientation=horizontal]:h-px py-4 h-10 data-[orientation=vertical]:h-full data-[orientation=vertical]:h-full	data-[orientation=horizontal]:h-px py-4 h-10 data-[orientation=vertical]:h-full
+bg-[length:200px] bg-[length:200px] bg-[length:200px]	bg-[length:200px]
+not-sr-only not-sr-only	not-sr-only
+grow-[2] grow grow-[2] saturate-150 file:inline-flex translate-x-2	grow-[2] saturate-150 file:inline-flex translate-x-2

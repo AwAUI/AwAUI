@@ -1,0 +1,8 @@
+tailwindcss 4.3.5
+@tailwindcss/node 4.3.5
+tw-animate-css 1.4.0
+shadcn 4.23.0 (shadcn/tailwind.css)
+shadcn registry: https://ui.shadcn.com/r/styles/new-york-v4/<component>.json (fetched 2026-11-19)
+tailwind-merge 3.7.0
+classlist/: getClassList() + getVariants() of tailwindcss 4.3.5 with the default theme (tools/classlist.mjs, tools/digest.py)
+shadcn/shadcn-tailwind.css: shadcn@4.23.0 dist/tailwind.css (MIT, © shadcn), test input only

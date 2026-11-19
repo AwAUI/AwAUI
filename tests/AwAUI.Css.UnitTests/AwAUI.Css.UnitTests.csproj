@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Css/AwAUI.Css.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 属性代码生成器的纯函数部分：测试在内存中重新生成并与签入的 Generated/*.g.cs 比对 -->
+    <Compile Include="../../src/tools/CssPropertyGen/PropertyCodeGenerator.cs" Link="Generator/PropertyCodeGenerator.cs" />
+    <Compile Include="../../src/tools/CssPropertyGen/MiniJson.cs" Link="Generator/MiniJson.cs" />
+  </ItemGroup>
+</Project>

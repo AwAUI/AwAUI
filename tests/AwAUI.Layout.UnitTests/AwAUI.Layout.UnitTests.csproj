@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Layout/AwAUI.Layout.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 线程 CPU 时间：负载很高的机器上复杂度断言不受墙钟影响 -->
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <PropertyGroup>
+    <!--
+      不参与 net48：这些测试本质上只在 macOS 上运行（Metal），而 .NET Framework 只在 Windows 上存在。
+      平台无关的单元测试（图集装箱、合批）在任何系统的 net10/net11 上运行；Metal 测试在非 macOS 上以明确的原因跳过。
+    -->
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
+    <!-- GPU 后端、RHI 抽象与参考实现（软件后端）都在 AwAUI.Render；PNG 编码与字形场景用的文本栈 -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Text/AwAUI.Text.csproj" />
+    <!-- UI 图片场景（object-fit、采样、SVG 图标、失败占位）的 GPU 对照：测试不受 UI → Render 的依赖规则约束 -->
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 黄金图像场景只读链接（场景同时带着软件后端自己的黄金图像测试，在这里一并运行，开销很小） -->
+    <Compile Include="../AwAUI.RenderTests/Scenes.cs" Link="Linked/Scenes.cs" />
+    <Compile Include="../AwAUI.RenderTests/TextScenes.cs" Link="Linked/TextScenes.cs" />
+    <Compile Include="../AwAUI.RenderTests/ParagraphScenes.cs" Link="Linked/ParagraphScenes.cs" />
+    <Compile Include="../AwAUI.RenderTests/Golden.cs" Link="Linked/Golden.cs" />
+    <Compile Include="../AwAUI.RenderTests/DisplayListFuzzer.cs" Link="Linked/DisplayListFuzzer.cs" />
+    <Compile Include="../AwAUI.RenderTests/ImageScenes.cs" Link="Linked/ImageScenes.cs" />
+    <Compile Include="../AwAUI.RenderTests/TestImages.cs" Link="Linked/TestImages.cs" />
+    <Compile Include="../../samples/RenderDemo/DemoScene.cs" Link="Linked/DemoScene.cs" />
+  </ItemGroup>
+</Project>

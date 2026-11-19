@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  --color-*: initial;
+  --color-brand: oklch(0.6 0.2 250);
+  --color-brand-light: oklch(0.8 0.1 250);
+  --color-ink: #111;
+  --text-tiny: 0.625rem;
+  --text-tiny--line-height: 1.1;
+  --text-tiny--letter-spacing: 0.02em;
+  --text-tiny--font-weight: 500;
+  --font-display: "Inter Display", sans-serif;
+  --font-display--font-feature-settings: "ss01";
+  --breakpoint-3xl: 120rem;
+  --container-8xl: 96rem;
+  --spacing-gutter: 1.5rem;
+  --radius-pill: 9999px;
+  --shadow-soft: 0 2px 8px rgb(0 0 0 / 0.08);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --animate-wiggle: wiggle 1s ease-in-out infinite;
+  --tab-size-github: 8;
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+}
+
+@theme inline {
+  --color-accent: var(--accent-color);
+  --radius-card: calc(var(--radius-base) * 2);
+}
+
+@theme static {
+  --color-always: #abcdef;
+}
+
+@theme reference {
+  --color-hidden: #010203;
+}
+
+@custom-variant theme-midnight (&:where([data-theme="midnight"] *));
+@custom-variant hocus (&:hover, &:focus);
+@custom-variant supports-hover (@media (hover: hover));
+@custom-variant any-hover {
+  @media (any-hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+@custom-variant aria-current (&[aria-current="page"]);
+@custom-variant child-of-open {
+  &:where([data-open] *) {
+    @slot;
+  }
+}
+
+@utility content-auto {
+  content-visibility: auto;
+}
+
+@utility scrollbar-hidden {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility tab-* {
+  tab-size: --value(--tab-size-*, integer, [integer]);
+}
+
+@utility opacity-x-* {
+  opacity: calc(--value(integer) * 1%);
+  opacity: --value([percentage]);
+}
+
+@utility text-shadow-glow-* {
+  text-shadow: 0 0 --value([length], integer) --modifier(--color-*, [color]);
+}
+
+@utility aspect-x-* {
+  aspect-ratio: --value(ratio);
+}
+
+@utility square-* {
+  width: --spacing(--value(number));
+  height: --spacing(--value(number));
+}
+
+@utility kbd {
+  @apply rounded border px-1 font-mono text-xs;
+}
+
+@utility btn {
+  @apply kbd bg-brand text-always hocus:bg-brand-light;
+}
+
+.card {
+  @apply rounded-card shadow-soft p-4 md:p-gutter;
+  color: --alpha(var(--color-ink) / 50%);
+  margin: --spacing(2);
+  @variant dark {
+    @apply bg-ink;
+  }
+  @variant hover:focus {
+    outline: 2px solid --theme(--color-brand);
+  }
+}
+
+@layer components {
+  .badge {
+    @apply inline-flex items-center rounded-pill text-tiny;
+  }
+}
+
+@layer base {
+  h1 {
+    font-size: var(--text-2xl);
+    font-family: --theme(--font-display, serif);
+  }
+}

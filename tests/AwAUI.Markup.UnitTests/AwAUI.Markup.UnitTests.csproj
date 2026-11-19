@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Compiler/AwAUI.Markup.Compiler.csproj" />
+    <!--
+      端到端测试：用 CSharpGeneratorDriver 运行真实的 .awaui 生成器，编译生成的 C# 并对 AwAUI.UI 挂载。
+      生成器程序集以源码链接的方式包含了编译器的公共类型，用 extern alias 隔开，避免与上面的编译器程序集重名。
+    -->
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" Aliases="markupgen" />
+    <!-- 等价的手写 C# 组件用 C# 胶水生成器产出 Props 胶水，与 .awaui 组件在同一份编译里对照 -->
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" />
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- C# 生成的快照：不参与编译，复制到输出目录供测试读取 -->
+    <None Include="Snapshots/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+  </ItemGroup>
+</Project>

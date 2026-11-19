@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Text/AwAUI.Text.csproj" />
+    <!-- 黄金图像：用软件后端光栅化字形轮廓，PNG 编解码比对 -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 字型抽象（FontFace、FontMetrics 等）位于 AwAUI.Graphics -->
+    <Using Include="AwAUI.Graphics.Text" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Expected/*.txt" CopyToOutputDirectory="PreserveNewest" LinkBase="Expected" />
+  </ItemGroup>
+</Project>

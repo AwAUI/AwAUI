@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <!-- 测试组件使用真实生成的胶水；同时引用生成器程序集，用 CSharpGeneratorDriver 做快照测试 -->
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- 帧管线的端到端测试：软件后端光栅化、无窗口平台、PNG 读写（测试不受 UI → Render 的依赖规则约束） -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 直接测试与标记编译器共享的胶水生成逻辑 -->
+    <Compile Include="$(RepoRoot)src/Shared/CodeGen/**/*.cs" Link="Shared/CodeGen/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

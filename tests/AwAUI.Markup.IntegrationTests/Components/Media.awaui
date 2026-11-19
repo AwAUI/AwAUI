@@ -1,0 +1,29 @@
+@* img 的数值尺寸提示与替代文本；内联 svg 在编译期序列化为静态文档，宿主属性（class、style）落在 Svg 元素上 *@
+<div class="media">
+    <img class="photo" src="@Source" alt="照片" width="40" height="@PhotoHeight" style="object-fit: contain" />
+    <svg class="icon" style="color: #ff0000" viewBox="0 0 10 10" width="10" height="10">
+        @* 图标随宿主的 color 着色 *@
+        <g transform="translate(1 1)">
+            <rect width="8" height="8" fill="currentColor" />
+        </g>
+    </svg>
+    <Svg Document="@Doc" class="dyn" />
+    <!-- HTML 注释与 @* *@ 一样不产生输出；内联 svg 的 <style> 属于文档，属性名大小写按 HTML 的规则修正，<image> 的 data: 位图经 AwAUI.Imaging 解码 -->
+    <svg class="pic" viewbox="0 0 4 4" width="4" height="4">
+        <style>.blue { fill: #0000ff }</style>
+        <rect class="blue" width="4" height="2" />
+        <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNg+M8AQhAKABvyA/1tVLjHAAAAAElFTkSuQmCC" y="2" width="2" height="2" />
+    </svg>
+</div>
+
+<style>
+    .media { display: flex; align-items: flex-start; }
+</style>
+
+@code {
+    public ImageSource? Source { get; set; }
+
+    public float PhotoHeight { get; set; } = 20;
+
+    public global::AwAUI.Svg.SvgDocument? Doc { get; set; }
+}
