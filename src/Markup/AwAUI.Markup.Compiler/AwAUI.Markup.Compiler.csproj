@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 标记编译器运行在 Roslyn 源生成器内部，因此只面向 netstandard2.0（design/14）；不依赖 Roslyn 与其他 AwAUI 程序集 -->
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>AwAUI.Markup.Compiler</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 测试项目按 design 命名为 AwAUI.Markup.UnitTests，与程序集名不同，这里显式授予 -->
+    <InternalsVisibleTo Include="AwAUI.Markup.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 组件胶水的发射逻辑与 C# 源生成器（src/tools/AwAUI.Generators）共用同一份源码（design/14「生成器之间互不可见」） -->
+    <Compile Include="$(RepoRoot)src/Shared/CodeGen/**/*.cs" Link="Shared/CodeGen/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

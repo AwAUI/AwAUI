@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Unicode 数据层与文本分段（UAX #29 / #14 / #9）。不引用任何 AwAUI 程序集，供 Text、Css、文本编辑共用。 -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.Unicode</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="Generated/UNICODE-LICENSE.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+</Project>

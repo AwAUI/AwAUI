@@ -1,0 +1,8 @@
+<linker>
+  <!-- 应用设置 <RuntimeHostConfigurationOption Include="AwAUI.Diagnostics.Enabled" Value="false" Trim="true" /> 时生效 -->
+  <assembly fullname="AwAUI.Diagnostics" feature="AwAUI.Diagnostics.Enabled" featurevalue="false">
+    <type fullname="AwAUI.Diagnostics.DiagnosticsFeature">
+      <method signature="System.Boolean get_IsEnabled()" body="stub" value="false" />
+    </type>
+  </assembly>
+</linker>

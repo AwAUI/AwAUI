@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 构建期工具：从 src/AwAUI.Css/Properties.json 生成 src/AwAUI.Css/Generated 下的属性代码（design/16）。只面向 net10.0。
+       生成逻辑（PropertyCodeGenerator.cs、MiniJson.cs）同时被 AwAUI.Css.UnitTests 编译，用于检查签入的生成文件是否最新。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>AwAUI.Tools.CssPropertyGen</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,237 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using AwAUI.MacOS.Interop;
+using AwAUI.Platform;
+using AwAUI.Threading;
+using static AwAUI.MacOS.Interop.ObjC;
+
+namespace AwAUI.MacOS;
+
+/// <summary>
+/// macOS 平台后端：通过 Objective-C 运行时直接驱动 AppKit，不依赖 net-macos workload（design/04 D13）。
+/// 必须在主线程上创建并运行。
+/// </summary>
+public sealed class MacPlatform : PlatformBackend
+{
+    static MacPlatform? s_instance;
+
+    readonly MacDispatcher _dispatcher;
+    readonly Dictionary<IntPtr, MacWindow> _windowsByHandle = new();
+    readonly List<MacWindow> _windows = new();
+    readonly IntPtr _app;
+    readonly IntPtr _helper;
+
+    /// <summary>帧时间戳的原点（主机时间，秒）：OnFrame 收到的是相对平台创建时刻的时间。</summary>
+    internal readonly double Epoch;
+
+    public MacPlatform()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) throw new PlatformNotSupportedException("MacPlatform requires macOS.");
+        Epoch = HostTime.Now; // 必须在平台检查之后：HostTime 依赖 macOS 专有的库
+        if (s_instance != null) throw new InvalidOperationException("Only one MacPlatform may be created per process.");
+        CG.LoadFramework("/System/Library/Frameworks/AppKit.framework/AppKit");
+        if (SendByte(Class("NSThread"), Sel("isMainThread")) == 0)
+            throw new InvalidOperationException("MacPlatform must be created on the main thread.");
+        s_instance = this;
+
+        var pool = objc_autoreleasePoolPush();
+        RegisterClasses();
+        _app = Send(Class("NSApplication"), Sel("sharedApplication"));
+        Send(_app, Sel("setActivationPolicy:"), 0L); // NSApplicationActivationPolicyRegular
+        _helper = Send(Send(Class("AwAUIHelper"), Sel("alloc")), Sel("init"));
+        _dispatcher = new MacDispatcher(_helper);
+        BuildMenu();
+        objc_autoreleasePoolPop(pool);
+    }
+
+    public override string Name => "macOS";
+
+    MacClipboard? _clipboard;
+
+    /// <summary>系统剪贴板（NSPasteboard）。</summary>
+    public override Clipboard Clipboard => _clipboard ??= new MacClipboard(this);
+    public override IDispatcher Dispatcher => _dispatcher;
+    public IReadOnlyList<MacWindow> Windows => _windows;
+
+    public override WindowImpl CreateWindow(WindowOptions options)
+    {
+        var w = new MacWindow(this, options);
+        _windows.Add(w);
+        return w;
+    }
+
+    internal void Register(IntPtr handle, MacWindow window) => _windowsByHandle[handle] = window;
+    internal void Unregister(IntPtr handle) => _windowsByHandle.Remove(handle);
+
+    internal void OnWindowClosed(MacWindow w)
+    {
+        _windows.Remove(w);
+        if (_windows.Count == 0) Exit();
+    }
+
+    bool _running;
+
+    public override void Run()
+    {
+        _running = true;
+        SendBool(_app, Sel("activateIgnoringOtherApps:"), 1);
+        Send(_app, Sel("run"));
+        _running = false;
+    }
+
+    public override void Exit()
+    {
+        if (!_running) return;
+        Send(_app, Sel("stop:"), IntPtr.Zero);
+        // stop: 在处理完下一个事件后才生效，投递一个空事件唤醒消息循环
+        var ev = SendEvent(Class("NSEvent"), Sel("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"),
+            15 /* NSEventTypeApplicationDefined */, default, 0, 0, 0, IntPtr.Zero, 0, 0, 0);
+        Send(_app, Sel("postEvent:atStart:"), ev, (IntPtr)1);
+    }
+
+    void BuildMenu()
+    {
+        var mainMenu = Send(Send(Class("NSMenu"), Sel("alloc")), Sel("init"));
+        var appItem = Send(Send(Class("NSMenuItem"), Sel("alloc")), Sel("init"));
+        Send(mainMenu, Sel("addItem:"), appItem);
+        var appMenu = Send(Send(Class("NSMenu"), Sel("alloc")), Sel("init"));
+        var title = NewString("Quit");
+        var key = NewString("q");
+        var quit = Send(Send(Class("NSMenuItem"), Sel("alloc")), Sel("initWithTitle:action:keyEquivalent:"), title, Sel("awQuit:"), key);
+        Send(quit, Sel("setTarget:"), _helper);
+        Send(appMenu, Sel("addItem:"), quit);
+        Send(appItem, Sel("setSubmenu:"), appMenu);
+        Send(_app, Sel("setMainMenu:"), mainMenu);
+        Release(title); Release(key);
+    }
+
+    static void RegisterClasses()
+    {
+        Callbacks.OnEvent = (self, sel, arg) => s_instance?.HandleEvent(self, sel, arg);
+        Callbacks.OnDrawRect = (self, rect) => s_instance?.Find(self)?.DrawRect();
+        // acceptsFirstResponder / acceptsFirstMouse 为 YES；NSTextInputClient 的 hasMarkedText 按窗口状态
+        Callbacks.OnQueryBool = (self, sel) => sel == Sel("hasMarkedText") ? s_instance?.Find(self)?.HasMarkedText ?? false : true;
+        Callbacks.OnInsertText = (self, text, range) => s_instance?.Find(self)?.InsertText(text, range);
+        Callbacks.OnSetMarkedText = (self, text, selected, replacement) => s_instance?.Find(self)?.SetMarkedText(text, selected, replacement);
+        Callbacks.OnVoid = (self, sel) =>
+        {
+            if (sel == Sel("unmarkText")) s_instance?.Find(self)?.UnmarkText();
+        };
+        Callbacks.OnQueryRange = (self, sel) =>
+        {
+            var w = s_instance?.Find(self);
+            if (w is null) return new NSRange { Location = Callbacks.NotFound };
+            return sel == Sel("markedRange") ? w.MarkedRange : w.SelectedRange;
+        };
+        Callbacks.OnQueryObject = (self, sel) => MacWindow.EmptyArray(); // validAttributesForMarkedText：不使用富文本属性
+        Callbacks.OnAttributedSubstring = (self, range, actual) => s_instance?.Find(self)?.AttributedSubstring(range, actual) ?? IntPtr.Zero;
+        Callbacks.OnFirstRect = (self, range, actual) => s_instance?.Find(self)?.FirstRect(range, actual) ?? default;
+        Callbacks.OnCharacterIndex = (self, point) => Callbacks.NotFound;
+        Callbacks.OnQueryBoolArg = (self, sel, arg) =>
+            sel == Sel("windowShouldClose:") ? s_instance?.Find(self)?.ShouldClose() ?? true : true;
+
+        const string ev = "v@:@";
+        var viewEvents = new[]
+        {
+            "mouseDown:", "mouseUp:", "mouseDragged:", "mouseMoved:", "mouseEntered:", "mouseExited:",
+            "rightMouseDown:", "rightMouseUp:", "rightMouseDragged:", "otherMouseDown:", "otherMouseUp:", "otherMouseDragged:",
+            "scrollWheel:", "keyDown:", "keyUp:", "flagsChanged:",
+        };
+        var methods = new List<(string, IntPtr, string)>
+        {
+            ("drawRect:", Callbacks.DrawRect, "v@:{CGRect={CGPoint=dd}{CGSize=dd}}"),
+            (MacFrameClock.TickSelector, Callbacks.Event, ev), // 显示器同步节拍（CADisplayLink 目标 / CVDisplayLink 转发）
+            ("acceptsFirstResponder", Callbacks.Bool, "c@:"),
+            ("acceptsFirstMouse:", Callbacks.BoolArg, "c@:@"),
+        };
+        foreach (var e in viewEvents) methods.Add((e, Callbacks.Event, ev));
+        // NSTextInputClient（输入法）：视图声明遵循该协议后 AppKit 为它提供 NSTextInputContext
+        const string range = "{_NSRange=QQ}";
+        methods.Add(("insertText:replacementRange:", Callbacks.InsertText, "v@:@" + range));
+        methods.Add(("setMarkedText:selectedRange:replacementRange:", Callbacks.SetMarkedText, "v@:@" + range + range));
+        methods.Add(("unmarkText", Callbacks.Void, "v@:"));
+        methods.Add(("selectedRange", Callbacks.Range, range + "@:"));
+        methods.Add(("markedRange", Callbacks.Range, range + "@:"));
+        methods.Add(("hasMarkedText", Callbacks.Bool, "c@:"));
+        methods.Add(("attributedSubstringForProposedRange:actualRange:", Callbacks.AttributedSubstring, "@@:" + range + "^" + range));
+        methods.Add(("validAttributesForMarkedText", Callbacks.Object, "@@:"));
+        methods.Add(("firstRectForCharacterRange:actualRange:", Callbacks.FirstRect, "{CGRect={CGPoint=dd}{CGSize=dd}}@:" + range + "^" + range));
+        methods.Add(("characterIndexForPoint:", Callbacks.CharacterIndex, "Q@:{CGPoint=dd}"));
+        methods.Add(("doCommandBySelector:", Callbacks.Event, "v@::"));
+        DefineClass("AwAUIView", "NSView", methods, new[] { "NSTextInputClient" });
+
+        DefineClass("AwAUIWindowDelegate", "NSObject", new (string, IntPtr, string)[]
+        {
+            ("windowShouldClose:", Callbacks.BoolArg, "c@:@"),
+            ("windowWillClose:", Callbacks.Event, ev),
+            ("windowDidBecomeKey:", Callbacks.Event, ev),
+            ("windowDidResignKey:", Callbacks.Event, ev),
+            ("windowDidChangeBackingProperties:", Callbacks.Event, ev),
+            ("windowDidChangeOcclusionState:", Callbacks.Event, ev),
+            ("windowDidChangeScreen:", Callbacks.Event, ev),
+            // GPU 呈现（CAMetalLayer 宿主层）没有 drawRect:，尺寸变化与拖动缩放经这些通知处理
+            ("windowDidResize:", Callbacks.Event, ev),
+            ("windowWillStartLiveResize:", Callbacks.Event, ev),
+            ("windowDidEndLiveResize:", Callbacks.Event, ev),
+        });
+
+        DefineClass("AwAUIHelper", "NSObject", new (string, IntPtr, string)[]
+        {
+            ("awDrain:", Callbacks.Event, ev),
+            ("awQuit:", Callbacks.Event, ev),
+        });
+    }
+
+    MacWindow? Find(IntPtr handle) => _windowsByHandle.TryGetValue(handle, out var w) ? w : null;
+
+    void HandleEvent(IntPtr self, IntPtr sel, IntPtr arg)
+    {
+        if (self == _helper)
+        {
+            if (sel == Sel("awDrain:")) _dispatcher.Drain();
+            else if (sel == Sel("awQuit:")) Exit();
+            return;
+        }
+        Find(self)?.HandleEvent(sel, arg);
+    }
+}
+
+/// <summary>主线程调度器：投递的操作经 performSelectorOnMainThread 在消息循环中执行。</summary>
+internal sealed class MacDispatcher : IDispatcher
+{
+    readonly IntPtr _target;
+    readonly Queue<Action> _queue = new();
+    bool _scheduled;
+
+    public MacDispatcher(IntPtr target) => _target = target;
+
+    public bool CheckAccess() => SendByte(Class("NSThread"), Sel("isMainThread")) != 0;
+
+    public void Post(Action action)
+    {
+        bool schedule;
+        lock (_queue)
+        {
+            _queue.Enqueue(action);
+            schedule = !_scheduled;
+            _scheduled = true;
+        }
+        if (schedule)
+            Send(_target, Sel("performSelectorOnMainThread:withObject:waitUntilDone:"), Sel("awDrain:"), IntPtr.Zero, 0);
+    }
+
+    public void Drain()
+    {
+        while (true)
+        {
+            Action a;
+            lock (_queue)
+            {
+                if (_queue.Count == 0) { _scheduled = false; return; }
+                a = _queue.Dequeue();
+            }
+            a();
+        }
+    }
+}

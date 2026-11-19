@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    把项目目录下的 *.awaui 自动加入 AdditionalFiles（生成器的输入）。
+    设置 EnableDefaultAwauiItems=false 可关闭，改为手写 <AdditionalFiles Include="..." />。
+    放在 .targets 中：此时 DefaultItemExcludes（bin、obj 等）已经确定。
+  -->
+  <PropertyGroup>
+    <EnableDefaultAwauiItems Condition="'$(EnableDefaultAwauiItems)' == ''">true</EnableDefaultAwauiItems>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(EnableDefaultAwauiItems)' == 'true'">
+    <AdditionalFiles Include="**/*.awaui" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(AdditionalFiles)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- dotnet watch：.awaui 变化时重新构建 -->
+    <Watch Include="@(AdditionalFiles->WithMetadataValue('Extension', '.awaui'))" />
+  </ItemGroup>
+</Project>

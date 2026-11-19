@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    AwAUI.Markup：.awaui 源生成器读取的 MSBuild 属性（design/14「命名空间取自项目根命名空间 + 目录」）。
+    包引用时由 NuGet 自动导入；仓库内以 ProjectReference 引用生成器的项目需要显式 Import 本文件与同目录的 .targets。
+  -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="RootNamespace" />
+    <CompilerVisibleProperty Include="ProjectDir" />
+  </ItemGroup>
+</Project>

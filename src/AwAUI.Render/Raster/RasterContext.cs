@@ -1,0 +1,627 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using AwAUI.Graphics;
+using AwAUI.Graphics.Commands;
+
+namespace AwAUI.Render.Raster;
+
+/// <summary>
+/// 软件渲染的 DisplayList 解释器。持有可复用的临时缓冲，一个实例同一时间只服务一次渲染。
+/// </summary>
+internal sealed partial class RasterContext
+{
+    readonly Rasterizer _rasterizer = new();
+    readonly PolyList _poly = new();
+    readonly FillSink _fillSink = new();
+    readonly Stack<State> _stack = new();
+    readonly Stack<LayerFrame> _layers = new();
+    readonly Action<string>? _degraded;
+    readonly Action<string>? _degradedSink;
+    readonly HashSet<string> _reportedThisFrame = new();
+    readonly ShadowRasterizer _shadows;
+    readonly GradientLutCache _luts = new();
+
+    Surface _surface = null!;
+    State _state;
+
+    /// <summary>
+    /// 本帧的光栅窗口：整个根目标（不是损伤矩形）。展平的剔除范围、光栅器的累积坐标系与阴影的工作网格都取自它而不是当前裁剪，
+    /// 所以裁剪区内的输出与裁剪矩形无关：只光栅化损伤矩形与整帧光栅化在矩形内逐字节相同（见 <see cref="Rasterizer.Fill(PolyList, FillRule, bool, PixelRect, PixelRect, CoverageSink)"/>）。
+    /// </summary>
+    PixelRect _window;
+    int _layerDepth;
+    long _commandBudget;
+    long _workBudget;
+    bool _budgetReported;
+
+    /// <summary>嵌套 DisplayList 的最大深度；更深的部分忽略并上报降级（防止恶意构造的深嵌套耗尽栈）。</summary>
+    public const int MaxNestingDepth = 256;
+
+    /// <summary>
+    /// 一帧最多重放的命令数（含嵌套 DisplayList 展开后的命令）。DisplayList 可以多次引用同一个子列表，
+    /// 每层引用两次、嵌套 30 层就是 2³⁰ 次重放；超出时停止本帧其余的绘制并上报降级。
+    /// </summary>
+    public const long MaxCommandsPerFrame = 1 << 22;
+
+    /// <summary>
+    /// 同时打开的离屏图层上限。每层分配一块与裁剪范围等大的位图，更深的图层直接画进父表面（不透明度与混合模式被忽略，
+    /// 并上报降级），防止恶意构造的深嵌套占用无界的内存。与 GPU 后端相同。
+    /// </summary>
+    public const int MaxLayerDepth = 32;
+
+    /// <summary>
+    /// 一帧的工作量上限（抽象单位：着色混合的像素数 + 光栅化扫过的单元数 + 边数 × 条带数，见 <see cref="FrameWork"/>）。
+    /// 命令数上限挡不住「少量命令、每条都很贵」的输入：嵌套 DisplayList 的扇出可以用几百字节重放 2²² 次全屏填充（软件后端数小时）。
+    /// 2³⁰ 约为 1280×880 全屏重画 1000 次，是正常界面帧（通常 10⁶–10⁷）的百倍以上；超出时停止本帧其余的绘制并上报降级。
+    /// GPU 后端用同一上限（实例按覆盖的像素计）。
+    /// </summary>
+    public const long MaxWorkPerFrame = 1L << 30;
+
+    /// <summary>测试用：覆盖当前线程的每帧工作量上限。</summary>
+    [ThreadStatic] internal static long? WorkBudgetOverride;
+
+    /// <summary>当前帧（或最近一帧）已消耗的工作量（诊断与测试）。</summary>
+    internal long FrameWork => _rasterizer.Work + _fillSink.Pixels;
+
+    public RasterContext(Action<string>? degraded = null, GlyphCache? glyphCache = null)
+    {
+        _degradedSink = degraded;
+        // 同一帧内相同的降级信息只上报一次：恶意输入可以让同一种降级在一帧里出现数百万次
+        _degraded = degraded is null ? null : ReportOnce;
+        _glyphCache = glyphCache ?? new GlyphCache();
+        _glyphRasterizer = new GlyphRasterizer(_rasterizer);
+        _shadows = new ShadowRasterizer(_rasterizer);
+    }
+
+    void ReportOnce(string message)
+    {
+        if (_reportedThisFrame.Count < 1024 && _reportedThisFrame.Add(message)) _degradedSink!(message);
+    }
+
+    /// <summary>本上下文的渐变查找表缓存（测试与诊断用）。</summary>
+    internal GradientLutCache GradientLuts => _luts;
+
+    sealed class Surface
+    {
+        public Surface(Bitmap bitmap, int offsetX, int offsetY) { Bitmap = bitmap; OffsetX = offsetX; OffsetY = offsetY; }
+        public Bitmap Bitmap { get; }
+        public int OffsetX { get; }
+        public int OffsetY { get; }
+    }
+
+    readonly struct State
+    {
+        public State(Matrix3x2 ctm, ClipState clip, bool isLayer) { Ctm = ctm; Clip = clip; IsLayer = isLayer; }
+        public Matrix3x2 Ctm { get; }
+        public ClipState Clip { get; }
+        public bool IsLayer { get; }
+        public State With(Matrix3x2 ctm) => new(ctm, Clip, IsLayer);
+        public State With(ClipState clip) => new(Ctm, clip, IsLayer);
+    }
+
+    sealed class LayerFrame
+    {
+        public Surface? Parent;
+        public Surface? Layer;
+        public float Opacity;
+        public BlendMode BlendMode;
+        public bool Offscreen;
+    }
+
+    /// <summary>把 DisplayList 画到位图上。DisplayList 坐标乘以 scale 得到设备像素。</summary>
+    public void Render(DisplayList list, Bitmap target, double scale, in RenderOptions options)
+    {
+        var full = new PixelRect(0, 0, target.Width, target.Height);
+        var area = options.Damage is { } dmg ? dmg.Intersect(full) : full;
+        if (area.IsEmpty) return;
+
+        _surface = new Surface(target, 0, 0);
+        _window = full;
+        _stack.Clear();
+        _layers.Clear();
+        _layerDepth = 0;
+        _commandBudget = MaxCommandsPerFrame;
+        _workBudget = WorkBudgetOverride ?? MaxWorkPerFrame;
+        _rasterizer.Work = 0;
+        _fillSink.Pixels = 0;
+        _budgetReported = false;
+        _reportedThisFrame.Clear();
+        _state = new State(Matrix3x2.CreateScale((float)scale), new ClipState(area), false);
+
+        BeginImageFrame();
+        ClearArea(target, area, options.ClearColor);
+        Replay(list, 0);
+        // 损坏的输入可能留下未关闭的图层：合成回去并释放离屏位图
+        while (_layers.Count > 0) PopLayer();
+        _surface = null!;
+        // 目标位图的内容变了：把它当作图片画的缓存（按版本做键）随之失效
+        target.Invalidate();
+    }
+
+    static void ClearArea(Bitmap target, PixelRect area, Color color)
+    {
+        var p = Shader.Premultiply(color);
+        byte r = ToByte(p.X), g = ToByte(p.Y), b = ToByte(p.Z), a = ToByte(p.W);
+        if (target.Format == PixelFormat.Bgra8888) (r, b) = (b, r);
+        for (int y = area.Y; y < area.Bottom; y++)
+            Kernels.FillPixels(target.GetRow(y).Slice(area.X * 4, area.Width * 4), r, g, b, a);
+    }
+
+    void Replay(DisplayList list, int depth)
+    {
+        var reader = list.GetReader();
+        LayerIsolation.Summary? isolation = null;
+        int layerIndex = 0;
+        while (reader.MoveNext())
+        {
+            if (--_commandBudget < 0)
+            {
+                if (!_budgetReported) _degraded?.Invoke($"More than {MaxCommandsPerFrame} draw commands in one frame (including nested display lists); the rest were skipped.");
+                _budgetReported = true;
+                return;
+            }
+            if (FrameWork > _workBudget)
+            {
+                if (!_budgetReported) _degraded?.Invoke($"Frame exceeded the work limit of {_workBudget} pixel operations; the rest of the frame was skipped.");
+                _budgetReported = true;
+                _commandBudget = 0;
+                return;
+            }
+            bool aa = (reader.Flags & DrawFlags.AntiAlias) != 0;
+            switch (reader.Op)
+            {
+                case DrawOp.Save:
+                    _stack.Push(_state);
+                    _state = new State(_state.Ctm, _state.Clip, false);
+                    break;
+                case DrawOp.Restore:
+                    if (_stack.Count > 0) _state = _stack.Pop();
+                    break;
+                case DrawOp.Translate:
+                {
+                    var c = reader.Read<TranslateCmd>();
+                    _state = _state.With(Matrix3x2.CreateTranslation(c.Dx, c.Dy) * _state.Ctm);
+                    break;
+                }
+                case DrawOp.Transform:
+                    _state = _state.With(reader.Read<TransformCmd>().Matrix * _state.Ctm);
+                    break;
+                case DrawOp.ClipRect:
+                    ClipRect(reader.Read<ClipRectCmd>().Rect, aa);
+                    break;
+                case DrawOp.ClipRoundRect:
+                {
+                    var c = reader.Read<ClipRoundRectCmd>();
+                    if (c.Shape.IsRect) ClipRect(c.Shape.Rect, aa);
+                    else ClipPath(VectorPath.FromRoundRect(c.Shape), aa);
+                    break;
+                }
+                case DrawOp.ClipPath:
+                    ClipPath(reader.GetResource<VectorPath>(reader.Read<ClipPathCmd>().PathRef), aa);
+                    break;
+                case DrawOp.FillRect:
+                {
+                    var c = reader.Read<FillRectCmd>();
+                    FillRect(c.Rect, c.Paint, reader.GetBrush(c.Paint), aa);
+                    break;
+                }
+                case DrawOp.FillRoundRect:
+                {
+                    var c = reader.Read<FillRoundRectCmd>();
+                    FillPath(VectorPath.FromRoundRect(c.Shape), c.Paint, reader.GetBrush(c.Paint), aa);
+                    break;
+                }
+                case DrawOp.StrokeRect:
+                {
+                    var c = reader.Read<StrokeRectCmd>();
+                    StrokePath(VectorPath.FromRect(c.Rect), c.Paint, reader.GetBrush(c.Paint), reader.GetResource<Stroke>(c.StrokeRef), aa);
+                    break;
+                }
+                case DrawOp.StrokeRoundRect:
+                {
+                    var c = reader.Read<StrokeRoundRectCmd>();
+                    StrokePath(VectorPath.FromRoundRect(c.Shape), c.Paint, reader.GetBrush(c.Paint), reader.GetResource<Stroke>(c.StrokeRef), aa);
+                    break;
+                }
+                case DrawOp.DrawLine:
+                {
+                    var c = reader.Read<DrawLineCmd>();
+                    var path = new PathBuilder().MoveTo(c.P0).LineTo(c.P1).ToPath();
+                    StrokePath(path, c.Paint, reader.GetBrush(c.Paint), reader.GetResource<Stroke>(c.StrokeRef), aa);
+                    break;
+                }
+                case DrawOp.FillPath:
+                {
+                    var c = reader.Read<FillPathCmd>();
+                    FillPath(reader.GetResource<VectorPath>(c.PathRef), c.Paint, reader.GetBrush(c.Paint), aa);
+                    break;
+                }
+                case DrawOp.StrokePath:
+                {
+                    var c = reader.Read<StrokePathCmd>();
+                    StrokePath(reader.GetResource<VectorPath>(c.PathRef), c.Paint, reader.GetBrush(c.Paint), reader.GetResource<Stroke>(c.StrokeRef), aa);
+                    break;
+                }
+                case DrawOp.DrawGlyphRun:
+                {
+                    var c = reader.Read<DrawGlyphRunCmd>();
+                    DrawGlyphRun(reader.GetGlyphRun(c), c.Origin, c.Paint, reader.GetBrush(c.Paint), aa);
+                    break;
+                }
+                case DrawOp.DrawBoxShadow:
+                    BoxShadow(reader.Read<BoxShadowCmd>());
+                    break;
+                case DrawOp.DrawImage:
+                {
+                    var c = reader.Read<DrawImageCmd>();
+                    DrawImage(c, reader.GetImage(c), aa);
+                    break;
+                }
+                case DrawOp.PushLayer:
+                {
+                    var c = reader.Read<PushLayerCmd>();
+                    int index = layerIndex++;
+                    // 不透明度为 1 的 SrcOver 组只在组内有读目标的绘制时才需要离屏（见 LayerIsolation）
+                    bool isolate = c.Opacity < 1f || c.BlendMode != BlendMode.SrcOver
+                        || (isolation ??= LayerIsolation.Analyze(list)).Needs(index);
+                    PushLayer(c, isolate);
+                    break;
+                }
+                case DrawOp.PopLayer:
+                    PopLayer();
+                    break;
+                case DrawOp.DrawDisplayList:
+                {
+                    var child = reader.GetResource<DisplayList>(reader.Read<DrawDisplayListCmd>().DisplayListRef);
+                    if (depth >= MaxNestingDepth)
+                    {
+                        _degraded?.Invoke($"DisplayList nesting deeper than {MaxNestingDepth} ignored.");
+                        break;
+                    }
+                    var saved = _state;
+                    int stackDepth = _stack.Count;
+                    int layers = _layers.Count;
+                    Replay(child, depth + 1);
+                    // 子列表里未配对的图层与 Save 在这里关闭（录制器保证配对，这里只防御损坏的输入）
+                    while (_layers.Count > layers) PopLayer();
+                    while (_stack.Count > stackDepth) _stack.Pop();
+                    _state = saved;
+                    break;
+                }
+                case DrawOp.Annotation:
+                    break;
+                default:
+                    _degraded?.Invoke($"Unsupported draw op {reader.Op} ignored.");
+                    break;
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- 裁剪
+
+    void ClipRect(Rect rect, bool aa)
+    {
+        if (_state.Ctm.IsScaleTranslate())
+        {
+            var dev = rect.TransformBounds(_state.Ctm);
+            if (!aa || IsPixelAligned(dev))
+            {
+                var px = PixelRect.FromLTRB(Round(dev.Left), Round(dev.Top), Round(dev.Right), Round(dev.Bottom));
+                _state = _state.With(_state.Clip.WithBounds(px));
+                return;
+            }
+        }
+        ClipPath(VectorPath.FromRect(rect), aa);
+    }
+
+    void ClipPath(VectorPath path, bool aa)
+    {
+        var clip = _state.Clip;
+        if (clip.IsEmpty) return;
+        _poly.Clear();
+        Flattener.FlattenToPolygons(path, _state.Ctm, Flattener.DefaultTolerance, _poly, CullRect.FromPixels(_window, 1));
+        if (!_poly.TryGetBounds(out var l, out var t, out var r, out var b))
+        {
+            _state = _state.With(new ClipState(default));
+            return;
+        }
+        var rect = PixelRect.RoundOut(Rect.FromLTRB(l, t, r, b)).Intersect(clip.Bounds);
+        if (rect.IsEmpty)
+        {
+            _state = _state.With(new ClipState(default));
+            return;
+        }
+        var mask = new float[rect.Width * rect.Height];
+        _rasterizer.Fill(_poly, path.FillRule, aa, rect, _window, new MaskSink(mask, rect, clip));
+        _state = _state.With(new ClipState(rect, mask, rect));
+    }
+
+    static bool IsPixelAligned(Rect r) =>
+        IsInt(r.Left) && IsInt(r.Top) && IsInt(r.Right) && IsInt(r.Bottom);
+
+    static bool IsInt(float v) => MathF.Abs(v - MathF.Round(v)) < 1e-3f;
+    static int Round(float v) => (int)MathF.Round(v);
+
+    // ---------------------------------------------------------------- 填充与描边
+
+    void FillRect(Rect rect, in PaintData paint, object? brush, bool aa)
+    {
+        if (!_state.Ctm.IsScaleTranslate())
+        {
+            FillPath(VectorPath.FromRect(rect), paint, brush, aa);
+            return;
+        }
+        if (!RectArea(rect, aa, out var dev, out var area)) return;
+        var sink = PrepareSink(paint, brush);
+        if (sink == null) return;
+        RectCoverage(dev, area, sink);
+    }
+
+    /// <summary>缩放 + 平移下矩形的设备范围（不抗锯齿时边对齐到整像素）与它和裁剪的交集；不可见时返回 false。</summary>
+    bool RectArea(Rect rect, bool aa, out Rect dev, out PixelRect area)
+    {
+        area = default;
+        dev = rect.TransformBounds(_state.Ctm);
+        var clip = _state.Clip;
+        if (clip.IsEmpty) return false;
+        if (!aa) dev = Rect.FromLTRB(MathF.Round(dev.Left), MathF.Round(dev.Top), MathF.Round(dev.Right), MathF.Round(dev.Bottom));
+        area = PixelRect.RoundOut(dev).Intersect(clip.Bounds);
+        return !area.IsEmpty;
+    }
+
+    /// <summary>
+    /// 轴对齐矩形的解析式覆盖率（水平覆盖 × 垂直覆盖），逐行交给 <paramref name="sink"/>。每个像素只取决于它自己的坐标，与裁剪区无关。
+    /// </summary>
+    void RectCoverage(Rect dev, PixelRect area, FillSink sink)
+    {
+        // 解析式覆盖率：水平覆盖 × 垂直覆盖
+        var cov = new float[area.Width];
+        var horizontal = new float[area.Width];
+        for (int x = 0; x < area.Width; x++)
+        {
+            float px = area.X + x;
+            horizontal[x] = Overlap(px, px + 1, dev.Left, dev.Right);
+        }
+        for (int y = area.Y; y < area.Bottom; y++)
+        {
+            float vy = Overlap(y, y + 1, dev.Top, dev.Bottom);
+            if (vy <= 0) continue;
+            Kernels.Scale(horizontal, vy, cov);
+            sink.Row(y, area.X, cov);
+        }
+    }
+
+    static float Overlap(float a0, float a1, float b0, float b1) =>
+        MathF.Max(0, MathF.Min(a1, b1) - MathF.Max(a0, b0));
+
+    void FillPath(VectorPath path, in PaintData paint, object? brush, bool aa)
+    {
+        if (_state.Clip.IsEmpty) return;
+        var sink = PrepareSink(paint, brush);
+        if (sink == null) return;
+        FillPath(path, aa, sink);
+    }
+
+    void FillPath(VectorPath path, bool aa, FillSink sink)
+    {
+        if (_state.Clip.IsEmpty) return;
+        _poly.Clear();
+        Flattener.FlattenToPolygons(path, _state.Ctm, Flattener.DefaultTolerance, _poly, CullRect.FromPixels(_window, 1));
+        _rasterizer.Fill(_poly, path.FillRule, aa, _state.Clip.Bounds, _window, sink);
+    }
+
+    void StrokePath(VectorPath path, in PaintData paint, object? brush, Stroke stroke, bool aa)
+    {
+        if (_state.Clip.IsEmpty) return;
+        // 在局部空间展平与描边（非均匀缩放下线宽随之变形），再变换到设备空间
+        float scale = _state.Ctm.MaxScale();
+        if (scale <= 0) return;
+        float tol = Flattener.DefaultTolerance / scale;
+        // 剔除范围取整个目标而不是裁剪区：范围外以弦代替的曲线、未生成的虚线段会改变同一行上浮点累积的舍入
+        var cull = LocalCull(_window, _state.Ctm, stroke);
+        // 虚线不能用弦代替范围外的曲线（会改变弧长与可见部分的虚线相位），只在生成虚线时裁剪
+        var lines = Flattener.FlattenToPolylines(path, tol, stroke.Dashes is null ? cull : null);
+        _poly.Clear();
+        if (!Stroker.Stroke(lines, stroke, tol, _poly, stroke.Dashes is null ? null : cull))
+            _degraded?.Invoke($"Dash pattern produces more than {Stroker.MaxDashPieces} visible dashes; stroked as a solid line.");
+        _poly.Transform(_state.Ctm);
+        var sink = PrepareSink(paint, brush);
+        if (sink == null) return;
+        _rasterizer.Fill(_poly, FillRule.NonZero, aa, _state.Clip.Bounds, _window, sink);
+    }
+
+    /// <summary>
+    /// 设备裁剪范围在局部坐标中的外接矩形，按线宽的一半 × 斜接上限（覆盖连接与线帽）外扩；变换不可逆时返回 null（不裁剪）。
+    /// 范围外的曲线以弦代替、虚线段不生成几何（GPU 后端共用）。
+    /// </summary>
+    internal static CullRect? LocalCull(PixelRect device, in Matrix3x2 ctm, Stroke stroke) =>
+        CullRect.FromDevice(device, ctm, stroke.Width * 0.5f * MathF.Max(stroke.MiterLimit, 1.5f));
+
+    FillSink? PrepareSink(in PaintData paint, object? brush)
+    {
+        var mode = paint.BlendMode;
+        if (!Blender.IsSupported(mode))
+        {
+            _degraded?.Invoke($"Blend mode {mode} is not supported by the software renderer; using SrcOver.");
+            mode = BlendMode.SrcOver;
+        }
+        var shader = Shader.Create(brush as Brush, paint.Color, _state.Ctm, _luts);
+        if (shader is SolidShader { Color.W: <= 0 } && mode == BlendMode.SrcOver) return null;
+        _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY, _state.Clip, shader, mode);
+        return _fillSink;
+    }
+
+    // ---------------------------------------------------------------- 盒阴影
+
+    /// <summary>σ 的上限（设备像素），见 <see cref="ShadowRasterizer.MaxShadowSigma"/>。</summary>
+    internal const float MaxShadowSigma = ShadowRasterizer.MaxShadowSigma;
+
+    void BoxShadow(in BoxShadowCmd c)
+    {
+        var clip = _state.Clip;
+        if (clip.IsEmpty) return;
+        if (!ShadowRasterizer.HasFiniteParameters(c))
+        {
+            _degraded?.Invoke("Box shadow with non-finite parameters ignored.");
+            return;
+        }
+        if (!_shadows.Compute(c, _state.Ctm, clip.Bounds, _window, out var mask, out var maskRect, out var outRect, _degraded)) return;
+        Composite(maskRect, mask, outRect, Shader.Premultiply(c.Color));
+    }
+
+    void Composite(PixelRect maskRect, float[] mask, PixelRect outRect, Vector4 color)
+    {
+        _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY, _state.Clip, new SolidShader(color), BlendMode.SrcOver);
+        var row = new float[outRect.Width];
+        for (int y = outRect.Y; y < outRect.Bottom; y++)
+        {
+            Array.Copy(mask, (y - maskRect.Y) * maskRect.Width + (outRect.X - maskRect.X), row, 0, outRect.Width);
+            _fillSink.Row(y, outRect.X, row);
+        }
+    }
+
+    // ---------------------------------------------------------------- 图层
+
+    void PushLayer(in PushLayerCmd c, bool isolate)
+    {
+        _stack.Push(_state);
+        var frame = new LayerFrame { Parent = _surface, Opacity = c.Opacity, BlendMode = c.BlendMode };
+        _layers.Push(frame);
+
+        var clip = _state.Clip;
+        if (c.HasBounds != 0) clip = clip.WithBounds(PixelRect.RoundOut(c.Bounds.TransformBounds(_state.Ctm)));
+        _state = new State(_state.Ctm, clip, true);
+
+        // 不需要隔离的组（不透明度 1、SrcOver、组内全是 SrcOver）等价于直接绘制，不分配离屏
+        if (!isolate) return;
+        if (clip.IsEmpty || c.Opacity <= 0f && c.BlendMode == BlendMode.SrcOver)
+        {
+            _state = _state.With(new ClipState(default));
+            return;
+        }
+        if (_layerDepth >= MaxLayerDepth)
+        {
+            _degraded?.Invoke($"Layers nested deeper than {MaxLayerDepth} are drawn without an offscreen group (opacity and blend mode ignored).");
+            return;
+        }
+        _layerDepth++;
+        frame.Offscreen = true;
+        var b = clip.Bounds;
+        var bitmap = new Bitmap(b.Size, _surface.Bitmap.Format);
+        frame.Layer = new Surface(bitmap, b.X, b.Y);
+        _surface = frame.Layer;
+    }
+
+    void PopLayer()
+    {
+        if (_layers.Count == 0) return;
+        var frame = _layers.Pop();
+        var inner = _state;
+        _state = _stack.Count > 0 ? _stack.Pop() : _state;
+        if (frame.Offscreen) _layerDepth--;
+        if (frame.Layer == null) return;
+
+        _surface = frame.Parent!;
+        var layer = frame.Layer;
+        var mode = frame.BlendMode;
+        if (!Blender.IsSupported(mode))
+        {
+            _degraded?.Invoke($"Blend mode {mode} is not supported by the software renderer; using SrcOver.");
+            mode = BlendMode.SrcOver;
+        }
+        // 图层内部已经应用过裁剪，合成时只按矩形范围写回
+        _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY,
+            new ClipState(inner.Clip.Bounds), new BitmapRowShader(layer.Bitmap, layer.OffsetX, layer.OffsetY), mode);
+        var cov = new float[layer.Bitmap.Width];
+        for (int i = 0; i < cov.Length; i++) cov[i] = frame.Opacity;
+        for (int y = 0; y < layer.Bitmap.Height; y++) _fillSink.Row(layer.OffsetY + y, layer.OffsetX, cov.AsSpan());
+        layer.Bitmap.Dispose();
+    }
+
+    static byte ToByte(float v) => (byte)(Math.Max(0f, Math.Min(1f, v)) * 255f + 0.5f);
+
+    /// <summary>覆盖率 → 裁剪蒙版 → 着色 → 混合 写入当前表面。</summary>
+    sealed class FillSink : CoverageSink
+    {
+        Bitmap _target = null!;
+        int _ox, _oy;
+        ClipState _clip = null!;
+        Shader _shader = null!;
+        BlendMode _mode;
+        Vector4[] _colors = new Vector4[256];
+        Vector4 _solid;
+
+        /// <summary>本帧经过裁剪与混合的像素数（工作量统计，见 <see cref="MaxWorkPerFrame"/>）。</summary>
+        public long Pixels;
+        bool _isSolid;
+        float[] _cov = new float[256];
+
+        public void Reset(Bitmap target, int ox, int oy, ClipState clip, Shader shader, BlendMode mode)
+        {
+            _target = target; _ox = ox; _oy = oy; _clip = clip; _shader = shader; _mode = mode;
+            _isSolid = shader is SolidShader;
+            _solid = shader is SolidShader solid ? solid.Color : default;
+        }
+
+        public override void Row(int y, int x, Span<float> coverage)
+        {
+            // 限制在裁剪矩形内
+            var b = _clip.Bounds;
+            if (y < b.Y || y >= b.Bottom) return;
+            int start = Math.Max(x, b.X), end = Math.Min(x + coverage.Length, b.Right);
+            if (end <= start) return;
+            int n = end - start;
+            if (_cov.Length < n) { _cov = new float[n]; _colors = new Vector4[n]; }
+            var cov = new Span<float>(_cov, 0, n);
+            coverage.Slice(start - x, n).CopyTo(cov);
+            Blend(y, start, cov);
+        }
+
+        /// <summary>
+        /// 与 <see cref="Row"/> 相同，但覆盖率为 8 位（字形掩码）：先跳过两端的零字节，再经 <paramref name="lut"/> 转为浮点。
+        /// 结果与先转换为浮点再调用 <see cref="Row"/> 逐字节一致。
+        /// </summary>
+        public void RowA8(int y, int x, ReadOnlySpan<byte> coverage, float[] lut)
+        {
+            var b = _clip.Bounds;
+            if (y < b.Y || y >= b.Bottom) return;
+            int start = Math.Max(x, b.X), end = Math.Min(x + coverage.Length, b.Right);
+            while (start < end && coverage[start - x] == 0) start++;
+            while (end > start && coverage[end - 1 - x] == 0) end--;
+            if (end <= start) return;
+            int n = end - start;
+            if (_cov.Length < n) { _cov = new float[n]; _colors = new Vector4[n]; }
+            var cov = new Span<float>(_cov, 0, n);
+            var src = coverage.Slice(start - x, n);
+            for (int i = 0; i < n; i++) cov[i] = lut[src[i]];
+            Blend(y, start, cov);
+        }
+
+        void Blend(int y, int start, Span<float> cov)
+        {
+            int n = cov.Length;
+            Pixels += n;
+            _clip.Apply(y, start, cov);
+
+            // 去掉两端的零覆盖，减少着色量
+            int first = 0, last = n - 1;
+            while (first <= last && cov[first] <= 0) first++;
+            while (last >= first && cov[last] <= 0) last--;
+            if (first > last) return;
+            int count = last - first + 1;
+
+            var dst = _target.GetRow(y - _oy).Slice((start + first - _ox) * 4, count * 4);
+            bool bgra = _target.Format == PixelFormat.Bgra8888;
+            if (_isSolid)
+            {
+                // 纯色不需要逐像素着色
+                Blender.BlendSolidRow(dst, bgra, _solid, cov.Slice(first, count), _mode, _colors);
+                return;
+            }
+            var colors = new Span<Vector4>(_colors, 0, count);
+            _shader.Shade(start + first, y, colors);
+            Blender.BlendRow(dst, bgra, colors, cov.Slice(first, count), _mode);
+        }
+    }
+}

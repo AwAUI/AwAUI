@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    自研渲染器（design/03、design/15）：
+      Raster/  CPU 光栅器与软件后端（同时为 GPU 后端生成路径 / 字形 / 裁剪掩码，单一实现）
+      Rhi/     GPU 设备抽象（命名空间 AwAUI.Render.Rhi），各图形 API 的实现在 src/Rhi/AwAUI.Rhi.*
+      Gpu/     GPU 渲染后端：解释、图集、批处理、编码
+  -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.Render</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Graphics/AwAUI.Graphics.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- GPU 后端的平台无关单元测试（图集、合批、帧录制）与 Metal 一致性测试在同一个测试项目里 -->
+    <InternalsVisibleTo Include="AwAUI.Rhi.Metal.Tests" />
+  </ItemGroup>
+</Project>

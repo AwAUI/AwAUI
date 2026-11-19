@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.Text</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Graphics/AwAUI.Graphics.csproj" />
+    <ProjectReference Include="../AwAUI.Unicode/AwAUI.Unicode.csproj" />
+  </ItemGroup>
+</Project>

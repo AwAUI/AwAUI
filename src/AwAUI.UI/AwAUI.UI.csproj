@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 组件运行时（design/05、12）：Node 描述、组件、响应式状态、协调器、保留元素树、事件与焦点、帧管线（样式 → 布局 → 绘制）与窗口宿主 -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.UI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
+    <ProjectReference Include="../AwAUI.Graphics/AwAUI.Graphics.csproj" />
+    <ProjectReference Include="../AwAUI.Platform/AwAUI.Platform.csproj" />
+    <ProjectReference Include="../AwAUI.Css/AwAUI.Css.csproj" />
+    <ProjectReference Include="../AwAUI.Layout/AwAUI.Layout.csproj" />
+    <ProjectReference Include="../AwAUI.Text/AwAUI.Text.csproj" />
+    <!--
+      图片与矢量图（design/03「图片」、design/22「图标」）：UI 直接引用纯 C# 的解码器与 SVG 渲染器，Image / Svg 元素开箱可用。
+      取舍：ImageDecoder 按文件头分派，所有编解码器都可达，裁剪不会去掉未用的格式（约为 Imaging 程序集的全部大小）；
+      换来的是不需要应用在组合根注册加载器，且 .awaui 的 <img src="..."> 不依赖额外配置。自定义来源派生 ImageSource 即可。
+    -->
+    <ProjectReference Include="../AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../AwAUI.Svg/AwAUI.Svg.csproj" />
+    <!-- DevTools 的检查接缝（design/01 允许 UI → Diagnostics）；Diagnostics 只依赖 Foundation -->
+    <ProjectReference Include="../AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
+  </ItemGroup>
+</Project>

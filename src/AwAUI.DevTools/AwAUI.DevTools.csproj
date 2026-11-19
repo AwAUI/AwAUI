@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    内嵌 DevTools 面板（design/06 ④）：用 AwAUI.UI 自己写的检查器前端，在第二个窗口里打开（F12 或 DevToolsPanel.Open）。
+    面板只通过 Diagnostics 的协议客户端（DevToolsClient）与被检查的应用通信：同进程用 InProcTransport，
+    远程应用用 WebSocketClientTransport，同一套界面。不引用 AwAUI.Render：渲染后端与文本引擎由应用的组合根传入。
+  -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.DevTools</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
+    <ProjectReference Include="../AwAUI.Graphics/AwAUI.Graphics.csproj" />
+    <ProjectReference Include="../AwAUI.Platform/AwAUI.Platform.csproj" />
+    <ProjectReference Include="../AwAUI.Css/AwAUI.Css.csproj" />
+    <ProjectReference Include="../AwAUI.Text/AwAUI.Text.csproj" />
+    <ProjectReference Include="../AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 测试项目名不符合 Directory.Build.targets 的 .UnitTests 约定 -->
+    <InternalsVisibleTo Include="AwAUI.DevTools.Tests" />
+  </ItemGroup>
+</Project>

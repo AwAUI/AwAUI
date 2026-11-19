@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    组件胶水源生成器（design/12）：为派生自 AwAUI.UI.Component 的 partial 类生成 PropsEqual / AdoptProps / CanAdoptProps。
+    Roslyn 组件只能面向 netstandard2.0（design/11）；不依赖任何 AwAUI 运行时程序集。
+    生成逻辑放在 src/Shared/CodeGen（不依赖 Roslyn），.awaui 标记编译器链接同一份文件。
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>AwAUI.Generators</RootNamespace>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)src/Shared/CodeGen/**/*.cs" Link="Shared/CodeGen/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+</Project>

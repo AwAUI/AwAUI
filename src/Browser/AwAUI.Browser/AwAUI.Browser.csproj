@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!--
+    Web 平台（design/04、design/11）。
+    - 只有 net10.0-browser 一个目标：JSImport/JSExport 只在现代 .NET 的 browser TFM 上可用；.NET 8 已于 2026-11 结束支持，
+      而 net9.0 是已过期的 STS。仓库的 WASM 实测（design/07）与 jiterpreter 行为都以 .NET 10 为准，
+      多一个目标只会多一份无法实际运行验证的产物。没有 netstandard2.0 / .NET Framework 目标（浏览器上不存在）。
+    - 用 Razor SDK 只是为了静态 Web 资产：wwwroot/awaui-browser.js 发布到使用方的 _content/AwAUI.Browser/，
+      不含任何 Razor 组件，也不引用 ASP.NET Core。
+    - 不需要 wasm-tools workload：库只是普通托管程序集；应用用 Microsoft.NET.Sdk.WebAssembly 发布（见 samples/BrowserDemo）。
+  -->
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <TargetFramework>net10.0-browser</TargetFramework>
+    <RootNamespace>AwAUI.Browser</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../AwAUI.Platform/AwAUI.Platform.csproj" />
+  </ItemGroup>
+</Project>

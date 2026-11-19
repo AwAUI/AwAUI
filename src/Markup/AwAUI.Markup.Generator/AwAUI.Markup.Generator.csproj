@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    .awaui 源生成器（design/14、17）：收集项目中的 *.awaui（AdditionalFiles），调用标记编译器生成组件类并报告诊断。
+    Roslyn 组件只能面向 netstandard2.0（design/11），且在宿主中不能有普通的包依赖：
+    编译器（src/Markup/AwAUI.Markup.Compiler）与共享的胶水发射逻辑以源码链接的方式编进本程序集，运行时只依赖 Roslyn 自身。
+    打包为 NuGet 包 AwAUI.Markup：程序集放在 analyzers/dotnet/cs，buildTransitive 中的 .props/.targets 把 *.awaui 自动纳入 AdditionalFiles。
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>AwAUI.Markup.Generator</RootNamespace>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- NuGet 包：只含分析器程序集与 MSBuild 文件，没有供引用的 lib -->
+    <PackageId>AwAUI.Markup</PackageId>
+    <Description>AwAUI 的 .awaui 单文件组件编译器（Roslyn 源生成器 + MSBuild 集成）。</Description>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../AwAUI.Markup.Compiler/**/*.cs" Exclude="../AwAUI.Markup.Compiler/bin/**;../AwAUI.Markup.Compiler/obj/**" Link="Compiler/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)src/Shared/CodeGen/**/*.cs" Link="Shared/CodeGen/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)src/Shared/Polyfills/**/*.cs" Link="Shared/Polyfills/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="buildTransitive/AwAUI.Markup.props" Pack="true" PackagePath="build/AwAUI.Markup.props;buildTransitive/AwAUI.Markup.props" />
+    <None Include="buildTransitive/AwAUI.Markup.targets" Pack="true" PackagePath="build/AwAUI.Markup.targets;buildTransitive/AwAUI.Markup.targets" />
+    <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Metal 的 RHI 实现（design/15：src/Rhi/AwAUI.Rhi.Metal，独立程序集），实现 AwAUI.Render.Rhi 的抽象类。
+    裸 objc_msgSend 互操作（与 AwAUI.MacOS 同一风格，design/04 D13），不依赖 macos workload。
+    按 design/11 用通用 TFM 编译：互操作只用 blittable 签名，没有原生回调（不需要函数指针或委托），
+    netstandard2.0 产物在 Mono 等宿主上同样可用。只有在 macOS 上运行时才可用（MetalDevice.IsSupported）。
+  -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.Rhi.Metal</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../AwAUI.Render/AwAUI.Render.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AwAUI.Rhi.Metal.Tests" />
+  </ItemGroup>
+</Project>

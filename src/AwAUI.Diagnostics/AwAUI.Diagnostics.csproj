@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.Diagnostics</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 特性开关 AwAUI.Diagnostics.Enabled=false 时，ILLink 把 DiagnosticsFeature.IsEnabled 替换为常量 false，
+         所有 if (DiagnosticHub.IsEnabled(...)) 分支与 Agent 一并被裁剪（net8.0 依赖此文件；net9+ 另有 FeatureSwitchDefinition）。 -->
+    <EmbeddedResource Include="ILLink.Substitutions.xml" LogicalName="ILLink.Substitutions.xml" />
+  </ItemGroup>
+</Project>
