@@ -1,0 +1,21 @@
+@* 根组件（.awaui 写法）：计数器卡片（含步长选择）+ 表单卡片。与 Components.cs 中的 App 等价。 *@
+<div class="app">
+    <div class="card">
+        <text class="title">@Strings.Current.CounterTitle</text>
+        <Counter Step="@step.Value" />
+        <div class="field">
+            <text class="label">@Strings.Current.StepLabel</text>
+            @foreach (var value in StepValues)
+            {
+                <Button @key="value" class="@Cx("chip", ("selected", step.Value == value))" @onclick="() => step.Value = value">@("×" + value)</Button>
+            }
+        </div>
+    </div>
+    <GreetingForm />
+</div>
+
+@code {
+    static readonly int[] StepValues = { 1, 5, 10 };
+
+    readonly State<int> step = new(1);
+}

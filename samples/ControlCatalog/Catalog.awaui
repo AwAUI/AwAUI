@@ -1,0 +1,365 @@
+@using AwAUI.Themes.Fluent
+
+<AwAUI.Controls.ScrollViewer Class="catalog-scroll" aria-label="Control catalog">
+    <div class="catalog-page">
+        <div class="catalog-header">
+            <div class="catalog-intro">
+                <text class="catalog-title" role="heading" aria-level="1">AwAUI Control Catalog</text>
+                <text class="catalog-summary">Explore the standard desktop controls and Fluent theme.</text>
+            </div>
+            <AwAUI.Controls.WrapPanel Class="catalog-actions" Spacing="8">
+                <AwAUI.Controls.Button OnClick="CycleTheme">@ThemeText</AwAUI.Controls.Button>
+                <AwAUI.Controls.ToggleButton IsChecked="@IsCompact" IsCheckedChanged="@UpdateDensity" aria-label="Compact spacing">Compact</AwAUI.Controls.ToggleButton>
+            </AwAUI.Controls.WrapPanel>
+        </div>
+
+        <div class="catalog-grid">
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Buttons")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="12">
+                    <text class="catalog-muted">Standard actions work with a pointer, Enter, or Space.</text>
+                    <AwAUI.Controls.WrapPanel Spacing="8">
+                        <AwAUI.Controls.Button IsAccent="true" OnClick="Save">Apply changes</AwAUI.Controls.Button>
+                        <AwAUI.Controls.Button OnClick="Reset">Reset</AwAUI.Controls.Button>
+                        <AwAUI.Controls.Button IsEnabled="false">Unavailable</AwAUI.Controls.Button>
+                    </AwAUI.Controls.WrapPanel>
+                    <text class="catalog-muted" role="status">@_status.Value</text>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Preferences")">
+                <AwAUI.Controls.StackPanel Class="catalog-body catalog-preferences" Spacing="10">
+                    <AwAUI.Controls.CheckBox IsThreeState="true" @bind-IsChecked="_notifications">Desktop notifications</AwAUI.Controls.CheckBox>
+                    <AwAUI.Controls.ToggleSwitch @bind-IsChecked="_hints">Keyboard hints</AwAUI.Controls.ToggleSwitch>
+                    <text class="catalog-muted">@NotificationText</text>
+                    @if (_hints.Value)
+                    {
+                        <text class="catalog-muted">Press Tab to move between controls.</text>
+                    }
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Text editing")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="8">
+                    <AwAUI.Controls.Label Id="project-label" Target="project">Project name</AwAUI.Controls.Label>
+                    <AwAUI.Controls.TextBox Id="project" @bind-Text="_project" Watermark="Enter a name" aria-labelledby="project-label" />
+                    <AwAUI.Controls.Label Id="notes-label" Target="notes">Notes</AwAUI.Controls.Label>
+                    <AwAUI.Controls.TextBox Id="notes" @bind-Text="_notes" AcceptsReturn="true" Watermark="Enter a few lines" aria-labelledby="notes-label" />
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Layout and content")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="12">
+                    <AwAUI.Controls.TextBlock Class="catalog-muted" Text="A uniform grid gives each content tile the same space." />
+                    <AwAUI.Controls.UniformGrid Columns="3" Spacing="8">
+                        <AwAUI.Controls.Border Class="catalog-tile" Content="@("One")" />
+                        <AwAUI.Controls.Border Class="catalog-tile" Content="@("Two")" />
+                        <AwAUI.Controls.Border Class="catalog-tile" Content="@("Three")" />
+                    </AwAUI.Controls.UniformGrid>
+                    <AwAUI.Controls.ContentControl Class="catalog-project" Content="@ProjectPreview" />
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Selection")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="12">
+                    <AwAUI.Controls.ListBox Class="catalog-list" ItemsSource="@s_channels" SelectedIndex="@_channel.Value" SelectedIndexChanged="@(index => _channel.Value = index)" aria-label="Notification channel" />
+                    <AwAUI.Controls.TabControl Items="@s_tabs" TabListLabel="Workspace information" />
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Disclosure and overlays")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="12">
+                    <AwAUI.Controls.Expander Header="@("Show more")" DefaultIsExpanded="true">
+                        <text class="catalog-muted">Collapsing the section removes its contents from the layout.</text>
+                    </AwAUI.Controls.Expander>
+                    <AwAUI.Controls.WrapPanel Spacing="8">
+                        <AwAUI.Controls.Flyout Trigger="@("Quick options")" ShowCloseButton="true">
+                            <text>These options are anchored to the trigger.</text>
+                        </AwAUI.Controls.Flyout>
+                        <AwAUI.Controls.DialogHost Trigger="@("Preview")" Title="Preview" Description="Escape closes the dialog.">
+                            <AwAUI.Controls.TextBlock Text="@ProjectPreview" />
+                        </AwAUI.Controls.DialogHost>
+                    </AwAUI.Controls.WrapPanel>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Combo box")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <AwAUI.Controls.Label Id="view-label" Target="default-view">Default view</AwAUI.Controls.Label>
+                    <AwAUI.Controls.ComboBox Id="default-view" ItemsSource="@s_views" DefaultSelectedIndex="0"
+                        IsItemEnabled="@(item => !Equals(item, "Archived"))" aria-labelledby="view-label" />
+                    <text class="catalog-muted">Use the arrow keys to browse, then Enter to select.</text>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Tree view")">
+                <AwAUI.Controls.TreeView Items="@s_folders" DefaultExpandedKeys="@s_expandedFolders"
+                    DefaultSelectedKey="@("drafts")" aria-label="Project folders" />
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Virtualized list")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="8">
+                    <text class="catalog-muted">10,000 rows. Only the visible rows and a few neighbors are mounted.</text>
+                    <AwAUI.Controls.ItemsRepeater Id="activity-list" ItemsSource="@s_activity" ItemTemplate="@ActivityRow"
+                        ItemHeight="30" ScrollController="@_activityScroll" aria-label="Workspace activity" />
+                    <AwAUI.Controls.WrapPanel Spacing="8">
+                        <AwAUI.Controls.Button OnClick="JumpToStart">First row</AwAUI.Controls.Button>
+                        <AwAUI.Controls.Button OnClick="JumpToEnd">Last row</AwAUI.Controls.Button>
+                    </AwAUI.Controls.WrapPanel>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Dock and canvas")">
+                <AwAUI.Controls.StackPanel Class="catalog-body" Spacing="8">
+                    <AwAUI.Controls.DockPanel Class="catalog-dock">
+                        <div class="catalog-tile" data-dock="top">Toolbar</div>
+                        <div class="catalog-dock-nav" data-dock="left">Files</div>
+                        <AwAUI.Controls.Canvas Class="catalog-canvas" aria-label="Canvas positioning">
+                            <div class="catalog-coordinate" data-canvas-left="8" data-canvas-top="8">Top left</div>
+                            <div class="catalog-coordinate" data-canvas-right="8" data-canvas-bottom="8">Bottom right</div>
+                        </AwAUI.Controls.Canvas>
+                    </AwAUI.Controls.DockPanel>
+                    <text id="delivery-label" class="catalog-muted">Delivery schedule</text>
+                    <AwAUI.Controls.WrapPanel Spacing="14" role="radiogroup" aria-labelledby="delivery-label">
+                        <AwAUI.Controls.RadioButton GroupName="delivery" DefaultIsChecked="true">Daily</AwAUI.Controls.RadioButton>
+                        <AwAUI.Controls.RadioButton GroupName="delivery">Weekly</AwAUI.Controls.RadioButton>
+                        <AwAUI.Controls.RadioButton GroupName="delivery" IsEnabled="false">Monthly</AwAUI.Controls.RadioButton>
+                    </AwAUI.Controls.WrapPanel>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Tab strip")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <AwAUI.Controls.TabStrip Items="@s_tabStrip" @bind-SelectedIndex="_workspaceTab" aria-label="Workspace view" />
+                    <div id="workspace-files" role="tabpanel" aria-labelledby="files-tab" tabindex="0"
+                        class="catalog-tab-body" style="@TabPanelStyle(0)">Browse files in Northstar.</div>
+                    <div id="workspace-shared" role="tabpanel" aria-labelledby="shared-tab" tabindex="0"
+                        class="catalog-tab-body" style="@TabPanelStyle(1)">Review items shared with your team.</div>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Slider")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <text id="preview-zoom-label">@PreviewZoomText</text>
+                    <AwAUI.Controls.Slider Minimum="25" Maximum="200" SmallChange="5" @bind-Value="_previewZoom"
+                        FormatValueText="@(value => $"{value:0}%")" aria-labelledby="preview-zoom-label" />
+                    <text class="catalog-muted">Use the arrow keys for 5% steps, or Home and End for the limits.</text>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Repeat and navigate")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <AwAUI.Controls.WrapPanel Spacing="8">
+                        <AwAUI.Controls.RepeatButton OnClick="AddOne">Hold to add</AwAUI.Controls.RepeatButton>
+                        <AwAUI.Controls.Button OnClick="ResetCount">Reset count</AwAUI.Controls.Button>
+                    </AwAUI.Controls.WrapPanel>
+                    <text class="catalog-muted">@RepeatCountText</text>
+                    <AwAUI.Controls.HyperlinkButton Class="catalog-link" NavigateUri="https://example.com/" OnNavigate="ShowDestination">Preview link destination</AwAUI.Controls.HyperlinkButton>
+                    <text class="catalog-muted" role="status">@_destination.Value</text>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Split view")">
+                <AwAUI.Controls.SplitView DisplayMode="@SplitViewMode" Pane="@WorkspacePane()"
+                    CompactPane="@WorkspaceRail()" Trigger="@("Toggle navigation")" PaneAriaLabel="Workspace navigation"
+                    DefaultIsPaneOpen="true" OpenPaneLength="148" CompactPaneLength="48">
+                    <div class="catalog-split-main">
+                        <text class="catalog-project">Northstar</text>
+                        <text class="catalog-muted">The navigation rail keeps its space when the pane closes.</text>
+                    </div>
+                </AwAUI.Controls.SplitView>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Selectable text")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <text class="catalog-muted">Select the workspace reference to copy it.</text>
+                    <AwAUI.Controls.SelectableTextBlock Text="@WorkspaceReference" aria-label="Workspace reference" />
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Content transition")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <AwAUI.Controls.Button Class="catalog-content-toggle" OnClick="ToggleSummary">Switch summary</AwAUI.Controls.Button>
+                    <AwAUI.Controls.TransitioningContentControl Content="@SummaryText" Class="catalog-transition" />
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Viewbox and decorator")">
+                <AwAUI.Controls.StackPanel Spacing="8">
+                    <AwAUI.Controls.Viewbox Class="catalog-viewbox" Style="width:320px;height:110px;max-width:100%">
+                        <AwAUI.Controls.Decorator Class="catalog-viewbox-source" Style="width:240px;height:82px">
+                            <text>Scale to fit</text>
+                        </AwAUI.Controls.Decorator>
+                    </AwAUI.Controls.Viewbox>
+                    <text class="catalog-muted">The outlined source content scales proportionally inside its allocated viewport.</text>
+                </AwAUI.Controls.StackPanel>
+            </AwAUI.Controls.HeaderedContentControl>
+
+            <AwAUI.Controls.HeaderedContentControl Class="catalog-card" Header="@("Menus and anchored surfaces")">
+                <AwAUI.Controls.WrapPanel Spacing="8" Class="catalog-actions">
+                    <AwAUI.Controls.MenuFlyout Id="catalog-menu-root" Trigger="@("Actions")" TriggerClass="catalog-menu-trigger" MenuAriaLabel="Workspace actions">
+                        <AwAUI.Controls.MenuFlyoutItem OnClick="RenameWorkspace">Rename workspace</AwAUI.Controls.MenuFlyoutItem>
+                        <AwAUI.Controls.MenuFlyoutItem OnClick="CopyWorkspace">Copy workspace ID</AwAUI.Controls.MenuFlyoutItem>
+                        <AwAUI.Controls.MenuFlyoutItem IsEnabled="false">Archive workspace</AwAUI.Controls.MenuFlyoutItem>
+                    </AwAUI.Controls.MenuFlyout>
+                    <AwAUI.Controls.Button Id="catalog-popup-trigger" Ref="@_popupAnchor" OnClick="TogglePopup">Popup</AwAUI.Controls.Button>
+                    <AwAUI.Controls.Popup Anchor="@_popupAnchor" IsOpen="@_popupOpen.Value" IsOpenChanged="@SetPopupOpen"
+                        AriaLabel="Workspace popup" Side="@(AwAUI.Controls.Primitives.Side.Bottom)" AutoFocus="false">
+                        <div class="catalog-popup-content">A positioned surface that stays nonmodal.</div>
+                    </AwAUI.Controls.Popup>
+                    <AwAUI.Controls.ToolTip Content="@("Tooltips appear on hover or keyboard focus.")">
+                        <AwAUI.UI.Button Id="catalog-tooltip-trigger">Help tip</AwAUI.UI.Button>
+                    </AwAUI.Controls.ToolTip>
+                </AwAUI.Controls.WrapPanel>
+                <text class="catalog-muted" role="status">@_surfaceStatus.Value</text>
+            </AwAUI.Controls.HeaderedContentControl>
+        </div>
+    </div>
+</AwAUI.Controls.ScrollViewer>
+
+@code {
+    public FluentThemeVariant InitialTheme { get; init; }
+    public bool InitialCompact { get; init; }
+    internal ScrollController ActivityScroll => _activityScroll;
+
+    readonly State<FluentThemeVariant?> _theme = new((FluentThemeVariant?)null);
+    readonly State<bool?> _compact = new((bool?)null);
+    readonly State<bool?> _notifications = new((bool?)null);
+    readonly State<bool> _hints = new(true);
+    readonly State<string> _project = new("Northstar");
+    readonly State<string> _notes = new("Review the layout.\nShare the next preview.");
+    static readonly string[] s_views = ["Overview", "Activity", "Archived"];
+    static readonly object[] s_expandedFolders = ["project"];
+    static readonly AwAUI.Controls.TreeViewItem[] s_folders =
+    [
+        new("project", "Northstar", [new("drafts", "Drafts"), new("assets", "Assets", [new("icons", "Icons")])]),
+        new("archive", "Archive"),
+    ];
+    static readonly string[] s_channels = ["In app", "Email", "Both"];
+    static readonly int[] s_activity = Enumerable.Range(1, 10_000).ToArray();
+    readonly ScrollController _activityScroll = new();
+    static readonly AwAUI.Controls.TabItem[] s_tabs =
+    [
+        new("Overview", new Text("Workspace summary.")),
+        new("Activity", new Text("No recent activity.")),
+    ];
+    static readonly AwAUI.Controls.TabStripItem[] s_tabStrip =
+    [
+        new("Files") { Id = "files-tab", ControlsId = "workspace-files" },
+        new("Shared") { Id = "shared-tab", ControlsId = "workspace-shared" },
+        new("Archive", IsEnabled: false),
+    ];
+    readonly State<int> _workspaceTab = new(0);
+    readonly State<double> _previewZoom = new(100);
+    readonly State<int> _repeatCount = new(0);
+    readonly State<string> _destination = new("The sample displays the destination in place.");
+    readonly Ref<Element> _popupAnchor = new();
+    readonly State<bool> _popupOpen = new(false);
+    readonly State<string> _surfaceStatus = new("Use the menu, popup, or tooltip.");
+    readonly State<int?> _channel = new((int?)0);
+    readonly State<string> _status = new("No changes applied yet.");
+    readonly State<bool> _showReview = new(false);
+    const string WorkspaceReference = "Northstar · NS-2480\nRelease candidate 3";
+
+    FluentThemeVariant CurrentTheme => _theme.Value ?? InitialTheme;
+    bool IsCompact => _compact.Value ?? InitialCompact;
+
+    string ThemeText => CurrentTheme switch
+    {
+        FluentThemeVariant.Light => "Theme: light",
+        FluentThemeVariant.Dark => "Theme: dark",
+        FluentThemeVariant.HighContrast => "Theme: high contrast",
+        _ => "Theme: system",
+    };
+    string NotificationText => _notifications.Value switch
+    {
+        true => "Notifications are on.", false => "Notifications are off.", null => "Notifications use the workspace default.",
+    };
+    string ProjectPreview => string.IsNullOrWhiteSpace(_project.Value) ? "Untitled project" : _project.Value;
+    string PreviewZoomText => $"Preview zoom: {_previewZoom.Value:0}%";
+    string RepeatCountText => $"Count: {_repeatCount.Value}";
+    string SummaryText => _showReview.Value ? "Review · 2 items ready for feedback" : "Activity · 5 items updated today";
+    static AwAUI.Controls.SplitViewDisplayMode SplitViewMode => AwAUI.Controls.SplitViewDisplayMode.CompactInline;
+
+    static NodeList WorkspacePane() => [new Text { Content = "Files" }, new Text { Content = "Shared" }];
+    static NodeList WorkspaceRail() => [new Text { Content = "NS", AriaLabel = "Northstar" }];
+
+    void AddOne(PointerEvent _) => _repeatCount.Value++;
+    void ResetCount(PointerEvent _) => _repeatCount.Value = 0;
+    void ShowDestination(Uri destination) => _destination.Value = $"Destination: {destination.AbsoluteUri}";
+    void ToggleSummary(PointerEvent _) => _showReview.Value = !_showReview.Value;
+    void RenameWorkspace(PointerEvent _) => _surfaceStatus.Value = "Rename selected.";
+    void CopyWorkspace(PointerEvent _) => _surfaceStatus.Value = "Workspace ID copied.";
+    void TogglePopup(PointerEvent _) => _popupOpen.Value = !_popupOpen.Value;
+    void SetPopupOpen(bool value) => _popupOpen.Value = value;
+
+    string TabPanelStyle(int index) => _workspaceTab.Value == index ? "" : "display: none";
+
+    void CycleTheme(PointerEvent _)
+    {
+        var next = CurrentTheme switch
+        {
+            FluentThemeVariant.System => FluentThemeVariant.Light,
+            FluentThemeVariant.Light => FluentThemeVariant.Dark,
+            FluentThemeVariant.Dark => FluentThemeVariant.HighContrast,
+            _ => FluentThemeVariant.System,
+        };
+        _theme.Value = next;
+        if (Root is { } root) FluentTheme.SetVariant(root, next);
+    }
+
+    void UpdateDensity(bool compact)
+    {
+        _compact.Value = compact;
+        if (Root is { } root) FluentTheme.SetCompact(root, compact);
+    }
+
+    void Save(PointerEvent _) => _status.Value = "Applied changes to " + ProjectPreview + ".";
+
+    static Node ActivityRow(object? item) => new Text($"Activity {item}");
+
+    void JumpToStart(PointerEvent _) => _activityScroll.JumpTo(default);
+
+    void JumpToEnd(PointerEvent _) => _activityScroll.JumpTo(_activityScroll.MaxOffset);
+
+    void Reset(PointerEvent _)
+    {
+        _project.Value = "Northstar";
+        _notes.Value = "Review the layout.\nShare the next preview.";
+        _notifications.Value = null;
+        _hints.Value = true;
+        _status.Value = "Restored the default values.";
+    }
+}
+
+<style global>
+    .catalog-scroll { height: 100%; }
+    .catalog-page { max-width: 1060px; margin-inline: auto; padding: 26px 32px; color: var(--aw-text); }
+    .catalog-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+    .catalog-intro { display: flex; flex-direction: column; gap: 6px; }
+    .catalog-title { font-size: 27px; font-weight: 700; }
+    .catalog-summary, .catalog-muted { color: var(--aw-text-muted); }
+    .catalog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .catalog-card { min-width: 0; padding: 16px; border: 1px solid var(--aw-border); border-radius: 8px; background: var(--aw-surface); }
+    .catalog-card > [part="header"] { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .catalog-preferences { align-items: flex-start; }
+    .catalog-tile { background: var(--aw-bg); padding: 8px; text-align: center; }
+    .catalog-list { max-height: 116px; }
+    .catalog-project { color: var(--aw-text); font-weight: 600; }
+    .catalog-tab-body { padding: 8px; color: var(--aw-text-muted); }
+    .catalog-link { align-self: flex-start; }
+    .catalog-content-toggle { align-self: flex-start; }
+    .catalog-transition { min-height: 34px; }
+    .catalog-split-main { display: flex; flex-direction: column; gap: 4px; padding: 10px; }
+    .catalog-dock { height: 122px; border: 1px solid var(--aw-border); border-radius: 4px; }
+    .catalog-dock-nav { padding: 8px; background-color: var(--aw-bg); border-inline-end: 1px solid var(--aw-border); }
+    .catalog-canvas { background-color: var(--aw-surface); }
+    .catalog-coordinate { padding: 2px 6px; color: var(--aw-accent); border: 1px solid var(--aw-accent); border-radius: 4px; }
+    .catalog-viewbox { border: 1px dashed var(--aw-border); }
+    .catalog-viewbox-source { display: flex; align-items: center; justify-content: center; border: 1px solid var(--aw-accent); border-radius: 6px; background-color: var(--aw-bg); color: var(--aw-accent); font-size: 22px; font-weight: 700; }
+    .catalog-popup-content { min-width: 220px; padding: 10px; }
+    .catalog-menu-trigger:focus-visible { outline: 2px solid var(--aw-focus); outline-offset: 2px; }
+    @media (max-width: 620px) {
+        .catalog-page { padding: 18px; }
+        .catalog-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+</style>

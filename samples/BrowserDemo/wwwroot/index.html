@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AwAUI BrowserDemo</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; padding: 16px; font: 13px/1.45 system-ui, sans-serif; background: #f3f4f6; color: #111827; }
+    main { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+    /* canvas 不能有边框与内边距：逻辑尺寸取 CSS 内容盒，指针坐标按边框盒换算 */
+    #view { display: block; width: 640px; height: 440px; max-width: calc(100vw - 32px); box-shadow: 0 1px 4px #0002; background: #e5e7eb; }
+    aside { flex: 1 1 280px; min-width: 260px; max-width: 520px; }
+    h1 { font-size: 15px; margin: 0 0 8px; }
+    .echo { background: #fff; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; min-height: 1.45em; white-space: pre-wrap; word-break: break-all; }
+    .echo .comp { text-decoration: underline; color: #4f46e5; }
+    .echo .caret { border-left: 2px solid #4f46e5; margin: 0 -1px; }
+    #stats { font-variant-numeric: tabular-nums; color: #374151; margin: 8px 0; }
+    #log { height: 220px; overflow: auto; background: #111827; color: #d1fae5; font: 12px/1.4 ui-monospace, monospace; padding: 6px 8px; border-radius: 6px; margin: 0; }
+    label { user-select: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="view"></canvas>
+    <aside>
+      <h1>AwAUI.Browser（软件呈现）</h1>
+      <p>悬停 / 点击紫色按钮；拖动橙色圆片（支持触摸与多指）；点击底部文本框后直接键入或使用输入法，组合与提交事件回显在下方。</p>
+      <div class="echo" id="echo"></div>
+      <label><input type="checkbox" id="animate" checked> 持续动画（关闭后只在输入时出帧）</label>
+      <div id="stats">loading…</div>
+      <pre id="log"></pre>
+    </aside>
+  </main>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

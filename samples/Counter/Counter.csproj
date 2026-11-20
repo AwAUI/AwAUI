@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    M1 验收示例：纯 C# 写的计数器 + 小表单（design/05「组件」、design/07 M1 验收）。
+    应用是组合根：平台、渲染后端（AwAUI.Render 只在这里引用）、文本引擎与样式表都在 Program.cs 里选择。
+    用法见 Program.cs 顶部（窗口、无窗口 PNG、帧耗时测量、DevTools）。
+    同一个应用的 .awaui 写法在 Markup/（命名空间 CounterSample.Markup，命令行加 markup 开关切换），由 AwAUI.Markup 源生成器编译。
+  -->
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.props" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <!-- .awaui 的命名空间 = 根命名空间 + 目录（Markup/ → CounterSample.Markup） -->
+    <RootNamespace>CounterSample</RootNamespace>
+    <PublishAot Condition="'$(NativeAot)' == 'true'">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <!-- 内嵌 DevTools 面板（命令行 devtools-panel 开关） -->
+    <ProjectReference Include="../../src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+    <ProjectReference Include="../../src/MacOS/AwAUI.MacOS/AwAUI.MacOS.csproj" />
+    <!-- GPU（Metal）后端与「GPU 可用则用 GPU」的组合根助手 MetalRenderer（窗口模式的默认后端） -->
+    <ProjectReference Include="../../src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
+    <!-- 组件 Props 胶水（PropsEqual / AdoptProps） -->
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- .awaui 组件（以 NuGet 包 AwAUI.Markup 引用时 .props/.targets 自动导入；仓库内的 ProjectReference 需显式导入） -->
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 窗口自检（读回呈现的帧并与软件渲染比较），与 RenderDemo 共用 -->
+    <Compile Include="../RenderDemo/FrameCheck.cs" Link="FrameCheck.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Styles/*.css" CopyToOutputDirectory="PreserveNewest" LinkBase="Styles" />
+    <!-- OFL 字体（与测试共用同一份文件），许可证随附 -->
+    <None Include="../../tests/TestFiles/Fonts/NotoSans-Regular.ttf" Link="Fonts/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tests/TestFiles/Fonts/NotoSans-OFL.txt" Link="Fonts/NotoSans-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
+</Project>

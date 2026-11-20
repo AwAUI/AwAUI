@@ -1,0 +1,202 @@
+@using AwAUI.Shadcn
+
+<div class="@(_compact.Value ? "gallery-page gallery-compact" : "gallery-page")">
+    <div class="gallery">
+        <div class="gallery-intro">
+            <text class="gallery-title" role="heading" aria-level="1">AwAUI component gallery</text>
+            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" @onclick="ToggleTheme">
+                @(_dark.Value ? "Light theme" : "Dark theme")
+            </AwAUI.Shadcn.Button>
+        </div>
+        <div class="gallery-grid">
+            <AwAUI.Shadcn.Card>
+                <AwAUI.Shadcn.CardHeader>
+                    <AwAUI.Shadcn.CardTitle>Button</AwAUI.Shadcn.CardTitle>
+                </AwAUI.Shadcn.CardHeader>
+                <AwAUI.Shadcn.CardContent>
+                    <div class="gallery-stack">
+                        <div class="gallery-buttons">
+                            <AwAUI.Shadcn.Button>Default</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Secondary">Secondary</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Outline</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Destructive">Destructive</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost">Ghost</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Link">Link</AwAUI.Shadcn.Button>
+                        </div>
+                        <AwAUI.Shadcn.Separator />
+                        <div class="gallery-buttons">
+                            <AwAUI.Shadcn.Button Size="ButtonSize.Sm">Small</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Size="ButtonSize.Lg">Large</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Disabled="true">Disabled</AwAUI.Shadcn.Button>
+                        </div>
+                        @if (_shortcuts.Value)
+                        {
+                            <text class="gallery-value">Tab to focus a button. Press Space or Enter to activate it.</text>
+                        }
+                    </div>
+                </AwAUI.Shadcn.CardContent>
+            </AwAUI.Shadcn.Card>
+
+            <AwAUI.Shadcn.Card>
+                <AwAUI.Shadcn.CardHeader>
+                    <AwAUI.Shadcn.CardTitle>Workspace</AwAUI.Shadcn.CardTitle>
+                    <AwAUI.Shadcn.CardDescription>
+                        <AwAUI.Shadcn.Badge Variant="BadgeVariant.Secondary">Session only</AwAUI.Shadcn.Badge>
+                    </AwAUI.Shadcn.CardDescription>
+                    <AwAUI.Shadcn.CardAction>
+                        <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.Xs"
+                            Disabled="@(_workspace.Value == DefaultWorkspace)" @onclick="ResetName">Reset name</AwAUI.Shadcn.Button>
+                    </AwAUI.Shadcn.CardAction>
+                </AwAUI.Shadcn.CardHeader>
+                <AwAUI.Shadcn.CardContent>
+                    <div class="gallery-detail">
+                        <text class="gallery-label">Workspace name</text>
+                        <text class="gallery-value">@_workspace.Value</text>
+                    </div>
+                </AwAUI.Shadcn.CardContent>
+                <AwAUI.Shadcn.CardFooter>
+                    <AwAUI.Shadcn.Dialog Open="@_open.Value" OnOpenChange="@SetOpen">
+                        <AwAUI.Shadcn.DialogTrigger AsChild="true">
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" id="edit-workspace" data-motion-demo="dialog">Edit workspace</AwAUI.Shadcn.Button>
+                        </AwAUI.Shadcn.DialogTrigger>
+                        <AwAUI.Shadcn.DialogContent>
+                            <AwAUI.Shadcn.DialogHeader>
+                                <AwAUI.Shadcn.DialogTitle>Edit workspace</AwAUI.Shadcn.DialogTitle>
+                                <AwAUI.Shadcn.DialogDescription>Change the name shown on the card.</AwAUI.Shadcn.DialogDescription>
+                            </AwAUI.Shadcn.DialogHeader>
+                            <div class="gallery-field">
+                                <AwAUI.Shadcn.Label Id="workspace-name-label" For="workspace-name">Workspace name</AwAUI.Shadcn.Label>
+                                <AwAUI.Shadcn.Input Id="workspace-name" @bind-Value="_draft"
+                                    aria-labelledby="workspace-name-label" aria-invalid="@(InvalidName ? "true" : null)"
+                                    aria-describedby="@(InvalidName ? "workspace-name-error" : null)" @onsubmit="SaveName" />
+                                @if (InvalidName)
+                                {
+                                    <text id="workspace-name-error" class="gallery-field-error" role="alert">Enter a workspace name.</text>
+                                }
+                            </div>
+                            <AwAUI.Shadcn.DialogFooter>
+                                <AwAUI.Shadcn.DialogClose AsChild="true">
+                                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Cancel</AwAUI.Shadcn.Button>
+                                </AwAUI.Shadcn.DialogClose>
+                                <AwAUI.Shadcn.Button id="save-workspace" @onclick="SaveName">Save changes</AwAUI.Shadcn.Button>
+                            </AwAUI.Shadcn.DialogFooter>
+                        </AwAUI.Shadcn.DialogContent>
+                    </AwAUI.Shadcn.Dialog>
+                </AwAUI.Shadcn.CardFooter>
+            </AwAUI.Shadcn.Card>
+
+            <AwAUI.Shadcn.Card Class="gallery-preferences">
+                <AwAUI.Shadcn.CardHeader>
+                    <AwAUI.Shadcn.CardTitle>Preferences</AwAUI.Shadcn.CardTitle>
+                </AwAUI.Shadcn.CardHeader>
+                <AwAUI.Shadcn.CardContent>
+                    <div class="gallery-stack">
+                        <div class="gallery-preference">
+                            <div class="gallery-preference-copy">
+                                <AwAUI.Shadcn.Label Id="shortcut-hints-label" For="shortcut-hints">Show keyboard hints</AwAUI.Shadcn.Label>
+                                <text id="shortcut-hints-description" class="gallery-value">Display shortcuts under the button examples.</text>
+                            </div>
+                            <AwAUI.Shadcn.Checkbox Id="shortcut-hints" @bind-Checked="_shortcuts" aria-labelledby="shortcut-hints-label" aria-describedby="shortcut-hints-description" />
+                        </div>
+                        <AwAUI.Shadcn.Separator />
+                        <div class="gallery-preference">
+                            <div class="gallery-preference-copy">
+                                <AwAUI.Shadcn.Label Id="compact-spacing-label" For="compact-spacing">Compact spacing</AwAUI.Shadcn.Label>
+                                <text id="compact-spacing-description" class="gallery-value">Reduce the space between sections.</text>
+                            </div>
+                            <AwAUI.Shadcn.Switch Id="compact-spacing" @bind-Checked="_compact" aria-labelledby="compact-spacing-label" aria-describedby="compact-spacing-description" />
+                        </div>
+                    </div>
+                </AwAUI.Shadcn.CardContent>
+            </AwAUI.Shadcn.Card>
+        </div>
+        @if (ShowCatalog)
+        {
+            <ComponentCatalog />
+        }
+    </div>
+</div>
+
+<style global>
+    @layer theme, base, components, utilities;
+    @layer components {
+        .gallery-page { min-height: 100vh; background: var(--muted); padding: 56px 32px; }
+        .gallery { max-width: 960px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
+        .gallery-intro { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+        .gallery-title { font-size: 36px; line-height: 1.15; font-weight: 700; letter-spacing: -0.025em; }
+        .gallery-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 16px; }
+        .gallery-stack, .gallery-field { display: flex; flex-direction: column; gap: 12px; }
+        .gallery-buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .gallery-preferences { grid-column: 1 / -1; }
+        .gallery-preference { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .gallery-preference-copy { display: flex; flex-direction: column; gap: 4px; }
+        .gallery-compact { padding-top: 28px; padding-bottom: 28px; }
+        .gallery-compact .gallery, .gallery-compact .gallery-grid { gap: 10px; }
+        .gallery-detail { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border); padding: 12px; border-radius: var(--radius); }
+        .gallery-label { font-size: 12px; font-weight: 600; }
+        .gallery-value { font-size: 14px; color: var(--muted-foreground); }
+        .gallery-field-error { font-size: 14px; color: var(--destructive); }
+        @media (width < 720px) {
+            .gallery-page { padding: 28px 16px; }
+            .gallery-grid { grid-template-columns: minmax(0, 1fr); }
+            .gallery-title { font-size: 28px; }
+        }
+    }
+</style>
+
+@code {
+    const string DefaultWorkspace = "Studio North";
+
+    readonly State<bool> _dark = new(false);
+    readonly State<bool> _shortcuts = new(true);
+    readonly State<bool> _compact = new(false);
+    readonly State<bool> _open = new(false);
+    readonly State<string> _workspace = new(DefaultWorkspace);
+    readonly State<string> _draft = new("");
+    readonly State<bool> _attemptedSave = new(false);
+
+    bool InvalidName => _attemptedSave.Value && string.IsNullOrWhiteSpace(_draft.Value);
+
+    public bool Dark { get; set; }
+    public bool ShowCatalog { get; set; } = true;
+
+    protected override void OnMount()
+    {
+        _dark.Value = Dark;
+        ApplyTheme();
+    }
+
+    void ToggleTheme()
+    {
+        _dark.Value = !_dark.Value;
+        ApplyTheme();
+    }
+
+    void ApplyTheme()
+    {
+        if (Root is { } root) ShadcnTheme.SetDark(root, _dark.Value);
+    }
+
+    void SetOpen(bool value)
+    {
+        if (value)
+        {
+            _draft.Value = _workspace.Value;
+            _attemptedSave.Value = false;
+        }
+        _open.Value = value;
+    }
+
+    void ResetName() => _workspace.Value = DefaultWorkspace;
+
+    void SaveName()
+    {
+        if (string.IsNullOrWhiteSpace(_draft.Value))
+        {
+            _attemptedSave.Value = true;
+            return;
+        }
+        _workspace.Value = _draft.Value.Trim();
+        SetOpen(false);
+    }
+}

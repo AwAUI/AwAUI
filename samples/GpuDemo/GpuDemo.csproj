@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    GPU（Metal）后端示例与基准（参数见 Program.cs 开头的说明）：
+      bench 模式：离屏渲染 RenderDemo 场景（1280×880 设备像素），对比软件与 GPU 的帧时间
+      窗口模式：打开一个 CAMetalLayer 窗口（裸 ObjC 互操作，不依赖 AwAUI.MacOS 的最小参照），标题栏显示帧率；
+                经平台层的正式 GPU 窗口见 samples/RenderDemo、samples/Counter
+    测量请用优化构建（自定义配置默认不优化）：加 -p:Optimize=true
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishAot Condition="'$(NativeAot)' == 'true'">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../RenderDemo/DemoScene.cs" Link="DemoScene.cs" />
+  </ItemGroup>
+</Project>

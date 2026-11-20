@@ -1,0 +1,19 @@
+@* Label + Input 一行（shadcn v4 的 Label 与 Input 类名）*@
+<div data-slot="field" class="grid gap-2" @attributes="Rest">
+    <span data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">@Label</span>
+    <input data-slot="input" placeholder="@Placeholder" value="@Value" aria-invalid="@(Invalid ? "true" : null)"
+           class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive" />
+    @if (Hint != null)
+    {
+        <text class="@(Invalid ? "text-destructive text-sm" : "text-muted-foreground text-sm")">@Hint</text>
+    }
+</div>
+
+@code {
+    public string Label { get; set; } = "";
+    public string? Placeholder { get; set; }
+    public string? Value { get; set; }
+    public string? Hint { get; set; }
+    public bool Invalid { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

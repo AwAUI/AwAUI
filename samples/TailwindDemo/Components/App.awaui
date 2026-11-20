@@ -1,0 +1,85 @@
+@* 示例页面：统计卡片（grid-cols-3）、表单卡片与按钮变体卡片（grid-cols-2）。Dark 为 true 时整页放在 .dark 子树里（shadcn 的暗色约定） *@
+<div class="@(Dark ? "dark" : "")">
+<div class="min-h-screen bg-background text-foreground p-8">
+    <div class="mx-auto flex max-w-5xl flex-col gap-6">
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+                <text class="text-2xl font-semibold tracking-tight">AwAUI × Tailwind</text>
+                <text class="text-muted-foreground text-sm">shadcn/ui v4 主题（oklch 令牌）+ 构建期生成的工具类</text>
+            </div>
+            <div class="flex items-center gap-2">
+                <Badge>v4.3.5</Badge>
+                <Badge Variant="BadgeVariant.Secondary">oklch</Badge>
+                <Badge Variant="BadgeVariant.Outline" data-state="active">@(Dark ? "dark" : "light")</Badge>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+            @foreach (var stat in Stats)
+            {
+                <Card @key="stat.Title" Title="@stat.Title" Description="@stat.Description" Class="gap-3">
+                    <div class="flex items-end justify-between">
+                        <text class="text-3xl font-semibold tabular-nums">@stat.Value</text>
+                        <Badge Variant="@(stat.Up ? BadgeVariant.Secondary : BadgeVariant.Destructive)">@stat.Delta</Badge>
+                    </div>
+                </Card>
+            }
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <Card Title="创建账户" Description="填写信息后点击注册。">
+                <div class="flex flex-col gap-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <Field Label="名" Placeholder="小明" />
+                        <Field Label="姓" Value="王" />
+                    </div>
+                    <Field Label="邮箱" Placeholder="m@@example.com" data-required="true" />
+                    <Field Label="密码" Value="123" Invalid="true" Hint="至少 8 个字符" />
+                </div>
+                <Footer>
+                    <Button Variant="ButtonVariant.Outline" Class="flex-1">取消</Button>
+                    <Button Class="flex-1" aria-label="注册" @onclick="() => clicks.Value++">注册 @(clicks.Value > 0 ? "×" + clicks.Value : "")</Button>
+                </Footer>
+            </Card>
+
+            <Card Title="按钮" Description="variant 与 size 由 Cva 生成类名，调用方的 class 按 tailwind-merge 合并。">
+                <div class="flex flex-col gap-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Button>Default</Button>
+                        <Button Variant="ButtonVariant.Secondary">Secondary</Button>
+                        <Button Variant="ButtonVariant.Outline">Outline</Button>
+                        <Button Variant="ButtonVariant.Destructive">Destructive</Button>
+                        <Button Variant="ButtonVariant.Ghost">Ghost</Button>
+                        <Button Variant="ButtonVariant.Link">Link</Button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Button Size="ButtonSize.Sm">Small</Button>
+                        <Button Size="ButtonSize.Lg">Large</Button>
+                        <Button Disabled="true">Disabled</Button>
+                        <Button Class="px-8 bg-chart-2 hover:bg-chart-2/90">px-8 覆盖 px-4</Button>
+                    </div>
+                    <div class="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        <span class="font-medium text-foreground">w-1/2：</span>
+                        <div class="mt-2 h-2 w-full rounded-full bg-muted"><div class="h-2 w-1/2 rounded-full bg-primary"></div></div>
+                    </div>
+                </div>
+            </Card>
+        </div>
+    </div>
+</div>
+</div>
+
+@code {
+    sealed record Stat(string Title, string Description, string Value, string Delta, bool Up);
+
+    static readonly Stat[] Stats =
+    {
+        new("总收入", "本月", "¥45,231", "+20.1%", true),
+        new("订阅", "活跃用户", "2,350", "+180", true),
+        new("退款", "近 30 天", "12", "-4.5%", false),
+    };
+
+    readonly State<int> clicks = new(0);
+
+    public bool Dark { get; set; }
+}

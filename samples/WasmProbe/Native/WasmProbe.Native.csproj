@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 原生对照：与 WASM 探针编译同一份 Bench.cs / DemoScene.cs，在本机 JIT 上跑同样的工作量。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>WasmProbe</RootNamespace>
+    <!-- dotnet publish -c Release -r osx-arm64 -p:NativeAot=true：NativeAOT 分析与对照 -->
+    <PublishAot Condition="'$(NativeAot)' == 'true'">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Bench.cs" Link="Bench.cs" />
+    <Compile Include="../MicroBench.cs" Link="MicroBench.cs" />
+    <Compile Include="../../RenderDemo/DemoScene.cs" Link="DemoScene.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/AwAUI.Render/AwAUI.Render.csproj" />
+  </ItemGroup>
+</Project>

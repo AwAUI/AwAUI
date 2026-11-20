@@ -1,0 +1,28 @@
+@* 小表单（.awaui 写法）：受控输入框 + 提交按钮（回车或点击），提交后显示问候语。与 Components.cs 中的 GreetingForm 等价。 *@
+<div class="card">
+    <text class="title">@Strings.Current.FormTitle</text>
+    <div class="field">
+        <input id="name" value="@name.Value" placeholder="@Strings.Current.NamePlaceholder"
+               @oninput="e => name.Value = e.Value" @onsubmit="Submit" />
+        <Button class="primary small" id="greet" @onclick="Submit">@Strings.Current.Greet</Button>
+    </div>
+    @if (greeting.Value is string g)
+    {
+        <text class="greeting" id="greeting">@g</text>
+    }
+    else
+    {
+        <text class="hint">@Strings.Current.FormHint</text>
+    }
+</div>
+
+@code {
+    readonly State<string> name = new("");
+    readonly State<string?> greeting = new((string?)null);
+
+    void Submit()
+    {
+        var n = name.Value.Trim();
+        greeting.Value = n.Length == 0 ? Strings.Current.EmptyName : string.Format(Strings.Current.Hello, n);
+    }
+}

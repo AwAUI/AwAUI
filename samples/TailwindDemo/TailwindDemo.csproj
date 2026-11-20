@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Tailwind 构建期接入的示例（design/23 第 3 层、实施顺序第 2 步）：.awaui 组件只用 Tailwind 工具类与 shadcn/ui v4 的主题令牌写外观。
+    Styles/app.css 是入口样式表（shadcn v4 的 globals.css：oklch 令牌、@theme inline 映射、@custom-variant dark），
+    AwAUI.Markup 源生成器扫描 *.awaui 与 C# 字符串中的类名，生成 TailwindStyles（CSS + 模块初始化器登记到 AppStyleSheets）。
+    用法见 Program.cs 顶部（无窗口渲染到 PNG，可选暗色、缩放与尺寸）。
+  -->
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.props" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TailwindDemo</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <!-- 运行时的 Cn / Cva（tailwind-merge 与 class-variance-authority 的移植） -->
+    <ProjectReference Include="../../src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/Headless/AwAUI.Headless/AwAUI.Headless.csproj" />
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Tailwind 入口样式表（以 NuGet 包 AwAUI.Markup 引用时写法相同） -->
+    <AwAUITailwindStylesheet Include="Styles/app.css" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/TestFiles/Fonts/NotoSans-Regular.ttf" Link="Fonts/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tests/TestFiles/Fonts/NotoSans-OFL.txt" Link="Fonts/NotoSans-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
+</Project>

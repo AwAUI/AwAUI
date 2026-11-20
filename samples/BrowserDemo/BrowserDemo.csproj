@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!--
+    AwAUI.Browser 的演示：RenderDemo 的场景经软件后端渲染到 <canvas>，外加可拖动的圆片、多点触摸标记与输入法回显。
+    不依赖 wasm-tools workload（解释器 + jiterpreter，使用运行时包里预编译的 dotnet.native.wasm）：
+      dotnet publish samples/BrowserDemo -c <配置> -o <dir>
+      python3 -m http.server -b 127.0.0.1 -d <dir>/wwwroot 8080     然后打开 http://127.0.0.1:8080/
+    冒烟测试与测量：tests/AwAUI.Browser.Tests/node/（Node + DOM 垫片，或无头 Chromium / Edge 经 CDP 驱动）。
+    TFM 必须是 net10.0-browser：AwAUI.Browser 只提供 browser 平台的产物。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-browser</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>BrowserDemo</RootNamespace>
+    <!-- 引擎自带文字栈，不需要 ICU -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../RenderDemo/DemoScene.cs" Link="DemoScene.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Browser/AwAUI.Browser/AwAUI.Browser.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+  </ItemGroup>
+</Project>

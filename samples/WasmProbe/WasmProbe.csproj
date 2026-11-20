@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!--
+    CPU 光栅器在 WebAssembly 上的技术验证（design/README.md 不确定点 #1）。
+    不依赖 wasm-tools workload：解释器 + jiterpreter，使用运行时包里预编译好的 dotnet.native.wasm。
+      dotnet publish samples/WasmProbe -c Release -o <dir>
+      node samples/WasmProbe/node/bench.mjs <dir>/wwwroot [选项见 node/bench.mjs]
+    浏览器：用任意静态文件服务器托管 <dir>/wwwroot，打开 index.html。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework Condition="'$(ProbeTfm)' != ''">$(ProbeTfm)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>WasmProbe</RootNamespace>
+    <!-- 引擎自带文字栈，不需要 ICU；可用 InvariantGlobalization=false 对比包体 -->
+    <InvariantGlobalization Condition="'$(InvariantGlobalization)' == ''">true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Native/**" />
+    <None Remove="Native/**" />
+    <Content Remove="Native/**" />
+    <None Remove="node/**" />
+    <Content Remove="node/**" />
+    <Compile Include="../RenderDemo/DemoScene.cs" Link="DemoScene.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+  </ItemGroup>
+</Project>

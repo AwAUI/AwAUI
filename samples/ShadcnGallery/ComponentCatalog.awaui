@@ -1,0 +1,171 @@
+@using AwAUI.Shadcn
+
+<div class="gallery-grid">
+    <Card>
+        <CardHeader><CardTitle>Editing and selection</CardTitle></CardHeader>
+        <CardContent>
+            <div class="gallery-stack">
+                <Label Id="catalog-note-label" For="catalog-note">Workspace notes</Label>
+                <Textarea Id="catalog-note" @bind-Value="_note" aria-labelledby="catalog-note-label" Placeholder="Add a note" />
+                <Label Id="catalog-view-label">Default view</Label>
+                <Select @bind-Value="_view">
+                    <SelectTrigger data-motion-demo="select" aria-labelledby="catalog-view-label"><SelectValue Placeholder="Choose a view" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectLabel>Views</SelectLabel>
+                            <SelectItem Value="projects">Projects</SelectItem>
+                            <SelectItem Value="activity">Activity</SelectItem>
+                            <SelectItem Value="archived" Disabled="true">Archive</SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+                <Label Id="catalog-volume-label" For="catalog-volume">Volume</Label>
+                <Slider Id="catalog-volume" @bind-Value="_volume" aria-labelledby="catalog-volume-label" />
+                <Progress Value="@_volume.Value" aria-label="Volume level" />
+            </div>
+        </CardContent>
+    </Card>
+
+    <Card>
+        <CardHeader><CardTitle>Navigation</CardTitle></CardHeader>
+        <CardContent>
+            <div class="gallery-stack">
+                <Tabs DefaultValue="members">
+                    <TabsList aria-label="Workspace views">
+                        <TabsTrigger Value="members">Members</TabsTrigger>
+                        <TabsTrigger Value="shortcuts">Shortcuts</TabsTrigger>
+                    </TabsList>
+                    <TabsContent Value="members">
+                        <div class="gallery-buttons">
+                            <Avatar aria-label="Alex Rivera"><AvatarFallback>AR</AvatarFallback></Avatar>
+                            <text>Alex Rivera</text>
+                            <Badge Variant="BadgeVariant.Secondary">Owner</Badge>
+                        </div>
+                    </TabsContent>
+                    <TabsContent Value="shortcuts">
+                        <div class="gallery-buttons"><Kbd>Tab</Kbd><text>Move focus</text><Kbd>Esc</Kbd><text>Close a popup</text></div>
+                    </TabsContent>
+                </Tabs>
+                <Separator />
+                <RadioGroup DefaultValue="comfortable" aria-label="Density">
+                    <div class="gallery-buttons"><RadioGroupItem Id="catalog-radio-comfortable" Value="comfortable" aria-labelledby="catalog-comfortable" /><Label Id="catalog-comfortable" For="catalog-radio-comfortable">Comfortable</Label></div>
+                    <div class="gallery-buttons"><RadioGroupItem Id="catalog-radio-compact" Value="compact" aria-labelledby="catalog-compact" /><Label Id="catalog-compact" For="catalog-radio-compact">Compact</Label></div>
+                </RadioGroup>
+                <ToggleGroup DefaultValue="list" aria-label="Layout">
+                    <ToggleGroupItem Value="list">List</ToggleGroupItem>
+                    <ToggleGroupItem Value="grid">Grid</ToggleGroupItem>
+                </ToggleGroup>
+            </div>
+        </CardContent>
+    </Card>
+
+    <Card>
+        <CardHeader><CardTitle>Overlays</CardTitle></CardHeader>
+        <CardContent>
+            <div class="gallery-buttons">
+                <DropdownMenu>
+                    <DropdownMenuTrigger AsChild="true" data-motion-demo="menu"><AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Actions</AwAUI.Shadcn.Button></DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem OnSelect="@SelectRename">Rename</DropdownMenuItem>
+                        <DropdownMenuCheckboxItem DefaultChecked="true">Show activity</DropdownMenuCheckboxItem>
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>More actions</DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                                <DropdownMenuItem OnSelect="@SelectDuplicate">Duplicate</DropdownMenuItem>
+                                <DropdownMenuItem Disabled="true">Export</DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Popover>
+                    <PopoverTrigger AsChild="true" data-motion-demo="popover"><AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Details</AwAUI.Shadcn.Button></PopoverTrigger>
+                    <PopoverContent>
+                        <PopoverHeader><PopoverTitle>Workspace details</PopoverTitle><PopoverDescription>Members can edit their own notes.</PopoverDescription></PopoverHeader>
+                    </PopoverContent>
+                </Popover>
+                <Tooltip>
+                    <TooltipTrigger AsChild="true"><AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Help</AwAUI.Shadcn.Button></TooltipTrigger>
+                    <TooltipContent>Focus this button with Tab to show the tooltip.</TooltipContent>
+                </Tooltip>
+                <Sheet>
+                    <SheetTrigger AsChild="true" data-motion-demo="sheet"><AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Preferences</AwAUI.Shadcn.Button></SheetTrigger>
+                    <SheetContent><SheetHeader><SheetTitle>Workspace preferences</SheetTitle><SheetDescription>Apply to this workspace.</SheetDescription></SheetHeader></SheetContent>
+                </Sheet>
+                <AlertDialog>
+                    <AlertDialogTrigger AsChild="true"><AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Clear note</AwAUI.Shadcn.Button></AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>Clear workspace notes?</AlertDialogTitle><AlertDialogDescription>The current note will be removed.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction @onclick="ClearNote">Clear note</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
+            <text class="gallery-value" role="status">@_action.Value</text>
+        </CardContent>
+    </Card>
+
+    <Card>
+        <CardHeader><CardTitle>Disclosure and feedback</CardTitle></CardHeader>
+        <CardContent>
+            <div class="gallery-stack">
+                <Accordion DefaultValue="project" Collapsible="true">
+                    <AccordionItem Value="project"><AccordionTrigger>Project</AccordionTrigger><AccordionContent>Current workspace projects.</AccordionContent></AccordionItem>
+                    <AccordionItem Value="activity"><AccordionTrigger data-motion-demo="accordion">Activity</AccordionTrigger><AccordionContent>Recent workspace changes.</AccordionContent></AccordionItem>
+                </Accordion>
+                <Collapsible>
+                    <CollapsibleTrigger AsChild="true"><AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Show details</AwAUI.Shadcn.Button></CollapsibleTrigger>
+                    <CollapsibleContent>Additional workspace settings.</CollapsibleContent>
+                </Collapsible>
+                <Alert><AlertTitle>Draft saved locally</AlertTitle><AlertDescription>Your notes are available for this session.</AlertDescription></Alert>
+                <div class="gallery-buttons">
+                    <Toggle aria-label="Pin updates">Pin updates</Toggle>
+                    <Spinner aria-label="Loading updates" /><Skeleton Class="gallery-placeholder" />
+                </div>
+            </div>
+        </CardContent>
+    </Card>
+
+    <Card Class="gallery-preferences">
+        <CardHeader><CardTitle>Data and layout</CardTitle></CardHeader>
+        <CardContent>
+            <div class="gallery-stack">
+                <Table Columns="minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)" aria-label="Workspace projects">
+                    <TableHeader><TableRow><TableHead>Project</TableHead><TableHead>Status</TableHead><TableHead>Owner</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        <TableRow><TableCell>Design system</TableCell><TableCell>Active</TableCell><TableCell>Alex</TableCell></TableRow>
+                        <TableRow><TableCell>Documentation</TableCell><TableCell>Draft</TableCell><TableCell>Sam</TableCell></TableRow>
+                    </TableBody>
+                </Table>
+                <div class="gallery-grid">
+                    <ScrollArea Class="gallery-scroll-demo" aria-label="Recent activity">
+                        <div class="gallery-stack gallery-scroll-content">
+                            <text>Project added</text><text>Notes edited</text><text>Layout changed</text><text>Review opened</text><text>Workspace renamed</text><text>Owner updated</text>
+                        </div>
+                    </ScrollArea>
+                    <AspectRatio Ratio="4.0 / 1.0" Class="gallery-ratio"><text>4:1 canvas</text></AspectRatio>
+                </div>
+            </div>
+        </CardContent>
+    </Card>
+</div>
+
+<style global>
+    @layer components {
+        .gallery-placeholder { width: 88px; height: 12px; }
+        .gallery-scroll-demo { height: 96px; border: 1px solid var(--border); border-radius: var(--radius); }
+        .gallery-scroll-content { padding: 8px 12px; }
+        .gallery-ratio { min-height: 48px; display: flex; align-items: center; justify-content: center; background: var(--muted); border-radius: var(--radius); }
+    }
+</style>
+
+@code {
+    readonly State<string> _note = new("Project kickoff\nReview component states");
+    readonly State<string> _view = new("projects");
+    readonly State<double> _volume = new(40);
+    readonly State<string> _action = new("");
+
+    void SelectRename(PointerEvent _) => _action.Value = "Rename selected.";
+    void SelectDuplicate(PointerEvent _) => _action.Value = "Duplicate selected.";
+    void ClearNote(PointerEvent _) => _note.Value = "";
+}
