@@ -228,6 +228,27 @@ internal static class TextEditing
         return sb.ToString();
     }
 
+    public static string SanitizeMultiline(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        int index = 0;
+        while (index < text.Length && (text[index] == '\n' || !Drop(text, index))) index++;
+        if (index == text.Length) return text;
+        var result = new StringBuilder(text.Length);
+        result.Append(text, 0, index);
+        for (; index < text.Length; index++)
+        {
+            char c = text[index];
+            if (c == '\r')
+            {
+                if (index + 1 < text.Length && text[index + 1] == '\n') index++;
+                result.Append('\n');
+            }
+            else if (c == '\n' || !Drop(text, index)) result.Append(c);
+        }
+        return result.ToString();
+    }
+
     static bool Drop(string s, int i)
     {
         char c = s[i];

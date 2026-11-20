@@ -32,6 +32,15 @@ internal enum EventKind : byte
     KeyUpCapture,
     Scroll,
     Wheel,
+    // CSS 动画与过渡（Animation/RenderPipeline.Animation.cs 派发）
+    AnimationStart,
+    AnimationIteration,
+    AnimationEnd,
+    AnimationCancel,
+    TransitionRun,
+    TransitionStart,
+    TransitionEnd,
+    TransitionCancel,
     Count,
 }
 

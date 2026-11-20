@@ -24,6 +24,22 @@ internal sealed class ElementStyleView : StyleElement
 
     public Element Element => _element;
 
+    // ---------------- 帧管线为元素保存的伪元素与容器查询状态（RenderPipeline.Pseudo.cs / RenderPipeline.Containers.cs）
+
+    /// <summary><c>::before</c> / <c>::after</c> 生成的盒；没有时为 null。</summary>
+    internal GeneratedContentElement? Before, After;
+
+    /// <summary>输入框的 <c>::placeholder</c> / <c>::selection</c> 计算样式；没有相应规则时为 null。</summary>
+    internal ComputedStyle? PlaceholderStyle, SelectionStyle;
+
+    /// <summary>作为查询容器时上一次用于容器查询的内容盒尺寸（NaN 表示还没有记录）与 <c>container-type / container-name</c>。</summary>
+    internal float QueryWidth = float.NaN, QueryHeight = float.NaN;
+    internal ComputedStyle? QueryStyle;
+
+    /// <summary>映射布局样式时加上的经典滚动条槽（RenderPipeline.Gutter.cs）与 <c>overflow: auto</c> 的滚动条是否出现。</summary>
+    internal float GutterRight, GutterBottom, GutterLeft;
+    internal bool AutoGutterX, AutoGutterY;
+
     static ElementStyleView? Of(Element? e, RenderPipeline pipeline) =>
         e is null ? null : RenderBox.Get(e).GetView(pipeline);
 
@@ -42,6 +58,66 @@ internal sealed class ElementStyleView : StyleElement
     public override StyleElement? PreviousSibling => Of(_element.PreviousElementSibling, _pipeline);
 
     public override StyleElement? NextSibling => Of(_element.NextElementSibling, _pipeline);
+
+    /// <summary>第一个元素子节点（跳过文本节点）：<c>:has()</c> 经它与 <see cref="NextSibling"/> 遍历后代。</summary>
+    public override StyleElement? FirstChild
+    {
+        get
+        {
+            var ch = _element.Children;
+            for (int i = 0; i < ch.Count; i++)
+                if (!ch[i].IsTextNode) return Of(ch[i], _pipeline);
+            return null;
+        }
+    }
+
+    /// <summary>上一次样式计算的结果（容器查询从祖先读取 <c>container-type / container-name</c> 与字号）。</summary>
+    public override ComputedStyle? CurrentStyle => _element.Render?.Style;
+
+    /// <summary>
+    /// 作为查询容器的内容盒尺寸：上一次布局的结果（未对齐的内容盒）。还没有布局、或不生成盒（display:none）时返回 false。
+    /// </summary>
+    public override bool TryGetContainerSize(out float width, out float height)
+    {
+        if (_element.Render is { HasBox: true, Layout: not null } box)
+        {
+            width = box.ContentWidth;
+            height = box.ContentHeight;
+            return true;
+        }
+        width = height = 0;
+        return false;
+    }
+
+    /// <summary>
+    /// HTML 表现提示：<c>img</c> / <c>svg</c> 的 <c>width</c> / <c>height</c> 属性映射为 <c>width</c>、<c>height</c>，两者都给出时
+    /// 另加 <c>aspect-ratio: auto w / h</c>（HTML §15.4.3「映射到 aspect-ratio 的属性」）。
+    /// </summary>
+    public override CssInlineStyle? PresentationalHints =>
+        _element is ReplacedElement r && r.PresentationalHintText is { } text ? _pipeline.GetInlineStyle(text, _element) : null;
+
+    /// <summary>表单与文档状态伪类（<see cref="StyleElement.MatchesStatePseudoClass"/>），按元素类型与属性求值。</summary>
+    public override bool MatchesStatePseudoClass(PseudoClass pseudoClass) => StatePseudoClasses.Matches(_element, pseudoClass);
+
+    /// <summary><c>:dir()</c>：最近的带 <c>dir</c> 属性（ltr / rtl）的祖先（含自身）决定方向，默认 ltr。</summary>
+    public override StyleDirection Direction
+    {
+        get
+        {
+            int guard = 0;
+            for (var e = _element; e is not null && guard < 4096; e = e.Parent, guard++)
+            {
+                var dir = e.GetAttribute("dir");
+                if (dir is null) continue;
+                if (string.Equals(dir, "rtl", StringComparison.OrdinalIgnoreCase)) return StyleDirection.Rtl;
+                if (string.Equals(dir, "ltr", StringComparison.OrdinalIgnoreCase)) return StyleDirection.Ltr;
+            }
+            return StyleDirection.Ltr;
+        }
+    }
+
+    /// <summary><c>:lang()</c>：元素自身的 <c>lang</c> 属性。</summary>
+    public override string? Language => _element.GetAttribute("lang");
 
     /// <summary>两个枚举的位定义相同（见 <see cref="UI.PseudoStates"/> 的说明），直接按位转换。</summary>
     public override CssPseudoStates States => (CssPseudoStates)(int)_element.States;

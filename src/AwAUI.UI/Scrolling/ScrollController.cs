@@ -79,14 +79,15 @@ public sealed class ScrollController
     public ScrollPhysics? Physics { get; set; }
 
     /// <summary>
-    /// 横向的 <c>overscroll-behavior</c>（滚到头后是否传给祖先、是否允许越界效果）。CSS 属性尚未实现，目前只能在这里设置。
+    /// 横向的 <c>overscroll-behavior</c>（滚到头后是否传给祖先、是否允许越界效果）。不是 <see cref="OverscrollBehavior.Auto"/> 时优先于
+    /// 容器的 CSS <c>overscroll-behavior-x</c>（见 ScrollCss）。
     /// </summary>
     public OverscrollBehavior OverscrollBehaviorX { get; set; }
 
     /// <summary>纵向的 <c>overscroll-behavior</c>。</summary>
     public OverscrollBehavior OverscrollBehaviorY { get; set; }
 
-    /// <summary>滚动条宽度（CSS <c>scrollbar-width</c> 尚未实现，目前在这里设置）。</summary>
+    /// <summary>滚动条宽度；不是 <see cref="ScrollbarWidth.Auto"/> 时优先于容器的 CSS <c>scrollbar-width</c>。</summary>
     public ScrollbarWidth ScrollbarWidth { get; set; }
 
     /// <summary>滚动条滑块颜色（CSS <c>scrollbar-color</c> 的第一个值）；为 null 时用平台默认。</summary>
@@ -112,7 +113,7 @@ public sealed class ScrollController
     }
 
     /// <summary>
-    /// 滚动到 <paramref name="offset"/>（钳制到范围内）。默认平滑滚动（<see cref="ScrollAnimation.Default"/>）。
+    /// 滚动到 <paramref name="offset"/>（钳制到范围内）。不给动画时按容器的 CSS <c>scroll-behavior</c>：smooth（默认样式表的取值）为 <see cref="ScrollAnimation.Default"/>，auto 为立即。
     /// 返回的任务在动画结束、被 <see cref="Stop"/> / <see cref="JumpTo"/> / 新的滚动打断时完成（结果都是完成，不是取消）。
     /// </summary>
     public Task ScrollTo(Point offset, ScrollAnimation? animation = null)
@@ -125,7 +126,7 @@ public sealed class ScrollController
     /// <summary><see cref="ScrollTo"/> 的实现：<paramref name="tcs"/> 在动画结束或被打断时完成（立即滚动时立即完成）。</summary>
     internal void StartScrollTo(Point offset, ScrollAnimation? animation, TaskCompletionSource<bool> tcs)
     {
-        animation ??= ScrollAnimation.Default;
+        animation ??= ScrollCss.DefaultAnimation(this); // CSS scroll-behavior（默认样式表为 smooth）
         _explicitOffset = true;
         float tx = Clamp(offset.X, 0), ty = Clamp(offset.Y, 1);
         var manager = Manager;

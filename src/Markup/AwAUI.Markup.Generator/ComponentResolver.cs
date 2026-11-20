@@ -75,6 +75,8 @@ internal static class ComponentResolver
             ClassValue = c.GetTypeByMetadataName("AwAUI.UI.ClassValue");
             StyleValue = c.GetTypeByMetadataName("AwAUI.UI.StyleValue");
             State = c.GetTypeByMetadataName("AwAUI.UI.State`1");
+            AttributeDictionary = c.GetTypeByMetadataName("AwAUI.UI.AttributeDictionary");
+            CaptureUnmatched = c.GetTypeByMetadataName("AwAUI.UI.CaptureUnmatchedAttributesAttribute");
         }
 
         public INamedTypeSymbol? Node { get; }
@@ -84,6 +86,8 @@ internal static class ComponentResolver
         public INamedTypeSymbol? ClassValue { get; }
         public INamedTypeSymbol? StyleValue { get; }
         public INamedTypeSymbol? State { get; }
+        public INamedTypeSymbol? AttributeDictionary { get; }
+        public INamedTypeSymbol? CaptureUnmatched { get; }
     }
 
     // ------------------------------------------------------------ 组件标签
@@ -127,7 +131,37 @@ internal static class ComponentResolver
             }
         }
         bool isElement = known.ElementNode is not null && DerivesFrom(type, known.ElementNode);
-        return new ComponentInfo(type.ToDisplayString(NameFormat), props, isElement);
+        return new ComponentInfo(type.ToDisplayString(NameFormat), props, isElement, isElement ? null : CaptureProp(type, known));
+    }
+
+    /// <summary>
+    /// 标了 <c>[CaptureUnmatchedAttributes]</c>、类型为 <c>AttributeDictionary</c> 的可写 Prop（相当于 Blazor 的 CaptureUnmatchedValues）：
+    /// 最派生的类型优先，同一类型中按名称序数排序取第一个；特性按继承查找（重写的属性也算）。
+    /// </summary>
+    static string? CaptureProp(INamedTypeSymbol type, Known known)
+    {
+        if (known.CaptureUnmatched is null || known.AttributeDictionary is null) return null;
+        for (var t = type; t is not null && !SymbolEqualityComparer.Default.Equals(t, known.Node); t = t.BaseType)
+        {
+            string? found = null;
+            foreach (var m in t.GetMembers())
+            {
+                if (m is not IPropertySymbol p || p.IsStatic || p.IsIndexer || p.DeclaredAccessibility != Accessibility.Public) continue;
+                if (p.SetMethod is null || p.SetMethod.DeclaredAccessibility != Accessibility.Public) continue;
+                if (!Is(p.Type, known.AttributeDictionary) || !HasCaptureAttribute(p, known.CaptureUnmatched)) continue;
+                if (found is null || string.CompareOrdinal(p.Name, found) < 0) found = p.Name;
+            }
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    static bool HasCaptureAttribute(IPropertySymbol p, INamedTypeSymbol attribute)
+    {
+        for (var q = p; q is not null; q = q.OverriddenProperty)
+            foreach (var a in q.GetAttributes())
+                if (SymbolEqualityComparer.Default.Equals(a.AttributeClass, attribute)) return true;
+        return false;
     }
 
     static PropKind KindOf(ITypeSymbol type, Known known)

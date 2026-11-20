@@ -7,4 +7,26 @@
     <CompilerVisibleProperty Include="RootNamespace" />
     <CompilerVisibleProperty Include="ProjectDir" />
   </ItemGroup>
+  <!--
+    Tailwind 构建期接入（design/23 第 3 层）。项目里写：
+      <AwAUITailwindStylesheet Include="Styles/app.css" />        入口样式表（@import "tailwindcss"; @theme ...），每个生成一个 TailwindStyles 类
+      <AwAUITailwindImport Include="Styles/theme.css" />          入口样式表 @import 的本地文件（生成器不读磁盘，只能经 AdditionalFiles 读取）
+      <AwAUITailwindSource Include="Content/**/*.md" />           额外扫描类名的文件（*.awaui 与项目内的 C# 字符串字面量默认就扫描）
+    入口样式表的元数据 ClassName 可指定生成的类名（默认 TailwindStyles；多个入口时 TailwindStyles_文件名）。
+    可选属性：
+      AwAUITailwindThemeRoot      主题变量规则的选择器，默认 :root（AwAUI.Css 支持 :host 后可设为 ":root, :host"，与 Tailwind 原样一致）
+      AwAUITailwindRegister       false 时不生成模块初始化器（不自动登记到 AwAUI.UI.AppStyleSheets），由应用自己调用 TailwindStyles.Register()
+      AwAUITailwindAutoSource     false 时不自动扫描 *.awaui 与 C# 文件，只扫描 @source 与 AwAUITailwindSource 指定的文件
+      AwAUITailwindMinify         true 时输出压缩的 CSS
+      AwAUITailwindPreflight      Tailwind 时使用原版 preflight（默认 AwAUI 版）
+  -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="AwAUITailwindThemeRoot" />
+    <CompilerVisibleProperty Include="AwAUITailwindRegister" />
+    <CompilerVisibleProperty Include="AwAUITailwindAutoSource" />
+    <CompilerVisibleProperty Include="AwAUITailwindMinify" />
+    <CompilerVisibleProperty Include="AwAUITailwindPreflight" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AwAUITailwind" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ClassName" />
+  </ItemGroup>
 </Project>

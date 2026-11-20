@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using AwAUI.Css;
 using AwAUI.Css.Cascade;
+using AwAUI.Css.Values;
 using AwAUI.Graphics;
 using AwAUI.Layout;
 using AwAUI.Text;
@@ -94,7 +95,7 @@ public sealed partial class RenderPipeline : FramePipeline
     readonly TextStyleMapper _textStyles = new();
     readonly Dictionary<string, CssInlineStyle> _inlineStyles = new(StringComparer.Ordinal);
     readonly PipelineObserver _observer;
-    readonly PipelineHitTester _hitTester;
+    readonly HitTester _hitTester;
     readonly List<CssDiagnostic> _inlineDiagnostics = new();
     const int MaxInlineStyleCacheEntries = 2048;
 
@@ -117,7 +118,7 @@ public sealed partial class RenderPipeline : FramePipeline
         _engine = new StyleEngine(environment);
         if (includeDefaultStyleSheet) _engine.AddStyleSheet(DefaultStyleSheet.Sheet, CascadeOrigin.UserAgent);
         _observer = new PipelineObserver(this);
-        _hitTester = new PipelineHitTester(this);
+        _hitTester = new GeneratedAwareHitTester(this);
     }
 
     /// <summary>文本引擎。</summary>
@@ -150,7 +151,7 @@ public sealed partial class RenderPipeline : FramePipeline
     /// <summary>
     /// 命中测试；<paramref name="ignorePointerEvents"/> 为 true 时也考虑 <c>pointer-events: none</c> 的元素（DevTools 拾取，与浏览器的检查器一致）。
     /// </summary>
-    public Element? HitTest(Point position, bool ignorePointerEvents) => HitTestCore(position, ignorePointerEvents);
+    public Element? HitTest(Point position, bool ignorePointerEvents) => MapGeneratedHit(HitTestCore(position, ignorePointerEvents));
 
     /// <summary>加入应用样式表（默认 Author 来源）。下一帧全量重算样式。</summary>
     public CascadeStyleSheet AddStyleSheet(StyleSheet sheet, CascadeOrigin origin = CascadeOrigin.Author)
@@ -216,6 +217,8 @@ public sealed partial class RenderPipeline : FramePipeline
             _componentSheetsRoot = root;
             _componentSheetsAdded = 0;
         }
+        // 应用样式表（Tailwind 等）先于组件样式表：它的 @layer 声明（theme, base, components, utilities）要先确立层顺序
+        AddPendingAppStyleSheets(root);
         var list = root.ComponentStyleSheets;
         while (_componentSheetsAdded < list.Count)
         {
@@ -286,18 +289,43 @@ public sealed partial class RenderPipeline : FramePipeline
 
     // ------------------------------------------------------------ 帧
 
+    /// <summary>每帧最多触发 <see cref="UIRoot.LayoutCompleted"/> 的轮数（每轮之后重算样式与布局）。</summary>
+    public const int MaxLayoutCompletedRounds = 3;
+
     public override void Run(UIRoot root)
     {
         if (root is null) throw new ArgumentNullException(nameof(root));
         Attach(root);
+        AddPendingAppStyleSheets(root);
+        PruneGeneratedContent();
         // 滚动动画、惯性与回弹按帧时钟推进（偏移在布局阶段之后施加到几何上）
         LastFrameScrolled = false;
         _scrollManager?.BeginFrame();
         var sw = Stopwatch.StartNew();
+        // CSS 动画与过渡：读取帧时钟，推进只有时间变化的元素（Animation/RenderPipeline.Animation.cs）
+        BeginAnimationFrame(root);
         int styled = StylePass(root);
         double styleMs = sw.Elapsed.TotalMilliseconds;
         sw.Restart();
         int paragraphs = LayoutPass(root, out bool layoutRan, out bool geometryChanged);
+        // 容器查询：查询容器的尺寸由布局给出，依赖它的元素在布局之后重算样式并再布局（有上限，RenderPipeline.Containers.cs）。
+        // 不只在本帧布局过时检查：上一帧布局完成事件之后的再布局也可能改变了容器尺寸（只比较登记的容器，开销与容器数成正比）
+        paragraphs += ContainerQueryPasses(root, ref styled, ref layoutRan, ref geometryChanged);
+        // 布局完成（UIRoot.LayoutCompleted）：处理器（浮层定位、自动聚焦）改变的样式在本帧内重算并布局，最多若干轮。
+        // 处理器没有改变任何样式（也没有新的一次性回调）时不再重复：稳定状态下每帧只触发一次、没有额外的样式与布局遍历
+        for (int round = 0; round < MaxLayoutCompletedRounds && root.HasLayoutCompletedWork; round++)
+        {
+            // Leave one callback round to observe the new geometry and defer any further builds.
+            bool rebuilt = root.RunLayoutCallbacksAndRebuild(allowRebuild: round + 1 < MaxLayoutCompletedRounds);
+            bool restyle = ((root.RootElement.DirtyFlags | root.RootElement.DescendantDirtyFlags) & ElementDirtyFlags.Style) != 0;
+            if (!rebuilt && !restyle && !root.HasPendingAfterLayout) break;
+            if (!rebuilt && !restyle) continue;
+            if (restyle) styled += StylePass(root);
+            paragraphs += LayoutPass(root, out bool lr, out bool gc);
+            layoutRan |= lr;
+            geometryChanged |= gc;
+            if (rebuilt) paragraphs += ContainerQueryPasses(root, ref styled, ref layoutRan, ref geometryChanged);
+        }
         double layoutMs = sw.Elapsed.TotalMilliseconds;
         sw.Restart();
         bool repaint = geometryChanged || _forceRepaint || _scrollRepaint
@@ -310,6 +338,8 @@ public sealed partial class RenderPipeline : FramePipeline
         }
         _scrollRepaint = _scrollInkFull = false;
         ClearAllFlags(root.RootElement);
+        // 动画事件与下一帧的请求（继续采样进行中的动画，或为延迟阶段安排定时器）
+        EndAnimationFrame(root);
         double paintMs = sw.Elapsed.TotalMilliseconds;
         LastTimings = new FrameTimings(styleMs, layoutMs, paintMs, styled, paragraphs, layoutRan, repaint, _frame.CommandCount, _recordedUnits, _reusedUnits);
         // 每帧最多一次的 scroll / scrollend（处理器可能写 State，下一帧生效）
@@ -325,6 +355,7 @@ public sealed partial class RenderPipeline : FramePipeline
             if (ReferenceEquals(_root.Input.HitTester, _hitTester)) _root.Input.HitTester = null;
             if (ReferenceEquals(_root.Input.Scrolling, _scrollManager)) _root.Input.Scrolling = null;
         }
+        if (_generated.Count > 0) _pruneGenerated = true;
         _root = root;
         root.AddObserver(_observer);
         root.Input.HitTester = _hitTester;
@@ -396,7 +427,7 @@ public sealed partial class RenderPipeline : FramePipeline
     {
         if (_invalidationDirty)
         {
-            _invalidation.Rebuild(_engine.StyleSheets);
+            _invalidation.Rebuild(_engine);
             _invalidationDirty = false;
         }
         var rootEl = root.RootElement;
@@ -413,77 +444,91 @@ public sealed partial class RenderPipeline : FramePipeline
         var stack = _styleStack;
         stack.Clear();
         stack.Push(new StyleWork { Element = rootEl, Parent = null, Mode = full ? (byte)2 : (byte)0 });
-        while (stack.Count > 0)
+        // 一次重算批次：:has() 的结果在批次内按 (选择器, 元素) 缓存
+        var batch = _engine.BeginRecalcBatch();
+        try
         {
-            var w = stack.Pop();
-            var e = w.Element;
-            var box = RenderBox.Get(e);
-            if (e.IsTextNode)
+            while (stack.Count > 0)
             {
-                UpdateTextNodeStyle(e, box, w.Parent);
-                e.ClearDirty(ElementDirtyFlags.Style);
-                continue;
-            }
+                var w = stack.Pop();
+                var e = w.Element;
+                var box = RenderBox.Get(e);
+                if (e.IsTextNode)
+                {
+                    UpdateTextNodeStyle(e, box, w.Parent);
+                    e.ClearDirty(ElementDirtyFlags.Style);
+                    continue;
+                }
 
-            byte childMode = w.Mode == 2 || box.RestyleSubtree ? (byte)2 : (byte)0;
-            bool changed = false;
-            bool self = w.Mode != 0 || box.RestyleSubtree || box.Style is null || (e.DirtyFlags & ElementDirtyFlags.Style) != 0;
-            if (self)
-            {
-                count++;
-                var old = box.Style;
-                ComputedStyle next;
-                try
+                byte childMode = w.Mode == 2 || box.RestyleSubtree ? (byte)2 : (byte)0;
+                bool changed = false;
+                bool self = w.Mode != 0 || box.RestyleSubtree || box.Style is null || (e.DirtyFlags & ElementDirtyFlags.Style) != 0;
+                if (self)
                 {
-                    next = _engine.Resolve(box.GetView(this), w.Parent);
+                    count++;
+                    var old = box.Style;
+                    ComputedStyle next;
+                    try
+                    {
+                        next = ResolveStyle(e, box, w.Parent);
+                    }
+                    catch (InsufficientExecutionStackException ex)
+                    {
+                        // 选择器匹配在极深的树上可能耗尽栈：保留旧样式（或继承父样式），报告后继续
+                        root.ReportDiagnostic(new UIDiagnostic("AW0001", DiagnosticSeverity.Error, "样式计算失败：" + ex.Message, e.Owner));
+                        next = old ?? w.Parent ?? ComputedStyle.Initial;
+                    }
+                    box.StyledClasses = e.Classes;
+                    if (!ReferenceEquals(old, next))
+                    {
+                        changed = true;
+                        box.Style = next;
+                        ComputedStyleChanged?.Invoke(e);
+                        var diff = ComputedStyle.Diff(old, next);
+                        ApplyStyleDifference(e, box, diff, old, next);
+                        if (AffectsLayering(old, next)) LayeringChanged();
+                        if (old is null || InheritedChanged(old, next)) childMode = Math.Max(childMode, (byte)1);
+                        // 祖先的 display:none 切换会停止或重启后代的动画，包括暂停和延迟的动画。
+                        if (old is not null && (old.Display == CssDisplay.None) != (next.Display == CssDisplay.None)) childMode = 2;
+                        if (old is not null && DecorationChanged(old, next)) MarkDecoratedText(e);
+                    }
+                    // 伪元素（::before / ::after / ::placeholder / ::selection）随原始元素一起重算（RenderPipeline.Pseudo.cs）
+                    UpdatePseudoElements(e, box);
                 }
-                catch (InsufficientExecutionStackException ex)
+                box.RestyleSubtree = false;
+                byte directMode = childMode;
+                if (box.RestyleChildren) directMode = Math.Max(directMode, box.RestyleChildSubtrees ? (byte)2 : (byte)1);
+                box.RestyleChildren = box.RestyleChildSubtrees = false;
+                bool descend = directMode != 0 || changed || (e.DescendantDirtyFlags & ElementDirtyFlags.Style) != 0;
+                e.ClearDirty(ElementDirtyFlags.Style);
+                if (!descend) continue;
+                var ch = e.Children;
+                var parentStyle = box.Style;
+                for (int i = ch.Count - 1; i >= 0; i--)
                 {
-                    // 选择器匹配在极深的树上可能耗尽栈：保留旧样式（或继承父样式），报告后继续
-                    root.ReportDiagnostic(new UIDiagnostic("AW0001", DiagnosticSeverity.Error, "样式计算失败：" + ex.Message, e.Owner));
-                    next = old ?? w.Parent ?? ComputedStyle.Initial;
-                }
-                box.StyledClasses = e.Classes;
-                if (!ReferenceEquals(old, next))
-                {
-                    changed = true;
-                    box.Style = next;
-                    ComputedStyleChanged?.Invoke(e);
-                    var diff = ComputedStyle.Diff(old, next);
-                    ApplyStyleDifference(e, box, diff);
-                    if (AffectsLayering(old, next)) LayeringChanged();
-                    if (old is null || InheritedChanged(old, next)) childMode = Math.Max(childMode, (byte)1);
-                }
-            }
-            box.RestyleSubtree = false;
-            byte directMode = childMode;
-            if (box.RestyleChildren) directMode = Math.Max(directMode, box.RestyleChildSubtrees ? (byte)2 : (byte)1);
-            box.RestyleChildren = box.RestyleChildSubtrees = false;
-            bool descend = directMode != 0 || changed || (e.DescendantDirtyFlags & ElementDirtyFlags.Style) != 0;
-            e.ClearDirty(ElementDirtyFlags.Style);
-            if (!descend) continue;
-            var ch = e.Children;
-            var parentStyle = box.Style;
-            for (int i = ch.Count - 1; i >= 0; i--)
-            {
-                var c = ch[i];
-                // 文本节点共享父元素的样式对象：父样式换了实例就要同步（便宜，只比较几个分组）
-                if (c.IsTextNode && changed)
-                {
+                    var c = ch[i];
+                    // 文本节点共享父元素的样式对象：父样式换了实例就要同步（便宜，只比较几个分组）
+                    if (c.IsTextNode && changed)
+                    {
+                        stack.Push(new StyleWork { Element = c, Parent = parentStyle, Mode = directMode });
+                        continue;
+                    }
+                    // 子元素对非继承属性用了 inherit：父样式换了实例（可能只是非继承分组变化）就要重算它
+                    if (directMode == 0 && changed && c.Render?.Style is { } cs && (cs.Flags & ComputedStyleFlags.InheritsNonInherited) != 0)
+                    {
+                        stack.Push(new StyleWork { Element = c, Parent = parentStyle, Mode = 1 });
+                        continue;
+                    }
+                    if (directMode == 0 && ((c.DirtyFlags | c.DescendantDirtyFlags) & ElementDirtyFlags.Style) == 0
+                        && c.Render is { } cb && (cb.Style is not null || c.IsTextNode) && !cb.RestyleSubtree && !cb.RestyleChildren)
+                        continue;
                     stack.Push(new StyleWork { Element = c, Parent = parentStyle, Mode = directMode });
-                    continue;
                 }
-                // 子元素对非继承属性用了 inherit：父样式换了实例（可能只是非继承分组变化）就要重算它
-                if (directMode == 0 && changed && c.Render?.Style is { } cs && (cs.Flags & ComputedStyleFlags.InheritsNonInherited) != 0)
-                {
-                    stack.Push(new StyleWork { Element = c, Parent = parentStyle, Mode = 1 });
-                    continue;
-                }
-                if (directMode == 0 && ((c.DirtyFlags | c.DescendantDirtyFlags) & ElementDirtyFlags.Style) == 0
-                    && c.Render is { } cb && (cb.Style is not null || c.IsTextNode) && !cb.RestyleSubtree && !cb.RestyleChildren)
-                    continue;
-                stack.Push(new StyleWork { Element = c, Parent = parentStyle, Mode = directMode });
             }
+        }
+        finally
+        {
+            batch.Dispose();
         }
         return count;
     }
@@ -492,7 +537,7 @@ public sealed partial class RenderPipeline : FramePipeline
         !ReferenceEquals(a.FontGroup, b.FontGroup) || !ReferenceEquals(a.TextGroup, b.TextGroup)
         || !ReferenceEquals(a.InteractionGroup, b.InteractionGroup) || !ReferenceEquals(a.CustomProperties, b.CustomProperties);
 
-    static void ApplyStyleDifference(Element e, RenderBox box, Css.Values.StyleDifference diff)
+    void ApplyStyleDifference(Element e, RenderBox box, Css.Values.StyleDifference diff, ComputedStyle? old, ComputedStyle next)
     {
         const Css.Values.StyleDifference layout = Css.Values.StyleDifference.Structure | Css.Values.StyleDifference.Layout;
         const Css.Values.StyleDifference paint = Css.Values.StyleDifference.Paint | Css.Values.StyleDifference.Composite;
@@ -503,7 +548,8 @@ public sealed partial class RenderPipeline : FramePipeline
         }
         else if ((diff & paint) != 0)
         {
-            e.MarkDirty(ElementDirtyFlags.Paint);
+            // 只改了变换 / 不透明度 / 滤镜等合成属性：元素自己的录制单元仍然有效（见 RenderPipeline.Effects.cs）
+            if (!OnCompositeOnlyChange(e, box, old, next)) e.MarkDirty(ElementDirtyFlags.Paint);
         }
     }
 
@@ -524,11 +570,15 @@ public sealed partial class RenderPipeline : FramePipeline
         {
             var a = old.TextGroup;
             var b = parent.TextGroup;
-            if (a.TextAlign != b.TextAlign || a.WhiteSpace != b.WhiteSpace || a.WordBreak != b.WordBreak || a.OverflowWrap != b.OverflowWrap)
+            if (a.TextAlign != b.TextAlign || a.WhiteSpace != b.WhiteSpace || a.WordBreak != b.WordBreak || a.OverflowWrap != b.OverflowWrap
+                || TextLayoutChanged(a, b))
                 layout = true;
-            else if (!a.Color.Equals(b.Color) || a.Visibility != b.Visibility)
+            else if (!a.Color.Equals(b.Color) || a.Visibility != b.Visibility || TextPaintChanged(a, b))
                 paint = true;
         }
+        // 文本装饰不继承但传播到后代的文本（父元素的装饰变化要重建段落），行数截断属于父元素的盒
+        if (!ReferenceEquals(old.EffectsGroup, parent.EffectsGroup) && DecorationChanged(old, parent)) paint = true;
+        if (old.WebkitLineClamp != parent.WebkitLineClamp || old.Display != parent.Display || old.WebkitBoxOrient != parent.WebkitBoxOrient) layout = true;
         if (old.TextOverflow != parent.TextOverflow || old.OverflowX != parent.OverflowX) layout = true;
         if (layout) e.MarkDirty(ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
         else if (paint) e.MarkDirty(ElementDirtyFlags.Paint);
@@ -579,6 +629,8 @@ public sealed partial class RenderPipeline : FramePipeline
             var old = element.Render?.StyledClasses;
             var now = element.Classes;
             var inv = Inv;
+            if (inv.HasRelevantClassChange(old, now)) inv.InvalidateHas(element, inclusive: false);
+            // ::before / ::after 的候选键可能变化：元素自身已标记样式失效，伪元素随之重算
             if (old is not null)
             {
                 foreach (var c in old)
@@ -597,29 +649,46 @@ public sealed partial class RenderPipeline : FramePipeline
 
         public override void OnIdChanged(Element element, string? oldId)
         {
-            if (Inv.IsDeepId(oldId) || Inv.IsDeepId(element.Id)) Deep(element);
+            var inv = Inv;
+            if (inv.IsDeepId(oldId) || inv.IsDeepId(element.Id)) Deep(element);
+            if (inv.Has.IsRelevantId(oldId) || inv.Has.IsRelevantId(element.Id)) inv.InvalidateHas(element, inclusive: false);
         }
 
-        public override void OnAttributeChanged(Element element, string name, string? oldValue)
-        {
-            if (Inv.IsDeepAttribute(name)) Deep(element);
-        }
+        public override void OnAttributeChanged(Element element, string name, string? oldValue) => AttributeOrProperty(element, name);
 
-        public override void OnPropertyChanged(Element element, string name)
+        public override void OnPropertyChanged(Element element, string name) => AttributeOrProperty(element, name);
+
+        void AttributeOrProperty(Element element, string name)
         {
-            if (Inv.IsDeepAttribute(name)) Deep(element);
+            var inv = Inv;
+            if (inv.IsDeepAttribute(name)) Deep(element);
+            bool state = inv.UsesStatePseudoClasses && StyleInvalidation.IsStateAttribute(name);
+            // 状态伪类（:invalid、:read-write ...）：属性或输入框的值变化后元素自身重算；用在非主体位置时连带子树
+            if (state)
+            {
+                element.MarkDirty(ElementDirtyFlags.Style);
+                if (inv.HasDeepStatePseudoClasses) Deep(element);
+            }
+            if ((name == "dir" || name == "lang") && inv.UsesDirOrLang && element.Render is { } box)
+            {
+                box.RestyleSubtree = true;
+                element.MarkDirty(ElementDirtyFlags.Style);
+            }
+            if (inv.Has.IsRelevantAttribute(name) || (state && inv.Has.UsesStatePseudoClasses)) inv.InvalidateHas(element, inclusive: false);
         }
 
         public override void OnPseudoStatesChanged(Element element, PseudoStates oldStates)
         {
             var changed = oldStates ^ element.States;
             if ((changed & Inv.DeepStates) != 0) Deep(element);
+            if ((changed & (PseudoStates)(int)Inv.Has.States) != 0) Inv.InvalidateHas(element, inclusive: false); // 两个枚举的位定义相同
             // 输入框的光标由绘制阶段按焦点画出：即使没有任何 :focus 规则（计算样式不变）也要重绘
             if (element is InputElement && (changed & PseudoStates.Focus) != 0) element.MarkDirty(ElementDirtyFlags.Paint);
         }
 
         public override void OnTextChanged(Element element)
         {
+            if (Inv.Has.UsesStructural && (element.IsTextNode ? element.Parent : element) is { } host) Inv.InvalidateHas(host, inclusive: true);
             if (!Inv.UsesEmpty) return;
             var target = element.IsTextNode ? element.Parent : element;
             target?.MarkDirty(ElementDirtyFlags.Style);
@@ -639,11 +708,14 @@ public sealed partial class RenderPipeline : FramePipeline
         {
             _p.LayeringChanged();
             Structure(parent);
+            if (Inv.Has.UsesHas) Inv.InvalidateHas(child, inclusive: false);
         }
 
         public override void OnChildRemoved(Element parent, Element child)
         {
-            _p.OnSubtreeRemoved(child);
+            if (Inv.Has.UsesHas) Inv.InvalidateHas(parent, inclusive: true);
+            _p.OnSubtreeRemoved(parent, child);
+            if (_p._generated.Count > 0) _p._pruneGenerated = true;
             _p._scrollManager?.OnSubtreeRemoved(child);
             ReplacedContent.ReleaseSubtree(child);
             Structure(parent);
@@ -653,6 +725,7 @@ public sealed partial class RenderPipeline : FramePipeline
         {
             _p.LayeringChanged();
             Structure(parent);
+            if (Inv.Has.HasSiblingRelative || Inv.Has.UsesStructural) Inv.InvalidateHas(parent, inclusive: true);
         }
     }
 
@@ -660,7 +733,7 @@ public sealed partial class RenderPipeline : FramePipeline
     {
         if (_invalidationDirty)
         {
-            _invalidation.Rebuild(_engine.StyleSheets);
+            _invalidation.Rebuild(_engine);
             _invalidationDirty = false;
         }
         return _invalidation;

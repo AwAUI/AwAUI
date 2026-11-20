@@ -81,6 +81,11 @@ public sealed partial class RenderPipeline
                 {
                     MapLayoutStyle(box, node);
                     if (created || force || (e.DirtyFlags & ElementDirtyFlags.Layout) != 0) SyncChildren(e, node);
+                    if (_generated.Count > 0 && (created || force || (e.DirtyFlags & ElementDirtyFlags.Layout) != 0))
+                    {
+                        var (before, after) = GetGenerated(e);
+                        paragraphs += SyncGenerated(before, force) + SyncGenerated(after, force);
+                    }
                     var ch = e.Children;
                     for (int i = ch.Count - 1; i >= 0; i--)
                     {
@@ -119,6 +124,13 @@ public sealed partial class RenderPipeline
                             if (layoutChange) node.MarkDirty();
                         }
                         box.Paragraph.MaxFontSize = maxFont;
+                        // 输入框：field-sizing: fixed（默认）时内容不撑开框宽，content 时随文字增长
+                        bool fixedSize = e is InputElement && box.Style?.FieldSizing != CssFieldSizing.Content;
+                        if (box.Paragraph.FixedInlineSize != fixedSize)
+                        {
+                            box.Paragraph.FixedInlineSize = fixedSize;
+                            node.MarkDirty();
+                        }
                     }
                     break;
                 }
@@ -143,7 +155,11 @@ public sealed partial class RenderPipeline
         }
         var measure = e.Measure;
         if (!ReferenceEquals(node.Measure, measure)) node.Measure = measure;
-        bool sizeChanged = measure.Update(content, e.HintWidth, e.HintHeight, box.Style?.AspectRatio ?? default);
+        // width / height 属性是表现提示（经级联成为 CSS 的 width / height / aspect-ratio，见 ElementStyleView.PresentationalHints）。
+        // 图片的固有尺寸只来自内容；内联 svg 的 width / height 同时是它的固有尺寸（SVG 根元素的尺寸属性，object-fit 按它放置文档）
+        bool sizeChanged = e is SvgElement
+            ? measure.Update(content, e.HintWidth, e.HintHeight, box.Style?.AspectRatio ?? default)
+            : measure.Update(content, null, null, box.Style?.AspectRatio ?? default);
         if (sizeChanged || force) box.LayoutStyleDirty = true;
         MapLayoutStyle(box, node);
         if (sizeChanged) node.MarkDirty();
@@ -155,9 +171,12 @@ public sealed partial class RenderPipeline
         if (s is null) return;
         bool scaleSame = box.MappedScale == _scale;
         if (ReferenceEquals(box.MappedStyle, s) && !box.LayoutStyleDirty && scaleSame) return;
-        if (box.MappedStyle is null || box.LayoutStyleDirty || !scaleSame || !LayoutMapper.LayoutGroupsSame(box.MappedStyle, s))
+        if (box.MappedStyle is null || box.LayoutStyleDirty || !scaleSame || !LayoutMapper.LayoutGroupsSame(box.MappedStyle, s)
+            || (!ReferenceEquals(box.MappedStyle.BehaviorGroup, s.BehaviorGroup) && GutterStale(box.Element, box)))
         {
             var mapped = LayoutMapper.Map(s, _scale);
+            // 经典滚动条占据的槽（RenderPipeline.Gutter.cs）
+            if (box.Kind == BoxKind.Container) mapped = ApplyGutter(box.Element, box, s, mapped);
             // 替换元素：标记 IsReplaced（块级的 auto 宽度是固有宽度、不撑满包含块，CSS 2.1 §10.3.4；绝对定位不拉伸；
             // 网格 normal 对齐按 start），宽高比用测量合成的使用值
             if (box.Kind == BoxKind.Replaced && box.Element is ReplacedElement re)
@@ -174,6 +193,9 @@ public sealed partial class RenderPipeline
     {
         var desired = _desiredChildren;
         desired.Clear();
+        // ::before / ::after 是第一个 / 最后一个布局子节点
+        var (before, after) = GetGenerated(e);
+        AddGeneratedNode(before, desired);
         var ch = e.Children;
         for (int i = 0; i < ch.Count; i++)
         {
@@ -186,6 +208,7 @@ public sealed partial class RenderPipeline
             cb.Layout ??= new LayoutNode { Owner = cb };
             desired.Add(cb.Layout);
         }
+        AddGeneratedNode(after, desired);
         bool same = node.ChildCount == desired.Count;
         for (int i = 0; same && i < desired.Count; i++)
             if (!ReferenceEquals(node.GetChild(i), desired[i])) same = false;
@@ -199,14 +222,28 @@ public sealed partial class RenderPipeline
         desired.Clear();
     }
 
+    static void AddGeneratedNode(GeneratedContentElement? g, List<LayoutNode> desired)
+    {
+        if (g is null) return;
+        var gb = RenderBox.Get(g);
+        if (gb.Style is null) return;
+        gb.Layout ??= new LayoutNode { Owner = gb };
+        desired.Add(gb.Layout);
+    }
+
     // ------------------------------------------------------------ 段落
 
     TextLayout BuildParagraph(RenderBox box, out bool empty, out float maxFontSize)
     {
         var e = box.Element;
         var style = (box.Kind == BoxKind.AnonymousText ? e.Parent?.Render?.Style : box.Style) ?? box.Style ?? ComputedStyle.Initial;
-        var ts = _textStyles.Get(style);
-        var ps = _textStyles.CreateParagraphStyle(style, ts, singleLine: e is InputElement);
+        // 文本装饰从祖先传播（匿名文本的样式就是父元素的样式，从父元素起算）
+        _paragraphDecoration = DecorationInfo.Propagated(box.Kind == BoxKind.AnonymousText ? e.Parent : e);
+        var ts = _textStyles.Get(style, 1f, _paragraphDecoration);
+        _paragraphDecoration = DecorationInfo.Combine(DecorationInfo.Of(style), _paragraphDecoration);
+        _inlineDecorations.Clear();
+        _inlineShifts.Clear();
+        var ps = _textStyles.CreateParagraphStyle(style, ts, singleLine: e is InputElement { IsMultiline: false });
         var builder = TextEngine.CreateParagraphBuilder(ps);
         _maxFontSize = style.FontSize;
         switch (e)
@@ -217,10 +254,18 @@ public sealed partial class RenderPipeline
             case InputElement input:
                 AddInputText(input, style, ts, builder);
                 break;
+            case GeneratedContentElement g:
+                builder.AddText(g.Text);
+                break;
             default:
+            {
+                var (before, after) = GetGenerated(e);
+                AddGeneratedInline(before, builder);
                 if (e is TextElement te && te.Content is { Length: > 0 } content) builder.AddText(content);
                 AddInlineChildren(e, builder);
+                AddGeneratedInline(after, builder);
                 break;
+            }
         }
         empty = builder.Length == 0;
         maxFontSize = _maxFontSize;
@@ -229,19 +274,37 @@ public sealed partial class RenderPipeline
 
     float _maxFontSize;
 
+    /// <summary>当前段落的基础装饰（段落元素自身的与祖先传播来的）；行内元素在此之上叠加自己的装饰。</summary>
+    DecorationInfo _paragraphDecoration;
+    readonly Stack<DecorationInfo> _inlineDecorations = new();
+    readonly Stack<float> _inlineShifts = new();
+
     /// <summary>把段落元素的后代（文本节点与 span 等行内元素）按树序追加到段落；元素的计算样式压栈。显式栈，不受嵌套深度影响。</summary>
     void AddInlineChildren(Element paragraph, ParagraphBuilder builder)
     {
         var stack = _inlineStack;
         stack.Clear();
         stack.Push((paragraph, 0, false));
+        var decos = _inlineDecorations;
+        decos.Clear();
+        decos.Push(_paragraphDecoration);
+        var shifts = _inlineShifts;
+        shifts.Clear();
+        shifts.Push(0);
         while (stack.Count > 0)
         {
             var (el, index, pushed) = stack.Pop();
             var ch = el.Children;
             if (index >= ch.Count)
             {
-                if (pushed) builder.Pop();
+                // 行内元素的 ::after（段落元素自身的由调用方加入）
+                if (!ReferenceEquals(el, paragraph) && _generated.Count > 0) AddGeneratedInline(GetGenerated(el).After, builder);
+                if (pushed)
+                {
+                    builder.Pop();
+                    decos.Pop();
+                    shifts.Pop();
+                }
                 continue;
             }
             stack.Push((el, index + 1, pushed));
@@ -260,9 +323,15 @@ public sealed partial class RenderPipeline
             bool push = cs is not null;
             if (push)
             {
-                builder.PushStyle(_textStyles.Get(cs!));
+                var outer = decos.Peek();
+                // vertical-align（sub / super / 长度）：基线偏移随嵌套累加
+                float shift = shifts.Peek() + TextStyleMapper.BaselineShiftOf(cs!, el.Render?.Style);
+                builder.PushStyle(_textStyles.Get(cs!, 1f, outer, shift));
+                decos.Push(DecorationInfo.Combine(DecorationInfo.Of(cs!), outer));
+                shifts.Push(shift);
                 if (cs!.FontSize > _maxFontSize) _maxFontSize = cs.FontSize;
             }
+            if (_generated.Count > 0) AddGeneratedInline(GetGenerated(c).Before, builder);
             if (c is TextElement inner && inner.Content is { Length: > 0 } innerContent) builder.AddText(innerContent);
             stack.Push((c, 0, push));
         }
@@ -400,6 +469,7 @@ public sealed partial class RenderPipeline
                 if (!scrollOnly)
                 {
                     UpdateScrollMetrics(e, node, axes, c);
+                    UpdateAutoGutter(e, box, c);
                     float ax = (axes & ScrollContainerX) != 0 ? SnapOffset(c._x) : 0;
                     float ay = (axes & ScrollContainerY) != 0 ? SnapOffset(c._y) : 0;
                     if (ax != c._appliedX || ay != c._appliedY)
@@ -425,6 +495,13 @@ public sealed partial class RenderPipeline
             float asx = positioned ? csx : w.ASX, asy = positioned ? csy : w.ASY;
             var ch = e.Children;
             for (int i = ch.Count - 1; i >= 0; i--) stack.Push(new GeomWork(ch[i], abs.X, abs.Y, ux, uy, sx, sy, csx, csy, asx, asy));
+            if (_generated.Count > 0)
+            {
+                // 伪元素盒：与子元素同样的平移（它们的布局节点是原始元素的子节点）
+                var (before, after) = GetGenerated(e);
+                if (before?.Render?.Layout is not null) stack.Push(new GeomWork(before, abs.X, abs.Y, ux, uy, sx, sy, csx, csy, asx, asy));
+                if (after?.Render?.Layout is not null) stack.Push(new GeomWork(after, abs.X, abs.Y, ux, uy, sx, sy, csx, csy, asx, asy));
+            }
         }
     }
 
@@ -444,6 +521,9 @@ public sealed partial class RenderPipeline
             x.BoundingRect = default;
             var ch = x.Children;
             for (int i = 0; i < ch.Count; i++) stack.Push(ch[i]);
+            var (before, after) = GetGenerated(x);
+            if (before is not null) stack.Push(before);
+            if (after is not null) stack.Push(after);
         }
     }
 

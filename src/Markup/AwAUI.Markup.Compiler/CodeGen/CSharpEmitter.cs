@@ -516,9 +516,11 @@ public static class CSharpEmitter
             AttributeSyntax? bindEvent = e.FindAttribute("@bind:event");
             foreach (var a in e.Attributes)
             {
+                if (IsSplat(a)) continue;
                 if (a.IsDirective) EmitDirectiveAttribute(a, v, e.Name, null, bindEvent);
                 else EmitIntrinsicAttribute(e.Name, a, v);
             }
+            EmitElementSplats(e, v);
             if (_scoped) Line($"{v}.__Scope = __StyleScope;");
             EmitChildren(e, v, e.Children);
             return v;
@@ -543,10 +545,12 @@ public static class CSharpEmitter
             bool ok = true;
             foreach (var a in e.Attributes)
             {
+                if (IsSplat(a)) continue;
                 if (a.IsDirective) EmitDirectiveAttribute(a, v, e.Name, null, bindEvent);
                 else if (RuntimeElements.IsSvgHostAttribute(a.Name)) EmitIntrinsicAttribute(e.Name, a, v);
                 else ok &= AppendSvgAttribute(xml, a);
             }
+            EmitElementSplats(e, v);
             if (_scoped) Line($"{v}.__Scope = __StyleScope;");
             ok &= AppendSvgContent(xml, "svg", e.Children);
             if (!ok) return v;
@@ -812,8 +816,29 @@ public static class CSharpEmitter
             Mapped($"var {v} = new", " " + type + "()", e.NameSpan.Start - 1, ";");
 
             AttributeSyntax? bindEvent = e.FindAttribute("@bind:event");
+            bool element = info != null && info.IsElement;
+            string? capture = info?.CaptureUnmatchedProp;
+            string? captured = null; // 收集未匹配属性的 AttributeDictionary 变量
+            if (capture != null)
+            {
+                // 先写入全部展开值，再写显式属性：与元素上的展开相同，显式属性优先（与位置无关），class / style 拼接
+                foreach (var a in e.Attributes)
+                {
+                    if (IsSplat(a)) TryCapture(a, v, info!, ref captured);
+                    else if (IsCaptureProp(a, capture) && a.Value != null && a.Value.Parts.Count > 0)
+                    {
+                        // 显式传入捕获 Prop 本身（包装组件转发 Rest="@Rest"）：与展开值相同，先写入，否则最后整体赋值时会被覆盖
+                        var forwarded = CodeValue(a.Value);
+                        EnsureCaptured(v, ref captured);
+                        Mapped($"{captured}.AddRange(((", forwarded.Text, forwarded.Offset, "))" + SplatSuppression + ");", a.Span.Start);
+                    }
+                }
+            }
             foreach (var a in e.Attributes)
             {
+                if (element && IsSplat(a)) continue; // 元素描述类型：写完显式属性之后再展开
+                if (capture != null && (IsSplat(a) || (IsCaptureProp(a, capture) && a.Value != null && a.Value.Parts.Count > 0))) continue; // 已在上面写入
+                if (capture != null && TryCapture(a, v, info!, ref captured)) continue;
                 if (a.IsDirective)
                 {
                     EmitDirectiveAttribute(a, v, null, info, bindEvent);
@@ -821,7 +846,9 @@ public static class CSharpEmitter
                 }
                 EmitComponentAttribute(a, v, info);
             }
-            if (_scoped && info != null && info.IsElement) Line($"{v}.__Scope = __StyleScope;");
+            if (captured != null) Line($"{v}.{capture} = {captured};");
+            if (element) EmitElementSplats(e, v);
+            if (_scoped && element) Line($"{v}.__Scope = __StyleScope;");
 
             // 具名插槽：子标签名与组件的 Slot / Template 属性同名
             var rest = new List<SyntaxNode>();
@@ -835,6 +862,88 @@ public static class CSharpEmitter
             }
             EmitChildren(e, v, rest);
             return v;
+        }
+
+        static bool IsSplat(AttributeSyntax a) => a.IsDirective && a.Name == "attributes" && a.Parameter == null;
+
+        /// <summary>
+        /// 展开值的实参后缀：<c>Dictionary&lt;string, object&gt;</c> 与参数类型 <c>IEnumerable&lt;KeyValuePair&lt;string, object?&gt;&gt;</c> 只差嵌套的可空注解，
+        /// 开启可空时会报 CS8620；用 <c>!</c> 抑制（C# 8 以下没有该运算符，也没有这条警告）。表达式包两层括号：<c>(x)!</c> 会被解析为把 <c>!...</c> 转换为类型 <c>x</c>。
+        /// </summary>
+        string SplatSuppression => _options.EmitNullableRestore ? "!" : "";
+
+        /// <summary>标签上按名字写出的捕获 Prop 本身（如 <c>Rest="@Rest"</c>）。</summary>
+        static bool IsCaptureProp(AttributeSyntax a, string capture) =>
+            !a.IsDirective && a.Name.Length > 0 && (char.IsLower(a.Name[0]) ? PropertyName(a.Name) : a.Name) == capture;
+
+        /// <summary>
+        /// 元素（内建元素与解析为元素描述类型的大写标签）上的 <c>@attributes="..."</c>：在全部显式属性写完之后调用
+        /// <c>ElementNode.MergeAttributes</c>，因此显式属性优先、<c>class</c> / <c>style</c> 拼接（规则见运行时的文档）。
+        /// </summary>
+        void EmitElementSplats(ElementSyntax e, string v)
+        {
+            foreach (var a in e.Attributes)
+            {
+                if (!IsSplat(a) || a.Value == null || a.Value.Parts.Count == 0) continue; // 缺值：AW4004 已报告
+                var code = CodeValue(a.Value);
+                Mapped($"{v}.MergeAttributes(((", code.Text, code.Offset, "))" + SplatSuppression + ");", a.Span.Start);
+            }
+        }
+
+        /// <summary>
+        /// 组件有捕获未匹配属性的 Prop（<c>[CaptureUnmatchedAttributes]</c>）时：<c>@attributes</c> 的展开值先按源中的顺序写入一个 <c>AttributeDictionary</c>
+        /// （<c>AddRange</c>，同名后写覆盖），再写入小写开头且没有对应 Prop 的普通属性与没有对应 Prop 的 <c>@onxxx</c>（<c>Merge</c>：覆盖展开值，
+        /// <c>class</c> / <c>style</c> 接在展开值之后），最后整体赋给该 Prop。返回 true 表示已处理。
+        /// </summary>
+        bool TryCapture(AttributeSyntax a, string v, ComponentInfo info, ref string? captured)
+        {
+            string key;
+            if (a.IsDirective)
+            {
+                if (IsSplat(a))
+                {
+                    if (a.Value == null || a.Value.Parts.Count == 0) return true; // AW4004 已报告
+                    var splat = CodeValue(a.Value);
+                    EnsureCaptured(v, ref captured);
+                    Mapped($"{captured}.AddRange(((", splat.Text, splat.Offset, "))" + SplatSuppression + ");", a.Span.Start);
+                    return true;
+                }
+                if (a.Parameter != null || !a.Name.StartsWith("on", StringComparison.Ordinal) || a.Name.Length <= 2) return false;
+                string evt = a.Name.Substring(2);
+                var known = RuntimeElements.AnyEvent(evt);
+                if (info.FindProp(known?.Member ?? "On" + Pascal(evt)) != null) return false;
+                if (a.Value == null || a.Value.Parts.Count == 0) return true; // AW4004 已报告
+                var handler = CodeValue(a.Value);
+                EnsureCaptured(v, ref captured);
+                key = Literal(a.Name);
+                if (known != null)
+                    Mapped($"{captured}.Merge({key}, {UI}EventHandlers.Wrap<{UI}{known.ArgsType}>(", handler.Text, handler.Offset, "));", a.Span.Start);
+                else
+                    Mapped($"{captured}.Merge({key}, ", handler.Text, handler.Offset, ");", a.Span.Start);
+                return true;
+            }
+            // 大写开头的属性名按 Prop 处理：拼错的 Prop 名由 C# 编译报告，而不是被悄悄收集
+            if (a.Name.Length == 0 || !char.IsLower(a.Name[0])) return false;
+            if (info.FindProp(PropertyName(a.Name)) != null) return false;
+            EnsureCaptured(v, ref captured);
+            key = Literal(a.Name);
+            var value = a.Value;
+            if (value == null)
+                AttrLine(a, $"{captured}.Merge({key}, true);"); // HTML 布尔写法
+            else if (value.LiteralValue is { } lit)
+                AttrLine(a, $"{captured}.Merge({key}, {Literal(lit)});");
+            else if (SingleExpression(value) is { } x)
+                Mapped($"{captured}.Merge({key}, (", x.Code, x.CodeSpan.Start, "));");
+            else
+                AttrLine(a, $"{captured}.Merge({key}, {StringValue(value)});");
+            return true;
+        }
+
+        void EnsureCaptured(string v, ref string? captured)
+        {
+            if (captured != null) return;
+            captured = v + "_attrs";
+            Line($"var {captured} = new {UI}AttributeDictionary();");
         }
 
         void EmitComponentAttribute(AttributeSyntax a, string v, ComponentInfo? info)
@@ -925,12 +1034,13 @@ public static class CSharpEmitter
                     Mapped($"{v}.Ref = ", code.Text, code.Offset, ";", a.Span.Start);
                     return;
                 case "attributes":
-                    if (ComponentLacks(a, info, "Attributes", "组件的属性透传")) return;
+                    // 元素上的展开由 EmitElementSplats 在显式属性之后输出；这里只剩没有捕获 Prop 的组件：写入它自己的 Attributes 成员
+                    if (ComponentLacks(a, info, "Attributes", "组件的属性透传（组件可以声明 [CaptureUnmatchedAttributes] AttributeDictionary 类型的 Prop）")) return;
                     Mapped($"{v}.Attributes.AddRange(", code.Text, code.Offset, ");", a.Span.Start);
                     return;
                 case "bind" when a.Parameter == null:
                 {
-                    if (intrinsic != "input") return; // 组件上的 @bind / 其他元素：AW4009 已报告；textarea：AW4012 已报告
+                    if (intrinsic is not ("input" or "textarea")) return; // AW4009 已报告
                     string evt = bindEvent?.Value?.LiteralValue?.Trim() == "change" ? "OnChange" : "OnInput";
                     EmitBind(a, v, "Value", evt, "__e", "__e.Value", code);
                     return;

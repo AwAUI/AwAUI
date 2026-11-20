@@ -39,6 +39,47 @@ public sealed partial class InputManager
 
     bool _focusingFromPointer;
 
+    /// <summary>聚焦时不滚动到可见（<see cref="FocusOptions.PreventScroll"/>）。</summary>
+    internal bool PreventRevealOnFocus;
+
+    // ------------------------------------------------------------ 根级预览（design/23 第 1 层：外部点击、Esc）
+
+    /// <summary>
+    /// 指针按下在派发给元素之前于根级报告（相当于 document 上的捕获监听器）：<see cref="Event.Target"/> 是命中的元素
+    /// （被模态层屏蔽时是根元素；没有命中时为 null）。处理器调用 <see cref="Event.StopPropagation"/> 则不再派发给元素，
+    /// 调用 <see cref="Event.PreventDefault"/> 则不执行默认动作（按下时聚焦）。DismissableLayer 用它判断外部点击。
+    /// </summary>
+    public event Action<PointerEvent>? PreviewPointerDown;
+
+    /// <summary>指针抬起在派发之前于根级报告（语义同 <see cref="PreviewPointerDown"/>）。</summary>
+    public event Action<PointerEvent>? PreviewPointerUp;
+
+    /// <summary>
+    /// 按键按下在派发给焦点元素之前于根级报告（document 上的捕获监听器）：<see cref="Event.Target"/> 是将要收到它的元素。
+    /// 处理器调用 <see cref="Event.PreventDefault"/> 阻止默认动作（Tab 移动焦点、按钮激活 ...），调用 <see cref="Event.StopPropagation"/>
+    /// 则不再派发给元素。DismissableLayer 用它处理 Escape，FocusScope 用它处理 Tab 回绕。
+    /// </summary>
+    public event Action<KeyEvent>? PreviewKeyDown;
+
+    void RaisePreview<T>(Action<T>? handler, T e, Element? target) where T : Event
+    {
+        if (handler is null) return;
+        e.Target = target;
+        e.CurrentTarget = null;
+        foreach (Action<T> h in handler.GetInvocationList())
+        {
+            try
+            {
+                h(e);
+            }
+            catch (Exception ex)
+            {
+                _root.ReportError(ex, null, ErrorPhase.EventHandler);
+            }
+            if (e.IsImmediatePropagationStopped) break;
+        }
+    }
+
     /// <summary>当前悬停的最内层元素。</summary>
     public Element? HoveredElement => _hover;
 
@@ -58,8 +99,15 @@ public sealed partial class InputManager
         {
             if (hit is not null && !ReferenceEquals(hit.Root, _root)) hit = null;
             if (hit is not null && hit.IsTextNode) hit = hit.Parent;
+            // 模态层屏蔽其下的内容（Radix 的 disableOutsidePointerEvents）：命中改为根元素（相当于 body 设了 pointer-events: none）
+            bool blocked = false;
+            if (raw.Type != RawPointerEventType.Leave && _root.IsPointerBlocked(hit))
+            {
+                hit = _root.RootElement;
+                blocked = true;
+            }
             // 滚动系统先看：滚动条上的按下与拖动、已经变成滚动的触摸拖动都不再派发给元素
-            if (Scrolling is { } scrolling && raw.Type != RawPointerEventType.Wheel && scrolling.PreviewPointer(raw, hit)) return;
+            if (!blocked && Scrolling is { } scrolling && raw.Type != RawPointerEventType.Wheel && scrolling.PreviewPointer(raw, hit)) return;
             _captures.TryGetValue(raw.PointerId, out var captured);
             var target = captured ?? hit;
             switch (raw.Type)
@@ -77,10 +125,17 @@ public sealed partial class InputManager
                     if (raw.Device == PointerType.Touch) UpdateHover(target, raw);
                     if (target is null)
                     {
+                        if (PreviewPointerDown is not null) RaisePreview(PreviewPointerDown, CreatePointerEvent("pointerdown", raw, bubbles: true), null);
                         _root.FocusManager.ClearFocus();
                         break;
                     }
-                    bool proceed = DispatchPointerEvent(target, "pointerdown", EventKind.PointerDown, EventKind.PointerDownCapture, raw);
+                    var downEvent = CreatePointerEvent("pointerdown", raw, bubbles: true);
+                    RaisePreview(PreviewPointerDown, downEvent, target);
+                    bool proceed = downEvent.IsPropagationStopped
+                        ? !downEvent.DefaultPrevented
+                        : Dispatch(target, downEvent, EventKind.PointerDown, EventKind.PointerDownCapture);
+                    // 被屏蔽的按下不改变焦点（模态层之下的内容不可交互）
+                    if (blocked) proceed = false;
                     if (!target.IsAttached) break;
                     if (_active is null)
                     {
@@ -111,7 +166,9 @@ public sealed partial class InputManager
 
                 case RawPointerEventType.Up:
                 {
-                    if (target is not null) DispatchPointerEvent(target, "pointerup", EventKind.PointerUp, EventKind.PointerUpCapture, raw);
+                    var upEvent = CreatePointerEvent("pointerup", raw, bubbles: true);
+                    RaisePreview(PreviewPointerUp, upEvent, target);
+                    if (target is not null && !upEvent.IsPropagationStopped) Dispatch(target, upEvent, EventKind.PointerUp, EventKind.PointerUpCapture);
                     if (raw.PointerId == _activePointer) ClearActive();
                     if (_pressTargets.TryGetValue(raw.PointerId, out var press))
                     {
@@ -143,6 +200,8 @@ public sealed partial class InputManager
                     break;
 
                 case RawPointerEventType.Wheel:
+                    // 滚动锁定（模态打开时，design/23 ScrollLock）：允许的子树之外的滚轮不派发、不滚动
+                    if (_root.IsScrollLocked(target)) break;
                     // 先派发可取消的 wheel，再由滚动系统滚动（design/21）
                     Scrolling?.OnWheel(raw, target);
                     break;
@@ -172,7 +231,7 @@ public sealed partial class InputManager
     /// <summary>焦点进入元素（非指针聚焦）：下一帧布局之后把它滚动到可见。</summary>
     void RevealFocus(Element element)
     {
-        if (!_focusingFromPointer) Scrolling?.RevealFocused(element);
+        if (!_focusingFromPointer && !PreventRevealOnFocus) Scrolling?.RevealFocused(element);
     }
 
     /// <summary>测试与无障碍用的便捷方法：在 <paramref name="target"/> 上模拟一次鼠标左键按下 + 抬起。</summary>
@@ -225,6 +284,8 @@ public sealed partial class InputManager
     public void UpdateHover(Element? hit, in RawPointerEvent raw)
     {
         if (hit is not null && !ReferenceEquals(hit.Root, _root)) hit = null;
+        // 模态层之下的内容不悬停（宿主在布局之后按指针位置重新命中时同样适用）
+        if (hit is not null && _root.IsPointerBlocked(hit)) hit = _root.RootElement;
         var old = _hover;
         if (ReferenceEquals(old, hit)) return;
         var lca = CommonAncestor(old, hit);
@@ -314,9 +375,12 @@ public sealed partial class InputManager
                 IsRepeat = raw.IsRepeat,
                 Timestamp = raw.Timestamp,
             };
-            bool proceed = down
-                ? Dispatch(target, e, EventKind.KeyDown, EventKind.KeyDownCapture)
-                : Dispatch(target, e, EventKind.KeyUp, EventKind.KeyUpCapture);
+            if (down) RaisePreview(PreviewKeyDown, e, target);
+            bool proceed = e.IsPropagationStopped
+                ? !e.DefaultPrevented
+                : down
+                    ? Dispatch(target, e, EventKind.KeyDown, EventKind.KeyDownCapture)
+                    : Dispatch(target, e, EventKind.KeyUp, EventKind.KeyUpCapture);
             if (proceed) DefaultKeyAction(target, raw, e.Key, down);
         }
         finally

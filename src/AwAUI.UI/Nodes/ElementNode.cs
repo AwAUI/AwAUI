@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 
 namespace AwAUI.UI;
 
@@ -98,6 +100,32 @@ public abstract class ElementNode : Node
     /// <summary>滚轮 / 触控板滚动（冒泡）；调用 <see cref="Event.PreventDefault"/> 阻止默认的滚动。</summary>
     public Action<WheelEvent>? OnWheel { get => Get<WheelEvent>(EventKind.Wheel); set => Set(EventKind.Wheel, value); }
 
+    // ---- CSS 动画与过渡事件（冒泡；在一帧的绘制之后派发）
+
+    /// <summary>CSS 动画进入活动阶段（<c>animationstart</c>）。</summary>
+    public Action<AnimationEvent>? OnAnimationStart { get => Get<AnimationEvent>(EventKind.AnimationStart); set => Set(EventKind.AnimationStart, value); }
+
+    /// <summary>CSS 动画开始新的一次迭代（<c>animationiteration</c>）。</summary>
+    public Action<AnimationEvent>? OnAnimationIteration { get => Get<AnimationEvent>(EventKind.AnimationIteration); set => Set(EventKind.AnimationIteration, value); }
+
+    /// <summary>CSS 动画结束（<c>animationend</c>）；没有时钟时有限的动画在开始的同一帧结束。</summary>
+    public Action<AnimationEvent>? OnAnimationEnd { get => Get<AnimationEvent>(EventKind.AnimationEnd); set => Set(EventKind.AnimationEnd, value); }
+
+    /// <summary>CSS 动画在结束前被取消（<c>animationcancel</c>：从 <c>animation-name</c> 移除、元素变为 <c>display: none</c>）。</summary>
+    public Action<AnimationEvent>? OnAnimationCancel { get => Get<AnimationEvent>(EventKind.AnimationCancel); set => Set(EventKind.AnimationCancel, value); }
+
+    /// <summary>过渡被创建（<c>transitionrun</c>，含延迟阶段）。</summary>
+    public Action<TransitionEvent>? OnTransitionRun { get => Get<TransitionEvent>(EventKind.TransitionRun); set => Set(EventKind.TransitionRun, value); }
+
+    /// <summary>过渡的延迟结束、开始变化（<c>transitionstart</c>）。</summary>
+    public Action<TransitionEvent>? OnTransitionStart { get => Get<TransitionEvent>(EventKind.TransitionStart); set => Set(EventKind.TransitionStart, value); }
+
+    /// <summary>过渡完成（<c>transitionend</c>）。</summary>
+    public Action<TransitionEvent>? OnTransitionEnd { get => Get<TransitionEvent>(EventKind.TransitionEnd); set => Set(EventKind.TransitionEnd, value); }
+
+    /// <summary>过渡在完成前被取消（<c>transitioncancel</c>）。</summary>
+    public Action<TransitionEvent>? OnTransitionCancel { get => Get<TransitionEvent>(EventKind.TransitionCancel); set => Set(EventKind.TransitionCancel, value); }
+
     /// <summary>
     /// 滚动容器的控制器（design/21）：在组件中持有它以读取偏移或命令式滚动。不指定时元素自己创建（<see cref="Element.ScrollController"/>）。
     /// 换成一个还没用过的新控制器时，它接过当前的滚动位置。
@@ -128,6 +156,159 @@ public abstract class ElementNode : Node
             _handlers = new Delegate?[(int)EventKind.Count];
         }
         _handlers[(int)kind] = handler;
+    }
+
+    // ---- 属性展开（@attributes）
+
+    /// <summary>
+    /// 属性展开（<c>.awaui</c> 的 <c>@attributes="..."</c>，design/17）：把属性表合并到本节点上。生成的代码在写完标签上显式的属性之后调用它，规则：
+    /// <list type="bullet">
+    /// <item><c>class</c>：拼接（显式的类名在前，展开的在后；值可以是 <see cref="string"/> 或 <see cref="ClassValue"/>）。</item>
+    /// <item><c>style</c>：拼接，展开的声明在前、显式的在后，因此同名声明以显式的为准。</item>
+    /// <item>其余属性<b>显式写出的优先</b>：<c>id</c>、<c>role</c>（<see cref="Role"/> 或 ARIA 角色名）、<c>tabindex</c>、<c>aria-label</c>、
+    /// 事件处理器（<c>onclick</c> 等，值为 <see cref="Action{T}"/> 或无参的 <see cref="Action"/>）与元素自己的属性（如 <c>disabled</c>、<c>placeholder</c>）
+    /// 只在节点上还没有设置时写入；其余名称（<c>data-*</c>、<c>aria-*</c> ...）只在 <see cref="Attributes"/> 中还没有同名属性时写入。</item>
+    /// <item>写入 <see cref="Attributes"/> 的值：字符串原样；<see cref="bool"/> 对 <c>aria-*</c> / <c>data-*</c> 写成 <c>"true"</c> / <c>"false"</c>，
+    /// 对其他名称按 HTML 布尔属性处理（true 为空串，false 不写）；数值按不变区域性格式化；null 值跳过。</item>
+    /// </list>
+    /// 同一个表里出现重复的名称时先出现的生效（<see cref="AttributeDictionary"/> 本身不会有重复）。事件处理器的类型不符时抛 <see cref="ArgumentException"/>。
+    /// </summary>
+    public void MergeAttributes(IEnumerable<KeyValuePair<string, object?>>? attributes)
+    {
+        if (attributes is null) return;
+        foreach (var kv in attributes)
+        {
+            if (kv.Key is null || kv.Value is null) continue;
+            if (!MergeAttribute(kv.Key, kv.Value)) MergeCustomAttribute(kv.Key, kv.Value);
+        }
+    }
+
+    /// <summary>属性展开：字符串值的属性表（规则同 <see cref="MergeAttributes(IEnumerable{KeyValuePair{string, object}})"/>）。</summary>
+    public void MergeAttributes(IEnumerable<KeyValuePair<string, string>>? attributes)
+    {
+        if (attributes is null) return;
+        foreach (var kv in attributes)
+        {
+            if (kv.Key is null || kv.Value is null) continue;
+            if (!MergeAttribute(kv.Key, kv.Value)) MergeCustomAttribute(kv.Key, kv.Value);
+        }
+    }
+
+    /// <summary>
+    /// 属性展开的扩展点：把名为 <paramref name="name"/> 的展开值合并到本节点的强类型成员上（显式设置过的成员保持不变），
+    /// 返回 true 表示已处理；返回 false 时作为自定义属性写入 <see cref="Attributes"/>。派生类先处理自己的属性，再调用基类。
+    /// </summary>
+    protected virtual bool MergeAttribute(string name, object value)
+    {
+        switch (name.ToLowerInvariant())
+        {
+            case "class":
+            {
+                string text = value is ClassValue cv ? cv.Text : Convert.ToString(value, CultureInfo.InvariantCulture) ?? "";
+                if (text.Length > 0) Class = Class.IsEmpty ? new ClassValue(text) : new ClassValue(Class.Text + " " + text);
+                return true;
+            }
+            case "style":
+            {
+                string text = (value is StyleValue sv ? sv.Text : Convert.ToString(value, CultureInfo.InvariantCulture))?.Trim().TrimEnd(';').Trim() ?? "";
+                if (text.Length > 0) Style = Style.IsEmpty ? new StyleValue(text) : new StyleValue(text + "; " + Style.Text);
+                return true;
+            }
+            case "id":
+                Id ??= AttributeText(name, value);
+                return true;
+            case "aria-label":
+                AriaLabel ??= AttributeText(name, value);
+                return true;
+            case "role":
+                if (Role == Role.None) Role = value is Role r ? r : ParseRole(AttributeText(name, value));
+                return true;
+            case "tabindex":
+                if (TabIndex is null)
+                {
+                    if (value is int i) TabIndex = i;
+                    else if (int.TryParse(AttributeText(name, value)?.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int n)) TabIndex = n;
+                }
+                return true;
+            case "onclick": return MergeHandler<PointerEvent>(EventKind.Click, name, value);
+            case "onpointerdown": return MergeHandler<PointerEvent>(EventKind.PointerDown, name, value);
+            case "onpointerup": return MergeHandler<PointerEvent>(EventKind.PointerUp, name, value);
+            case "onpointermove": return MergeHandler<PointerEvent>(EventKind.PointerMove, name, value);
+            case "onpointerenter": return MergeHandler<PointerEvent>(EventKind.PointerEnter, name, value);
+            case "onpointerleave": return MergeHandler<PointerEvent>(EventKind.PointerLeave, name, value);
+            case "onpointercancel": return MergeHandler<PointerEvent>(EventKind.PointerCancel, name, value);
+            case "onkeydown": return MergeHandler<KeyEvent>(EventKind.KeyDown, name, value);
+            case "onkeyup": return MergeHandler<KeyEvent>(EventKind.KeyUp, name, value);
+            case "onfocus": return MergeHandler<FocusEvent>(EventKind.Focus, name, value);
+            case "onblur": return MergeHandler<FocusEvent>(EventKind.Blur, name, value);
+            case "onfocusin": return MergeHandler<FocusEvent>(EventKind.FocusIn, name, value);
+            case "onfocusout": return MergeHandler<FocusEvent>(EventKind.FocusOut, name, value);
+            case "ontap": return MergeHandler<TapEvent>(EventKind.Tap, name, value);
+            case "onpan": return MergeHandler<PanEvent>(EventKind.Pan, name, value);
+            case "onscroll": return MergeHandler<ScrollEvent>(EventKind.Scroll, name, value);
+            case "onwheel": return MergeHandler<WheelEvent>(EventKind.Wheel, name, value);
+            case "onanimationstart": return MergeHandler<AnimationEvent>(EventKind.AnimationStart, name, value);
+            case "onanimationiteration": return MergeHandler<AnimationEvent>(EventKind.AnimationIteration, name, value);
+            case "onanimationend": return MergeHandler<AnimationEvent>(EventKind.AnimationEnd, name, value);
+            case "onanimationcancel": return MergeHandler<AnimationEvent>(EventKind.AnimationCancel, name, value);
+            case "ontransitionrun": return MergeHandler<TransitionEvent>(EventKind.TransitionRun, name, value);
+            case "ontransitionstart": return MergeHandler<TransitionEvent>(EventKind.TransitionStart, name, value);
+            case "ontransitionend": return MergeHandler<TransitionEvent>(EventKind.TransitionEnd, name, value);
+            case "ontransitioncancel": return MergeHandler<TransitionEvent>(EventKind.TransitionCancel, name, value);
+            default: return false;
+        }
+    }
+
+    /// <summary>属性展开中的事件处理器：节点上还没有该事件的处理器时写入。</summary>
+    private protected bool MergeHandler<T>(EventKind kind, string name, object value) where T : Event
+    {
+        if (_handlers?[(int)kind] is not null) return true;
+        switch (value)
+        {
+            case Action<T> typed: Set(kind, typed); return true;
+            case Action plain: Set(kind, new Action<T>(_ => plain())); return true;
+            default:
+                throw new ArgumentException($"属性展开中的 {name} 必须是 Action<{typeof(T).Name}> 或 Action，实际为 {value.GetType().Name}。", nameof(value));
+        }
+    }
+
+    void MergeCustomAttribute(string name, object value)
+    {
+        var map = Attributes;
+        if (map.Contains(name)) return;
+        string? text = AttributeText(name, value);
+        if (text is not null) map[name] = text;
+    }
+
+    /// <summary>展开值的文本形式：字符串原样；bool 对 aria-* / data-* 为 "true"/"false"，其余为 HTML 布尔属性（true → 空串，false → null）。</summary>
+    private protected static string? AttributeText(string name, object value) => value switch
+    {
+        string s => s,
+        bool b when name.StartsWith("aria-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("data-", StringComparison.OrdinalIgnoreCase) => b ? "true" : "false",
+        bool b => b ? "" : null,
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        _ => value.ToString(),
+    };
+
+    /// <summary>展开值作为布尔属性：bool 原样，字符串按 HTML 布尔属性（存在即真，<c>"false"</c> 为假）。</summary>
+    private protected static bool AttributeFlag(object value) =>
+        value is bool b ? b : !string.Equals(Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim(), "false", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>ARIA 角色名（大小写不敏感，含别名 img、none、gridcell）→ <see cref="UI.Role"/>；未知为 <see cref="Role.None"/>。</summary>
+    static Role ParseRole(string? text)
+    {
+        text = text?.Trim();
+        if (string.IsNullOrEmpty(text)) return Role.None;
+        // 只接受单个名字：Enum.TryParse 还接受数字与逗号分隔的多个名字（按位或，可能得到另一个角色，如 "button, link" → Link）
+        foreach (char c in text!)
+            if (!(c is >= 'a' and <= 'z' || c is >= 'A' and <= 'Z')) return Role.None;
+        switch (text.ToLowerInvariant())
+        {
+            case "img": return Role.Image;
+            case "none": return Role.Presentation;
+            case "gridcell": return Role.Cell;
+        }
+        return Enum.TryParse(text, true, out Role role) ? role : Role.None;
     }
 
     /// <summary>创建对应的存活元素（字段由随后的 <see cref="Diff"/> 写入）。</summary>

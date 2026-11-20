@@ -296,6 +296,14 @@ internal sealed class Reconciler
                 ReconcileChildren(f, fr.ChildrenOrNull, null, owner);
                 return;
             }
+            case FiberKind.Portal:
+            {
+                var pn = (Portal)node;
+                if (ReferenceEquals(pn, f.PortalNode)) return;
+                f.PortalNode = pn;
+                ReconcileChildren(f, pn.ChildrenOrNull, null, owner);
+                return;
+            }
             case FiberKind.Component:
                 UpdateComponent(f.Component!, (Component)node);
                 return;
@@ -353,6 +361,14 @@ internal sealed class Reconciler
             {
                 var f = new Fiber { Kind = FiberKind.Fragment, Type = typeof(Fragment), Key = fr.Key, Parent = parent, FragmentNode = fr };
                 ReconcileChildren(f, fr.ChildrenOrNull, null, owner);
+                return f;
+            }
+            case Portal pn:
+            {
+                // 先建立覆盖层中的一层，再协调子节点：嵌套的 Portal 因此叠在外层之上（打开顺序）
+                var layer = _root.Overlay.CreateLayer(pn.ZOrder, owner);
+                var f = new Fiber { Kind = FiberKind.Portal, Type = typeof(Portal), Key = pn.Key, Parent = parent, Element = layer, PortalNode = pn };
+                ReconcileChildren(f, pn.ChildrenOrNull, null, owner);
                 return f;
             }
             case Component c:
@@ -529,6 +545,10 @@ internal sealed class Reconciler
                     if (r is not null && ReferenceEquals(r.Current, f.Element)) r.Current = null;
                     break;
                 }
+                case FiberKind.Portal:
+                    // 覆盖层中的层不属于任何父宿主的子节点：在这里摘离（整个子树的卸载回调已执行完）
+                    _root.Overlay.RemoveLayer(f.Element!);
+                    break;
                 case FiberKind.Component:
                 {
                     var c = f.Component!;
@@ -557,7 +577,7 @@ internal sealed class Reconciler
         {
             var c = children[i];
             if (c.Kind == FiberKind.Element || c.Kind == FiberKind.Text) into.Add(c.Element!);
-            else CollectHosts(c, into);
+            else if (c.Kind != FiberKind.Portal) CollectHosts(c, into); // 传送门的元素在覆盖层中
         }
     }
 
@@ -589,6 +609,8 @@ internal sealed class Reconciler
         try
         {
             CollectHosts(hostFiber, desired);
+            // 根元素的最后一个子元素是覆盖层根（有 Portal 时），不由实例树管理
+            if (hostFiber.Kind == FiberKind.Root && _root.Overlay.IsAttached) desired.Add(_root.Overlay.Element);
             var current = host.MutableChildren;
             if (desired.Count == current.Count)
             {

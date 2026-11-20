@@ -205,7 +205,7 @@ public sealed partial class InputManager
     /// <summary>把值中的 [start, end) 替换为 <paramref name="text"/>（单行清洗），插入点移到新文本之后；值变化时派发 <c>input</c>。</summary>
     internal void ReplaceValueRange(InputElement e, int start, int end, string text, bool keepComposition)
     {
-        text = TextEditing.SanitizeSingleLine(text);
+        text = e.SanitizeInsertedText(text);
         string v = e.Value;
         start = TextEditing.Snap(v, start);
         end = TextEditing.Snap(v, end);
@@ -281,7 +281,11 @@ public sealed partial class InputManager
             case PhysicalKey.Enter:
             case PhysicalKey.NumpadEnter:
                 if (composing) return true;
-                if (!input.IsDisabled) Dispatch(input, new SubmitEvent(input.Value), EventKind.Submit, null);
+                if (input.IsMultiline && (mods & (KeyModifiers.Meta | KeyModifiers.Control)) == 0)
+                {
+                    if (editable) ReplaceValueRange(input, s, e, "\n", keepComposition: false);
+                }
+                else if (!input.IsDisabled) Dispatch(input, new SubmitEvent(input.Value), EventKind.Submit, null);
                 return true;
             case PhysicalKey.Backspace:
             case PhysicalKey.Delete:
@@ -310,7 +314,19 @@ public sealed partial class InputManager
                 var nav = EditingKey(raw.Key, logicalKey);
                 bool forward = nav is PhysicalKey.ArrowRight or PhysicalKey.End or PhysicalKey.ArrowDown;
                 int target;
-                if (nav is PhysicalKey.Home or PhysicalKey.End or PhysicalKey.ArrowUp or PhysicalKey.ArrowDown || line)
+                if (input.IsMultiline && !line && nav is PhysicalKey.Home or PhysicalKey.End or PhysicalKey.ArrowUp or PhysicalKey.ArrowDown
+                    && TryGetFreshLayout(input, out var paragraph, out _, out _))
+                {
+                    var move = nav switch
+                    {
+                        PhysicalKey.Home => CaretMove.LineStart,
+                        PhysicalKey.End => CaretMove.LineEnd,
+                        PhysicalKey.ArrowUp => CaretMove.Up,
+                        _ => CaretMove.Down,
+                    };
+                    target = paragraph.Move(new TextPosition(focus), move).Offset;
+                }
+                else if (nav is PhysicalKey.Home or PhysicalKey.End or PhysicalKey.ArrowUp or PhysicalKey.ArrowDown || line)
                     target = forward ? v.Length : 0;
                 else if (!shift && s != e)
                     target = forward ? e : s; // 有选区时不带 Shift 的左右键折叠到选区一端

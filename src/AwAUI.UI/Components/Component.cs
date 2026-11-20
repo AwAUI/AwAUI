@@ -164,6 +164,16 @@ public abstract class Component : Node
         _root?.ScheduleRebuild(this);
     }
 
+    /// <summary>
+    /// Rebuilds after the current layout callbacks and before paint when called from a layout callback
+    /// on the standard pipeline. Use for children whose identity depends on the measured viewport,
+    /// such as virtualized rows. Outside that phase, behaves like <see cref="Invalidate"/>.
+    /// </summary>
+    protected void InvalidateFromLayout()
+    {
+        if (_root?.TryScheduleLayoutRebuild(this) != true) Invalidate();
+    }
+
     // ------------------------------------------------------------ 运行时内部
 
     internal bool InvokePropsEqual(Component other) => PropsEqual(other);

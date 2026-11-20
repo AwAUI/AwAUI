@@ -10,6 +10,9 @@ internal enum FiberKind : byte
     Text,
     Component,
     Fragment,
+
+    /// <summary>传送门：宿主是覆盖层中的一层（<see cref="UIRoot.Overlay"/>），不向父宿主贡献元素。</summary>
+    Portal,
 }
 
 /// <summary>
@@ -36,6 +39,9 @@ internal sealed class Fiber
     /// <summary>片段：上一次的描述。</summary>
     public Fragment? FragmentNode;
 
+    /// <summary>传送门：上一次的描述。</summary>
+    public Portal? PortalNode;
+
     /// <summary>组件：存活实例。</summary>
     public Component? Component;
 
@@ -43,7 +49,7 @@ internal sealed class Fiber
     public long Stamp;
     public int Ordinal;
 
-    public bool IsHost => Kind == FiberKind.Element || Kind == FiberKind.Text || Kind == FiberKind.Root;
+    public bool IsHost => Kind == FiberKind.Element || Kind == FiberKind.Text || Kind == FiberKind.Root || Kind == FiberKind.Portal;
 
     public override string ToString() => Kind + ":" + (Type?.Name ?? "") + (Key is null ? "" : "#" + Key);
 }

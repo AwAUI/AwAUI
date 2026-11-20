@@ -10,8 +10,19 @@
   <ItemGroup Condition="'$(EnableDefaultAwauiItems)' == 'true'">
     <AdditionalFiles Include="**/*.awaui" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(AdditionalFiles)" />
   </ItemGroup>
+  <!--
+    Tailwind 项（见 AwAUI.Markup.props）：转成带 AwAUITailwind 元数据的 AdditionalFiles。放在 .targets 中，项目正文里的项此时已经求值。
+    入口与导入的样式表若已在 AdditionalFiles 中，先移除再加入（带上元数据）；扫描源已在 AdditionalFiles 中的（如 *.awaui）不重复加入。
+  -->
   <ItemGroup>
-    <!-- dotnet watch：.awaui 变化时重新构建 -->
+    <AdditionalFiles Remove="@(AwAUITailwindStylesheet);@(AwAUITailwindImport)" />
+    <AdditionalFiles Include="@(AwAUITailwindStylesheet)" AwAUITailwind="Stylesheet" />
+    <AdditionalFiles Include="@(AwAUITailwindImport)" Exclude="@(AwAUITailwindStylesheet)" AwAUITailwind="Import" />
+    <AdditionalFiles Include="@(AwAUITailwindSource)" Exclude="@(AdditionalFiles)" AwAUITailwind="Source" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- dotnet watch：.awaui 与 Tailwind 样式表变化时重新构建 -->
     <Watch Include="@(AdditionalFiles->WithMetadataValue('Extension', '.awaui'))" />
+    <Watch Include="@(AwAUITailwindStylesheet);@(AwAUITailwindImport)" />
   </ItemGroup>
 </Project>

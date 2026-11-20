@@ -97,6 +97,11 @@ internal static class LayoutMapper
             // inline-block：子元素按块堆叠（纵向主轴、拉伸），flex 容器属性不生效
             return style with { FlexDirection = FlexDirection.Column };
         }
+        if (s.Display == CssDisplay.TableRow)
+        {
+            // 表格行映射为横向 flex：单元格默认拉伸到行高（与表格单元格一样等高）
+            return style with { FlexDirection = FlexDirection.Row, AlignItems = AlignItems.Stretch };
+        }
         if (display is Display.Flex or Display.InlineFlex)
         {
             style = style with
@@ -148,6 +153,21 @@ internal static class LayoutMapper
     /// 命中测试按绘制记录的逆序进行，所以随之一致。<paramref name="scratch"/> 是调用方复用的缓冲。
     /// </summary>
     internal static IReadOnlyList<Element> PaintOrder(Element container, List<Element> scratch)
+    {
+        // ::before / ::after 盒（帧管线私有的元素，不在子节点列表中）：第一个 / 最后一个绘制
+        var (before, after) = container.Render?.Kind == BoxKind.Container ? RenderPipeline.GeneratedOf(container) : (null, null);
+        if (before is null && after is null) return OrderedChildren(container, scratch);
+        var ordered = OrderedChildren(container, scratch);
+        var list = new List<Element>(ordered.Count + 2);
+        if (before is not null) list.Add(before);
+        list.AddRange(ordered);
+        if (after is not null) list.Add(after);
+        scratch.Clear();
+        scratch.AddRange(list);
+        return scratch;
+    }
+
+    static IReadOnlyList<Element> OrderedChildren(Element container, List<Element> scratch)
     {
         var ch = container.Children;
         var display = container.Render?.Style?.Display;
@@ -203,7 +223,23 @@ internal static class LayoutMapper
         {
             case CssDisplay.Block:
             case CssDisplay.FlowRoot:
+            // 没有表格与列表标记的布局：表格、行组、单元格、标题与 list-item 按块处理；-webkit-box 只用于行数截断（见 TextStyleMapper）
+            case CssDisplay.Table:
+            case CssDisplay.TableRowGroup:
+            case CssDisplay.TableHeaderGroup:
+            case CssDisplay.TableFooterGroup:
+            case CssDisplay.TableCell:
+            case CssDisplay.TableCaption:
+            case CssDisplay.ListItem:
+            case CssDisplay.WebkitBox:
                 return Display.Block;
+            case CssDisplay.TableRow:
+                // 表格行：单元格横向排列（近似；列宽不跨行对齐）
+                return Display.Flex;
+            case CssDisplay.TableColumn:
+            case CssDisplay.TableColumnGroup:
+                // 列与列组不生成承载内容的盒
+                return Display.None;
             case CssDisplay.Flex:
                 return Display.Flex;
             case CssDisplay.Grid:
@@ -217,7 +253,7 @@ internal static class LayoutMapper
             case CssDisplay.Contents:
                 return Display.Contents;
             default:
-                // inline、inline-block：没有行内格式化上下文，按收缩适应的块处理
+                // inline、inline-block、inline-table、-webkit-inline-box：没有行内格式化上下文，按收缩适应的块处理
                 inlineBlock = true;
                 return Display.InlineFlex;
         }

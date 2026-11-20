@@ -14,6 +14,7 @@ namespace AwAUI.MacOS;
 /// </summary>
 public sealed class MacPlatform : PlatformBackend
 {
+    internal const string AppKit = "/System/Library/Frameworks/AppKit.framework/AppKit";
     static MacPlatform? s_instance;
 
     readonly MacDispatcher _dispatcher;
@@ -21,6 +22,7 @@ public sealed class MacPlatform : PlatformBackend
     readonly List<MacWindow> _windows = new();
     readonly IntPtr _app;
     readonly IntPtr _helper;
+    readonly MacReducedMotionPreference? _reducedMotion;
 
     /// <summary>帧时间戳的原点（主机时间，秒）：OnFrame 收到的是相对平台创建时刻的时间。</summary>
     internal readonly double Epoch;
@@ -30,7 +32,7 @@ public sealed class MacPlatform : PlatformBackend
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) throw new PlatformNotSupportedException("MacPlatform requires macOS.");
         Epoch = HostTime.Now; // 必须在平台检查之后：HostTime 依赖 macOS 专有的库
         if (s_instance != null) throw new InvalidOperationException("Only one MacPlatform may be created per process.");
-        CG.LoadFramework("/System/Library/Frameworks/AppKit.framework/AppKit");
+        CG.LoadFramework(AppKit);
         if (SendByte(Class("NSThread"), Sel("isMainThread")) == 0)
             throw new InvalidOperationException("MacPlatform must be created on the main thread.");
         s_instance = this;
@@ -41,6 +43,8 @@ public sealed class MacPlatform : PlatformBackend
         Send(_app, Sel("setActivationPolicy:"), 0L); // NSApplicationActivationPolicyRegular
         _helper = Send(Send(Class("AwAUIHelper"), Sel("alloc")), Sel("init"));
         _dispatcher = new MacDispatcher(_helper);
+        _reducedMotion = MacReducedMotionPreference.TryCreate();
+        _reducedMotion?.Observe(_helper);
         BuildMenu();
         objc_autoreleasePoolPop(pool);
     }
@@ -53,6 +57,7 @@ public sealed class MacPlatform : PlatformBackend
     public override Clipboard Clipboard => _clipboard ??= new MacClipboard(this);
     public override IDispatcher Dispatcher => _dispatcher;
     public IReadOnlyList<MacWindow> Windows => _windows;
+    internal IReducedMotionPreference? ReducedMotionPreference => _reducedMotion;
 
     public override WindowImpl CreateWindow(WindowOptions options)
     {
@@ -180,6 +185,7 @@ public sealed class MacPlatform : PlatformBackend
         {
             ("awDrain:", Callbacks.Event, ev),
             ("awQuit:", Callbacks.Event, ev),
+            (MacReducedMotionPreference.ChangedSelector, Callbacks.Event, ev),
         });
     }
 
@@ -191,6 +197,8 @@ public sealed class MacPlatform : PlatformBackend
         {
             if (sel == Sel("awDrain:")) _dispatcher.Drain();
             else if (sel == Sel("awQuit:")) Exit();
+            else if (sel == Sel(MacReducedMotionPreference.ChangedSelector) && _reducedMotion is { } preference)
+                _dispatcher.Post(preference.Refresh);
             return;
         }
         Find(self)?.HandleEvent(sel, arg);

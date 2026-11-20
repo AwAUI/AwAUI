@@ -349,7 +349,8 @@ internal sealed class ScrollManager
         return axis == 0 ? c._x : c._y;
     }
 
-    static OverscrollBehavior BehaviorFor(ScrollController c, int axis) => axis == 0 ? c.OverscrollBehaviorX : c.OverscrollBehaviorY;
+    /// <summary>控制器显式设置的值优先，否则取 CSS <c>overscroll-behavior</c>（<see cref="ScrollCss"/>）。</summary>
+    static OverscrollBehavior BehaviorFor(ScrollController c, int axis) => ScrollCss.Overscroll(c, axis);
 
     /// <summary>
     /// 从 <paramref name="start"/> 向上找第一个能按增量滚动的滚动容器（滚动链）。某个容器自己滚不动但其 overscroll-behavior
@@ -575,12 +576,12 @@ internal sealed class ScrollManager
                     r.Task?.TrySetResult(false);
                     continue;
                 }
-                var target = TargetFor(c, se, el.BoundingRect, r.Alignment);
-                c.StartScrollTo(target, null, r.Task ?? new TaskCompletionSource<bool>());
+                var target = TargetFor(c, se, ScrollCss.WithScrollMargin(el, el.BoundingRect), r.Alignment);
+                c.StartScrollTo(target, ScrollCss.DefaultAnimation(c), r.Task ?? new TaskCompletionSource<bool>());
                 continue;
             }
             // 焦点揭示：从内到外，每层用最小的滚动量，立即生效
-            var rect = el.BoundingRect;
+            var rect = ScrollCss.WithScrollMargin(el, el.BoundingRect);
             for (var e = el.Parent; e is not null; e = e.Parent)
             {
                 if (RenderPipeline.ScrollAxes(e) == 0 || e.Render is not { HasBox: true }) continue;
@@ -600,7 +601,8 @@ internal sealed class ScrollManager
     /// <summary>使 <paramref name="rect"/>（绝对坐标，按当前已施加的偏移）在容器视口中按对齐方式可见的目标偏移。</summary>
     Point TargetFor(ScrollController c, Element scroller, Rect rect, ScrollAlignment alignment)
     {
-        var vp = _p.ScrollViewportRect(scroller);
+        // scroll-padding：视口中用于对齐的区域内缩
+        var vp = ScrollCss.WithScrollPadding(scroller, _p.ScrollViewportRect(scroller));
         float x = c._appliedX + Delta(rect.Left, rect.Right, vp.Left, vp.Right, alignment);
         float y = c._appliedY + Delta(rect.Top, rect.Bottom, vp.Top, vp.Bottom, alignment);
         var axes = RenderPipeline.ScrollAxes(scroller);
@@ -804,8 +806,8 @@ internal sealed class ScrollManager
         // 手指速度向上 = 偏移增大
         var fx = t.LockX ? null : physics.CreateFling(c.MetricsFor(0), -v.X);
         var fy = t.LockY ? null : physics.CreateFling(c.MetricsFor(1), -v.Y);
-        if (c.OverscrollBehaviorX == OverscrollBehavior.None && fx is not null) fx = new ClampedSimulation(fx, 0, c.MaxOffset.X);
-        if (c.OverscrollBehaviorY == OverscrollBehavior.None && fy is not null) fy = new ClampedSimulation(fy, 0, c.MaxOffset.Y);
+        if (BehaviorFor(c, 0) == OverscrollBehavior.None && fx is not null) fx = new ClampedSimulation(fx, 0, c.MaxOffset.X);
+        if (BehaviorFor(c, 1) == OverscrollBehavior.None && fy is not null) fy = new ClampedSimulation(fy, 0, c.MaxOffset.Y);
         c._simX = fx;
         c._simY = fy;
         c._simStartX = c._simStartY = now;

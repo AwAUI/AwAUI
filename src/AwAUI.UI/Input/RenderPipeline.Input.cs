@@ -38,7 +38,7 @@ public sealed partial class RenderPipeline
         }
         else if (!string.IsNullOrEmpty(input.Placeholder))
         {
-            builder.PushStyle(_textStyles.Get(style, 0.5f));
+            builder.PushStyle(PlaceholderTextStyle(input, style)); // ::placeholder（没有规则时半透明）
             builder.AddText(input.Placeholder!);
             builder.Pop();
         }
@@ -118,8 +118,25 @@ public sealed partial class RenderPipeline
         input.ScrollX = scroll;
 
         // 单行输入框：文本在内容盒内垂直居中
-        var origin = new Point(Snap(b.ContentX - scroll), Snap(b.ContentY + Math.Max(0, (b.ContentHeight - tl.Height) / 2)));
-        bool clip = scroll > 0 || textW > contentW + 0.5f;
+        // 水平滚动量单独对齐：录制结果只依赖对齐后的内容盒（PaintGeometry），元素整体移动后缓存平移复用时像素不变
+        float originY;
+        bool clipsHeight = false;
+        if (input.IsMultiline)
+        {
+            float scrollY = input.ScrollY;
+            float fullHeight = Math.Max(tl.Height, caretRect.Bottom);
+            if (focused)
+            {
+                if (caretRect.Top < scrollY) scrollY = caretRect.Top;
+                if (caretRect.Bottom > scrollY + b.ContentHeight) scrollY = caretRect.Bottom - b.ContentHeight;
+            }
+            input.ScrollY = Math.Max(0, Math.Min(scrollY, fullHeight - b.ContentHeight));
+            originY = Snap(b.ContentY) - Snap(input.ScrollY);
+            clipsHeight = fullHeight > b.ContentHeight + 0.5f;
+        }
+        else originY = Snap(b.ContentY + Math.Max(0, (b.ContentHeight - tl.Height) / 2));
+        var origin = new Point(Snap(b.ContentX) - Snap(scroll), originY);
+        bool clip = clipsHeight || scroll > 0 || textW > contentW + 0.5f;
         if (clip)
         {
             dc.Save();
@@ -132,7 +149,8 @@ public sealed partial class RenderPipeline
             int ds = TextEditing.ToDisplay(doc, selStartDoc, pw), de = TextEditing.ToDisplay(doc, selEndDoc, pw);
             _inputRects.Clear();
             tl.GetSelectionRects(new TextRange(ds, de), _inputRects);
-            foreach (var r in _inputRects) dc.FillRect(new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height), SelectionColor);
+            var highlight = SelectionHighlight(input) ?? SelectionColor; // ::selection 的背景色
+            foreach (var r in _inputRects) dc.FillRect(new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height), highlight);
         }
         if (!para.IsEmpty) tl.Paint(dc, origin);
 

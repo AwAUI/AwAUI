@@ -12,15 +12,19 @@ public sealed partial class RenderPipeline
     /// <summary>命中测试表的一项：按绘制顺序记录，越靠后越在上层。</summary>
     readonly struct HitEntry
     {
-        public HitEntry(Element element, in RoundRect shape, Rect clip, in RoundRect clipShape, bool pointerEventsNone, byte scrollbarAxis = 0)
+        public HitEntry(Element element, in RoundRect shape, Rect clip, in RoundRect clipShape, bool pointerEventsNone, HitSpace? space, byte scrollbarAxis = 0)
         {
             Element = element;
             Shape = shape;
             Clip = clip;
             ClipShape = clipShape;
             PointerEventsNone = pointerEventsNone;
+            Space = space;
             ScrollbarAxis = scrollbarAxis;
         }
+
+        /// <summary>表项所在的坐标空间（变换 / clip-path 的上下文之内）；null 为根空间。形状与裁剪都在这个空间中。</summary>
+        public HitSpace? Space { get; }
 
         /// <summary>滚动条命中项：1 横向、2 纵向；0 为元素本身。命中滚动条时 <see cref="HitTestCore"/> 仍返回滚动容器。</summary>
         public byte ScrollbarAxis { get; }
@@ -116,6 +120,9 @@ public sealed partial class RenderPipeline
         _recordedElements.Clear();
         _hitClip = s_noClip;
         _hitClipShape = default;
+        _hitSpace = null;
+        _transformDepth = 0;
+        _backdrops.Clear();
         _suppress = 0;
         _unitDepth = 0;
         _recordedUnits = _reusedUnits = 0;
@@ -125,11 +132,12 @@ public sealed partial class RenderPipeline
 
         if (!_incremental) _damageAll = true;
         InvalidatePaintDirtyCaches(rootEl);
-        bool fullInk = geometryChanged || _damageAll;
         if (!_damageAll) CollectDamageBefore(rootEl);
-        if (fullInk) ComputeInk(rootEl, dirtyOnly: false);
-        else ComputeInk(rootEl, dirtyOnly: true);
-        foreach (var b in _damageBoxes) AddDamage(b.Ink);
+        // 合成变化会改写祖先的墨迹，因此要先收集旧墨迹。
+        ApplyCompositeChanges();
+        ComputeInk(rootEl, dirtyOnly: !geometryChanged && !_damageAll);
+        foreach (var b in _damageBoxes)
+            if (b.HasBox && b.Element.IsAttached) AddDamage(InkInRoot(b));
         try
         {
             var rootBox = rootEl.Render;
@@ -145,7 +153,9 @@ public sealed partial class RenderPipeline
         {
             _dc = null;
             _clipScope = null;
+            _hitSpace = null;
         }
+        ExpandBackdropDamage();
         _frame = dc.Finish();
         _frameVersion++;
         _forceRepaint = false;
@@ -189,7 +199,7 @@ public sealed partial class RenderPipeline
             {
                 if (!b.HasBox || b.Kind == BoxKind.Inline)
                 {
-                    b.Ink = default;
+                    b.Ink = b.ContentInkLocal = default;
                     continue;
                 }
                 stack.Push((e, true));
@@ -202,18 +212,28 @@ public sealed partial class RenderPipeline
                         if (dirtyOnly && ((c.DirtyFlags | c.DescendantDirtyFlags) & ElementDirtyFlags.Paint) == 0) continue;
                         stack.Push((c, false));
                     }
+                    // 伪元素的布局与绘制变化由原始元素的脏标记表示。
+                    var (before, after) = GetGenerated(e);
+                    if (before is not null) stack.Push((before, false));
+                    if (after is not null) stack.Push((after, false));
                 }
                 continue;
             }
-            var ink = OwnInk(b);
-            if (b.Kind == BoxKind.Container)
-            {
-                var ch = e.Children;
-                for (int i = 0; i < ch.Count; i++)
-                    if (ch[i].Render is { HasBox: true } cb) ink = Union(ink, cb.Ink);
-            }
-            b.Ink = ink;
+            // 自身的效果：滤镜外扩、变换映射到父空间（见 RenderPipeline.Effects.cs）
+            FinishInk(b, b.Kind == BoxKind.Container ? UnionChildInk(e, OwnInk(b)) : OwnInk(b));
         }
+    }
+
+    /// <summary>普通子节点和生成的盒都参与父盒的墨迹，并影响剔除、滤镜输入范围和损伤。</summary>
+    Rect UnionChildInk(Element e, Rect ink)
+    {
+        var ch = e.Children;
+        for (int i = 0; i < ch.Count; i++)
+            if (ch[i].Render is { HasBox: true } cb) ink = Union(ink, cb.Ink);
+        var (before, after) = GetGenerated(e);
+        if (before?.Render is { HasBox: true } b) ink = Union(ink, b.Ink);
+        if (after?.Render is { HasBox: true } a) ink = Union(ink, a.Ink);
+        return ink;
     }
 
     static Rect Union(Rect a, Rect b) => a.Width <= 0 && a.Height <= 0 ? b : b.Width <= 0 && b.Height <= 0 ? a
@@ -279,7 +299,8 @@ public sealed partial class RenderPipeline
     {
         if (_damageAll || b.DamageSerial == _paintSerial) return;
         b.DamageSerial = _paintSerial;
-        AddDamage(b.Ink);
+        // 墨迹位于父元素的空间：经祖先的变换 / 滤镜映射到根空间
+        AddDamage(InkInRoot(b));
         _damageBoxes.Add(b);
     }
 
@@ -354,9 +375,16 @@ public sealed partial class RenderPipeline
     }
 
     /// <summary>元素子树被移除：旧墨迹计入损伤。</summary>
-    void OnSubtreeRemoved(Element child)
+    void OnSubtreeRemoved(Element child) => OnSubtreeRemoved(child.Parent, child);
+
+    /// <summary>元素子树从 <paramref name="parent"/> 下移除：旧墨迹（位于父元素的空间）映射到根空间后计入损伤。</summary>
+    void OnSubtreeRemoved(Element? parent, Element child)
     {
-        if (child.Render is { } b && !_damageAll) AddDamage(b.Ink);
+        if (child.Render is { } b && !_damageAll)
+        {
+            if (_effectsSeen && parent is null) _damageAll = true;
+            else AddDamageIn(parent, b.Ink);
+        }
         _layeringSerial++;
         _escapeDirty = true;
     }
@@ -389,7 +417,7 @@ public sealed partial class RenderPipeline
     /// <summary>根、z-index 生效的元素、opacity &lt; 1，以及 fixed / sticky 定位（与浏览器一致，即使 z-index 为 auto）建立层叠上下文。</summary>
     static bool IsStackingContext(RenderBox b) =>
         b.Element.Parent is null || ZIndexOf(b) is not null || b.Style!.Opacity < 1f
-        || b.Style.Position is CssPosition.Fixed or CssPosition.Sticky;
+        || b.Style.Position is CssPosition.Fixed or CssPosition.Sticky || CreatesEffectContext(b.Style);
 
     /// <summary>是否脱离常规流的树序、由所在层叠上下文统一安排绘制顺序。</summary>
     static bool IsLayered(RenderBox b) =>
@@ -398,7 +426,8 @@ public sealed partial class RenderPipeline
     /// <summary>样式变化是否影响层叠结构（层叠项的收集与排序）。</summary>
     static bool AffectsLayering(ComputedStyle? a, ComputedStyle b) =>
         a is null || !a.ZIndex.Equals(b.ZIndex) || (a.Opacity < 1f) != (b.Opacity < 1f) || a.Position != b.Position || a.Display != b.Display
-        || ClipsOverflow(a) != ClipsOverflow(b) || a.Order != b.Order;
+        || ClipsOverflow(a) != ClipsOverflow(b) || a.Order != b.Order
+        || CreatesEffectContext(a) != CreatesEffectContext(b) || HasGeometryEffects(a) != HasGeometryEffects(b);
 
     /// <summary>
     /// 逃逸检测（M1 评审遗留的边界情况）：对每个绝对 / 固定定位的元素 B，沿祖先链走到它的包含块 L（固定定位走到根）；
@@ -426,6 +455,9 @@ public sealed partial class RenderPipeline
             if (b.Kind != BoxKind.Container) continue;
             var ch = e.Children;
             for (int i = 0; i < ch.Count; i++) stack.Push(ch[i]);
+            var (before, after) = GetGenerated(e);
+            if (before is not null) stack.Push(before);
+            if (after is not null) stack.Push(after);
         }
         long steps = 0;
         var path = _escapePath;
@@ -450,7 +482,8 @@ public sealed partial class RenderPipeline
             {
                 var mb = path[i].Render;
                 if (mb is not { HasBox: true, Style: { } ms }) continue;
-                if (clipAbove && mb.Element.Parent is not null && IsStackingContext(mb)) mb.ClipEscape = true;
+                // 有变换 / clip-path / filter 的上下文是其全部后代的包含块与裁剪作用域，不逃逸（整体施加外部裁剪链）
+                if (clipAbove && mb.Element.Parent is not null && IsStackingContext(mb) && !HasGeometryEffects(ms)) mb.ClipEscape = true;
                 if (ClipsOverflow(ms) && ms.Display != CssDisplay.Contents) clipAbove = true;
             }
         }
@@ -464,6 +497,9 @@ public sealed partial class RenderPipeline
     bool CanReuse(RenderBox b, bool isContext)
     {
         if (b.Cache is null || b.CacheIsContext != isContext || b.CacheEpoch != _cacheEpoch || b.DirtySerial > b.CacheSerial) return false;
+        // 按绝对坐标录制的单元（变换之内）只在原点不变时可用；局部原点的单元平移即可复用
+        bool local = _transformDepth == 0;
+        if (b.CacheLocalOrigin != local || !local && (b.CacheOrigin.X != b.Border.X || b.CacheOrigin.Y != b.Border.Y)) return false;
         var e = b.Element;
         if (((e.DirtyFlags | e.DescendantDirtyFlags) & ElementDirtyFlags.Paint) != 0) return false;
         // 剔除：录制时没有剔除任何内容且现在也完全可见，或者相对视口的位置没有变化
@@ -518,7 +554,10 @@ public sealed partial class RenderPipeline
             return;
         }
         var child = new DrawingContext(256);
-        child.Translate(-b.Border.X, -b.Border.Y);
+        // 变换之内不用「平移到局部原点 + 合成时平移回来」：非轴对齐的变换下这对平移在浮点中不能精确抵消，
+        // 结果会与整帧录制（不分单元）差 1/255。这时按绝对坐标录制，元素移动时重录
+        bool local = _transformDepth == 0;
+        if (local) child.Translate(-b.Border.X, -b.Border.Y);
         _dc = child;
         _unitDepth++;
         DisplayList list;
@@ -533,6 +572,8 @@ public sealed partial class RenderPipeline
             list = child.Finish();
         }
         b.Cache = list;
+        b.CacheLocalOrigin = local;
+        b.CacheOrigin = new Point(b.Border.X, b.Border.Y);
         b.CacheIsContext = isContext;
         b.CacheSerial = _paintSerial;
         b.CacheEpoch = _cacheEpoch;
@@ -547,6 +588,11 @@ public sealed partial class RenderPipeline
     {
         var list = b.Cache!;
         if (list.IsEmpty) return;
+        if (!b.CacheLocalOrigin)
+        {
+            dc.DrawDisplayList(list);
+            return;
+        }
         dc.Save();
         dc.Translate(b.Border.X, b.Border.Y);
         dc.DrawDisplayList(list);
@@ -555,7 +601,8 @@ public sealed partial class RenderPipeline
 
     void PaintBody(RenderBox b, bool isContext)
     {
-        if (isContext) PaintContextBody(b, isRoot: false, escape: false);
+        // 上下文单元不含它自己的组（不透明度 / 滤镜 / 混合模式在单元之外，见 PaintStackingContext）
+        if (isContext) PaintContextBody(b, isRoot: false, escape: false, group: false);
         else PaintElementBody(b);
     }
 
@@ -564,18 +611,41 @@ public sealed partial class RenderPipeline
     void PaintStackingContext(RenderBox ctx, bool isRoot)
     {
         if (!StackGuard.HasSufficientStack() || (!isRoot && Culled(ctx))) return;
-        bool escape = !isRoot && (_escapeEverywhere || ctx.ClipEscape);
+        bool escape = !isRoot && (_escapeEverywhere || ctx.ClipEscape) && !HasGeometryEffects(ctx.Style!);
+        var scope = default(EffectsScope);
         if (isRoot || escape)
         {
-            PaintContextBody(ctx, isRoot, escape);
+            // 根元素的效果（逃逸的上下文没有几何效果）
+            if (!isRoot)
+            {
+                PaintContextBody(ctx, isRoot, escape, group: true);
+                return;
+            }
+            _dc?.Save();
+            if (EnterEffects(ctx, ref scope)) PaintContextBody(ctx, isRoot, escape, group: true);
+            LeaveEffects(scope);
+            _dc?.Restore();
             return;
         }
         var savedClip = _hitClip;
         var savedShape = _hitClipShape;
         _dc?.Save();
         ApplyClipChain(ctx);
-        if (CanBeUnit() && ctx.Style!.Opacity > 0) PaintUnit(ctx, isContext: true);
-        else PaintContextBody(ctx, isRoot: false, escape: false);
+        // 变换、clip-path、背景滤镜与组（不透明度、filter、混合模式）都在录制单元之外施加：只改变它们时单元的缓存仍然有效（只重新合成）
+        if (EnterEffects(ctx, ref scope))
+        {
+            bool layer = BeginGroup(ctx);
+            try
+            {
+                if (CanBeUnit() && ctx.Style!.Opacity > 0) PaintUnit(ctx, isContext: true);
+                else PaintContextBody(ctx, isRoot: false, escape: false, group: false);
+            }
+            finally
+            {
+                EndGroup(ctx, layer);
+            }
+        }
+        LeaveEffects(scope);
         _dc?.Restore();
         _hitClip = savedClip;
         _hitClipShape = savedShape;
@@ -585,19 +655,42 @@ public sealed partial class RenderPipeline
     /// 层叠上下文的内部。非逃逸时外部裁剪链已由调用方施加，内部以本上下文为裁剪作用域；
     /// 逃逸时（<see cref="RenderBox.ClipEscape"/>）自身的背景、内容与轮廓各自施加自身的裁剪链，层叠项各自施加它们的裁剪链。
     /// </summary>
-    void PaintContextBody(RenderBox ctx, bool isRoot, bool escape)
+    /// <summary>
+    /// 层叠上下文的组：组透明度、filter、mix-blend-mode 与 isolation 共用一个隔离组——先滤镜，再以不透明度与混合模式合成（Filter Effects 1、
+    /// Compositing 1）。滤镜的输入范围是内容墨迹（滤镜图层不受外层裁剪限制，范围要有界）。opacity: 0 时不录制（只遍历）。
+    /// 返回是否开启了图层（交给 <see cref="EndGroup"/>）。
+    /// </summary>
+    bool BeginGroup(RenderBox ctx)
     {
         var s = ctx.Style!;
+        float opacity = s.Opacity;
+        if (opacity <= 0)
+        {
+            _suppress++;
+            return false;
+        }
+        var blend = ToBlendMode(s.MixBlendMode);
+        var filter = ReferenceEquals(ctx.EffectsStyle, s) ? ctx.Filter : null;
+        if (opacity < 1 || filter is not null || blend != BlendMode.SrcOver || s.Isolation == CssIsolation.Isolate)
+        {
+            if (_suppress == 0)
+                _dc?.PushLayer(new LayerOptions(Math.Min(1, opacity), blend, filter is not null ? ctx.ContentInk : null, filter));
+            return true;
+        }
+        return false;
+    }
+
+    void EndGroup(RenderBox ctx, bool layer)
+    {
+        if (ctx.Style!.Opacity <= 0) _suppress--;
+        else if (layer && _suppress == 0) _dc?.PopLayer();
+    }
+
+    void PaintContextBody(RenderBox ctx, bool isRoot, bool escape, bool group)
+    {
         var savedScope = _clipScope;
         if (!escape) _clipScope = ctx.Element;
-        float opacity = s.Opacity;
-        bool layer = false;
-        if (opacity <= 0) _suppress++;
-        else if (opacity < 1)
-        {
-            if (_suppress == 0) _dc?.PushLayer(new LayerOptions(opacity));
-            layer = true;
-        }
+        bool layer = group && BeginGroup(ctx);
         try
         {
             EnsureLayered(ctx);
@@ -633,8 +726,7 @@ public sealed partial class RenderPipeline
         }
         finally
         {
-            if (opacity <= 0) _suppress--;
-            else if (layer && _suppress == 0) _dc?.PopLayer();
+            if (group) EndGroup(ctx, layer);
             _clipScope = savedScope;
         }
     }
@@ -773,7 +865,7 @@ public sealed partial class RenderPipeline
         if (visible)
         {
             var shape = isRoot ? new RoundRect(new Rect(0, 0, _viewport.Width, _viewport.Height), 0) : BoxPainter.OuterShape(s, b.Border);
-            _hits.Add(new HitEntry(b.Element, shape, _hitClip, _hitClipShape, s.PointerEvents == CssPointerEvents.None));
+            _hits.Add(new HitEntry(b.Element, shape, _hitClip, _hitClipShape, s.PointerEvents == CssPointerEvents.None, _hitSpace));
         }
     }
 
@@ -923,17 +1015,29 @@ public sealed partial class RenderPipeline
 
     Element? HitTestCore(Point p, bool ignorePointerEvents = false)
     {
+        _hitQuery++;
         for (int i = _hits.Count - 1; i >= 0; i--)
         {
             var h = _hits[i];
             if (h.PointerEventsNone && !ignorePointerEvents) continue;
-            if (!h.Clip.Contains(p)) continue;
-            if (!h.ClipShape.IsRect && !Contains(h.ClipShape, p)) continue;
-            if (!Contains(h.Shape, p)) continue;
+            if (!HitsEntry(h, p)) continue;
             if (!h.Element.IsAttached || !ReferenceEquals(h.Element.Root, _root)) continue;
             return h.Element;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 点（根空间）是否命中表项：先经表项所在空间链的逆变换与各层裁剪（含 clip-path），再在表项空间中检查裁剪与形状。
+    /// 调用前 <see cref="_hitQuery"/> 要为本次查询递增（空间按它缓存变换后的点）。
+    /// </summary>
+    bool HitsEntry(in HitEntry h, Point p)
+    {
+        var local = p;
+        if (h.Space is { } space && !PassesSpaces(space, p, out local)) return false;
+        if (!h.Clip.Contains(local)) return false;
+        if (!h.ClipShape.IsRect && !Contains(h.ClipShape, local)) return false;
+        return Contains(h.Shape, local);
     }
 
     /// <summary>点是否在圆角矩形内（角上按椭圆判断）。</summary>

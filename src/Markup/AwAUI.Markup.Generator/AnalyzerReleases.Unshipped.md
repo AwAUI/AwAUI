@@ -17,3 +17,5 @@ AW4009 | AwAUI.Markup | Error | MarkupSourceGenerator
 AW4010 | AwAUI.Markup | Error | MarkupSourceGenerator
 AW4011 | AwAUI.Markup | Error | MarkupSourceGenerator
 AW4012 | AwAUI.Markup | Warning | MarkupSourceGenerator
+AW5001 | AwAUI.Tailwind | Error | MarkupSourceGenerator
+AW5002 | AwAUI.Tailwind | Warning | MarkupSourceGenerator

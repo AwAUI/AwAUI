@@ -136,6 +136,17 @@ public sealed class Button : ElementNode
 
     public bool Disabled { get; set; }
 
+    /// <summary>属性展开：<c>disabled</c>（未禁用时才写入，见 <see cref="ElementNode.MergeAttributes(System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{string, object}})"/>）。</summary>
+    protected override bool MergeAttribute(string name, object value)
+    {
+        if (string.Equals(name, "disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Disabled) Disabled = AttributeFlag(value);
+            return true;
+        }
+        return base.MergeAttribute(name, value);
+    }
+
     protected internal override Element CreateElement() => new ButtonElement();
 
     protected internal override void Diff(ElementNode? oldNode, Element element)
@@ -150,7 +161,7 @@ public sealed class Button : ElementNode
 /// 单行文本输入（标签 <c>input</c>）。M1 为简化实现：文本只在末尾插入/删除，没有光标、选区与输入法。
 /// 受控用法：<c>Value = draft.Value, OnInput = e =&gt; draft.Value = e.Value</c>。
 /// </summary>
-public sealed class Input : ElementNode
+public class Input : ElementNode
 {
     /// <summary>受控值；为 null 时输入框自持内容（非受控）。</summary>
     public string? Value { get; set; }
@@ -173,6 +184,23 @@ public sealed class Input : ElementNode
     /// <summary>按回车提交。</summary>
     public Action<SubmitEvent>? OnSubmit { get => Get<SubmitEvent>(EventKind.Submit); set => Set(EventKind.Submit, value); }
 
+    /// <summary>属性展开：<c>value placeholder type disabled readonly</c> 与 <c>oninput onchange onsubmit</c>（显式设置过的保持不变）。</summary>
+    protected override bool MergeAttribute(string name, object value)
+    {
+        switch (name.ToLowerInvariant())
+        {
+            case "value": Value ??= AttributeText(name, value); return true;
+            case "placeholder": Placeholder ??= AttributeText(name, value); return true;
+            case "type": InputType ??= AttributeText(name, value); return true;
+            case "disabled": if (!Disabled) Disabled = AttributeFlag(value); return true;
+            case "readonly": if (!ReadOnly) ReadOnly = AttributeFlag(value); return true;
+            case "oninput": return MergeHandler<InputEvent>(EventKind.Input, name, value);
+            case "onchange": return MergeHandler<InputEvent>(EventKind.Change, name, value);
+            case "onsubmit": return MergeHandler<SubmitEvent>(EventKind.Submit, name, value);
+            default: return base.MergeAttribute(name, value);
+        }
+    }
+
     protected internal override Element CreateElement() => new InputElement();
 
     protected internal override void Diff(ElementNode? oldNode, Element element)
@@ -187,4 +215,10 @@ public sealed class Input : ElementNode
         if (old is null || old.Disabled != Disabled) e.SetDisabled(Disabled);
         if (old is null || old.ReadOnly != ReadOnly) e.SetReadOnly(ReadOnly);
     }
+}
+
+/// <summary>Multiline text editor with wrapping, selection, and input method support.</summary>
+public sealed class TextArea : Input
+{
+    protected internal override Element CreateElement() => new InputElement("textarea");
 }

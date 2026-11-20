@@ -24,6 +24,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../AwAUI.Markup.Compiler/**/*.cs" Exclude="../AwAUI.Markup.Compiler/bin/**;../AwAUI.Markup.Compiler/obj/**" Link="Compiler/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Tailwind 工具类引擎（design/23 第 3 层）：构建期由 TailwindStyles 生成步骤调用，同样以源码链接编入（引擎只用 BCL，不访问文件系统） -->
+    <Compile Include="$(RepoRoot)src/AwAUI.Tailwind/**/*.cs" Exclude="$(RepoRoot)src/AwAUI.Tailwind/bin/**;$(RepoRoot)src/AwAUI.Tailwind/obj/**" Link="Tailwind/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="$(RepoRoot)src/Shared/CodeGen/**/*.cs" Link="Shared/CodeGen/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="$(RepoRoot)src/Shared/Polyfills/**/*.cs" Link="Shared/Polyfills/%(RecursiveDir)%(Filename)%(Extension)" />
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />

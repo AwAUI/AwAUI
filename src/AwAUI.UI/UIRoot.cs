@@ -89,6 +89,7 @@ public sealed class UIRoot
         _reconciler = new Reconciler(this);
         FocusManager = new FocusManager(this);
         Input = new InputManager(this);
+        Overlay = new OverlayRoot(this);
     }
 
     /// <summary>构造时给定的 UI 线程调度器（异步图片解码据此回到 UI 线程）。</summary>
@@ -133,6 +134,12 @@ public sealed class UIRoot
     /// <summary>指针、键盘与文本输入的派发入口。</summary>
     public InputManager Input { get; }
 
+    /// <summary>窗口的覆盖层：<see cref="Portal"/> 的内容挂在这里，画在常规内容之上（design/23 第 1 层）。</summary>
+    public OverlayRoot Overlay { get; }
+
+    /// <summary>视口（窗口客户区）尺寸，逻辑像素；没有 <see cref="RenderPipeline"/> 时为 0×0。</summary>
+    public Size ViewportSize => Pipeline is RenderPipeline p ? p.Viewport : default;
+
     /// <summary>Build 之后的帧阶段（样式、布局、绘制）；集成前为 null。</summary>
     public FramePipeline? Pipeline { get; set; }
 
@@ -150,7 +157,8 @@ public sealed class UIRoot
     public bool NeedsFrame =>
         _rootDirty || _dirty.Count > 0
         || (Pipeline is not null && (RootElement.DirtyFlags != ElementDirtyFlags.None || RootElement.DescendantDirtyFlags != ElementDirtyFlags.None))
-        || (Pipeline is RenderPipeline p && p.NeedsAnimationFrame);
+        || (Pipeline is RenderPipeline p && p.NeedsAnimationFrame)
+        || _afterLayout.Count > 0;
 
     /// <summary>从「不需要帧」变为「需要帧」时触发一次（帧执行中产生的请求在帧末尾统一触发）。</summary>
     public event Action<UIRoot>? FrameRequested;
@@ -189,9 +197,10 @@ public sealed class UIRoot
     public void RunFrame()
     {
         VerifyAccess();
-        if (_inFrame) throw new InvalidOperationException("不能在帧执行过程中再次调用 RunFrame。");
+        if (_inFrame || _inPipeline) throw new InvalidOperationException("不能在帧执行过程中再次调用 RunFrame。");
         _inFrame = true;
         _frameRequested = false;
+        _layoutCompletedRaised = false;
         FrameNumber++;
         try
         {
@@ -204,6 +213,7 @@ public sealed class UIRoot
             ProcessDirty();
             Commit();
             FinishDeferred();
+            FocusManager.FlushRemovedFocus();
         }
         finally
         {
@@ -222,8 +232,183 @@ public sealed class UIRoot
                 _inPipeline = false;
             }
         }
+        // 没有标准帧管线（或自定义管线没有报告布局完成）时，在帧末尾报告一次
+        if (!_layoutCompletedRaised && HasLayoutCompletedWork)
+        {
+            _inPipeline = true;
+            try
+            {
+                RaiseLayoutCompleted();
+            }
+            finally
+            {
+                _inPipeline = false;
+            }
+        }
         if (NeedsFrame) RaiseFrameRequested();
         ThrowUnhandled();
+    }
+
+    // ------------------------------------------------------------ 布局完成（design/23 第 1 层：同一帧内定位浮层）
+
+    List<Action> _afterLayout = new();
+    List<Action> _afterLayoutSpare = new();
+    bool _layoutCompletedRaised;
+    List<Component>? _layoutRebuilds;
+    bool _collectLayoutRebuilds;
+
+    /// <summary>
+    /// 每帧布局（含滚动的几何平移）完成之后、绘制之前触发：此时 <see cref="Element.GetBoundingClientRect"/> 等几何是本帧的结果。
+    /// 处理器可以命令式地改变样式（<see cref="Element.SetStyleOverride"/>、<see cref="Element.SetAttributeOverride"/>）或移动焦点，
+    /// 帧管线随即重算样式与布局，结果在同一帧内绘制（最多重复 <see cref="RenderPipeline.MaxLayoutCompletedRounds"/> 轮，之后的变化留到下一帧）。
+    /// 写 State 引起的重建发生在下一帧。没有 <see cref="RenderPipeline"/> 时在每帧末尾触发。
+    /// </summary>
+    public event Action<UIRoot>? LayoutCompleted;
+
+    /// <summary>
+    /// 在下一次布局完成时（同 <see cref="LayoutCompleted"/>，在其处理器之前）调用一次 <paramref name="callback"/>，并请求一帧。
+    /// 用于挂载后需要计算样式与几何的操作（FocusScope 的自动聚焦、首次定位）。
+    /// </summary>
+    public void RequestAfterLayout(Action callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _afterLayout.Add(callback);
+        RequestFrame();
+    }
+
+    internal bool HasLayoutCompletedWork => LayoutCompleted is not null || _afterLayout.Count > 0;
+
+    /// <summary>是否有尚未执行的一次性布局完成回调（回调中新请求的回调在下一轮执行）。</summary>
+    internal bool HasPendingAfterLayout => _afterLayout.Count > 0;
+
+    internal bool TryScheduleLayoutRebuild(Component component)
+    {
+        if (!_collectLayoutRebuilds || !component._mounted || component._unmounting) return false;
+        var requested = _layoutRebuilds ??= new List<Component>();
+        if (!requested.Contains(component)) requested.Add(component);
+        return true;
+    }
+
+    internal bool RunLayoutCallbacksAndRebuild(bool allowRebuild)
+    {
+        // Only explicitly requested measurement-driven rebuilds run here. Ordinary State writes
+        // still go through the next frame's dirty queue.
+        _collectLayoutRebuilds = allowRebuild;
+        try { RaiseLayoutCompleted(); }
+        finally { _collectLayoutRebuilds = false; }
+        if (_layoutRebuilds is not { Count: > 0 } requested) return false;
+        StableSortByDepth(requested);
+        try
+        {
+            foreach (var component in requested)
+                if (component._mounted && !component._unmounting)
+                    _reconciler.RebuildStandalone(component);
+            Commit();
+            if (_deferred.Count > 0) FinishDeferred();
+            FocusManager.FlushRemovedFocus();
+        }
+        finally { requested.Clear(); }
+        return true;
+    }
+
+    /// <summary>由帧管线在布局之后调用：先执行一次性的回调，再触发 <see cref="LayoutCompleted"/>。处理器中的异常交给错误处理。</summary>
+    internal void RaiseLayoutCompleted()
+    {
+        _layoutCompletedRaised = true;
+        if (_afterLayout.Count > 0)
+        {
+            // 回调中新请求的回调进入另一张表，在下一轮（或下一帧）执行
+            var list = _afterLayout;
+            _afterLayout = _afterLayoutSpare;
+            _afterLayoutSpare = list;
+            foreach (var cb in list)
+            {
+                try
+                {
+                    cb();
+                }
+                catch (Exception ex)
+                {
+                    ReportError(ex, null, ErrorPhase.EventHandler);
+                }
+            }
+            list.Clear();
+        }
+        var handler = LayoutCompleted;
+        if (handler is null) return;
+        foreach (Action<UIRoot> h in handler.GetInvocationList())
+        {
+            try
+            {
+                h(this);
+            }
+            catch (Exception ex)
+            {
+                ReportError(ex, null, ErrorPhase.EventHandler);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ 滚动锁定与指针屏蔽（模态）
+
+    readonly List<RootRegistration> _scrollLocks = new();
+    readonly List<RootRegistration> _pointerBlocks = new();
+
+    /// <summary>
+    /// 锁定滚动（Radix <c>RemoveScroll</c>，模态打开时）：根元素（视口）设为 <c>overflow: hidden</c>，用户不能滚动它；
+    /// 滚轮在 <paramref name="allowedSubtree"/>（以及更高的覆盖层）之外不派发、不滚动其他容器。计数式：释放全部返回值后恢复。
+    /// <paramref name="allowedSubtree"/> 为 null 时只锁定视口。只能在 UI 线程上调用。
+    /// </summary>
+    public IDisposable LockScroll(Element? allowedSubtree = null)
+    {
+        VerifyAccess();
+        var reg = new RootRegistration(_scrollLocks, allowedSubtree, () => RootElement.SetStyleOverride("overflow", null));
+        if (_scrollLocks.Count == 0) RootElement.SetStyleOverride("overflow", "hidden");
+        _scrollLocks.Add(reg);
+        return reg;
+    }
+
+    /// <summary>是否有滚动锁定。</summary>
+    public bool IsScrollLockActive => _scrollLocks.Count > 0;
+
+    /// <summary>滚轮作用于 <paramref name="target"/> 时是否被最近一次的滚动锁定阻止。</summary>
+    internal bool IsScrollLocked(Element? target)
+    {
+        if (_scrollLocks.Count == 0) return false;
+        var allowed = _scrollLocks[_scrollLocks.Count - 1].Subtree;
+        if (allowed is null || !ReferenceEquals(allowed.Root, this)) return false;
+        return target is null || !Overlay.IsWithinOrAbove(target, allowed);
+    }
+
+    /// <summary>
+    /// 屏蔽 <paramref name="allowedSubtree"/> 之外的指针（Radix 的 <c>disableOutsidePointerEvents</c>：body 设 <c>pointer-events: none</c>）：
+    /// 命中其外（且不在更高的覆盖层中）的指针事件改为落在根元素上，不改变焦点、不悬停其下的内容；外部点击仍可经
+    /// <see cref="InputManager.PreviewPointerDown"/> 观察到。多次屏蔽时最近一次生效。释放返回值以解除。
+    /// </summary>
+    public IDisposable DisableOutsidePointerEvents(Element allowedSubtree)
+    {
+        if (allowedSubtree is null) throw new ArgumentNullException(nameof(allowedSubtree));
+        VerifyAccess();
+        var reg = new RootRegistration(_pointerBlocks, allowedSubtree, null);
+        _pointerBlocks.Add(reg);
+        return reg;
+    }
+
+    /// <summary>是否有指针屏蔽。</summary>
+    public bool IsPointerBlockingActive => _pointerBlocks.Count > 0;
+
+    /// <summary><paramref name="hit"/> 是否被最近一次的指针屏蔽挡住（没有命中也算被挡住）。</summary>
+    public bool IsPointerBlocked(Element? hit)
+    {
+        if (_pointerBlocks.Count == 0) return false;
+        // 最近一次仍挂在树上的屏蔽生效
+        for (int i = _pointerBlocks.Count - 1; i >= 0; i--)
+        {
+            var allowed = _pointerBlocks[i].Subtree!;
+            if (!ReferenceEquals(allowed.Root, this)) continue;
+            return hit is null || !Overlay.IsWithinOrAbove(hit, allowed);
+        }
+        return false;
     }
 
     /// <summary>反复执行帧直到没有待重建的组件（测试与同步场景使用）。返回执行的帧数。</summary>

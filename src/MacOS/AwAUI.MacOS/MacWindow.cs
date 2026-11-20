@@ -25,8 +25,8 @@ public enum MacPresentationMode
 /// 层的 <c>contentsScale</c> 跟随 <c>backingScaleFactor</c>；可绘制尺寸由后端在 <see cref="IWindowEvents.OnResized"/> 之后经
 /// <see cref="RenderTarget.Resize"/> 设置。拖动缩放期间层设为 <c>presentsWithTransaction</c>，每次尺寸变化同步出一帧，
 /// 新内容与窗口的新尺寸在同一个 Core Animation 事务里上屏，因此不会拉伸或闪烁。
-/// 窗口从不可见恢复可见时，以当前尺寸调用一次 <see cref="IWindowEvents.OnResized"/>，要求宿主整帧重呈现（不可见期间的帧可能因
-/// <c>nextDrawable</c> 超时被丢弃）。GPU 后端回退到软件（设备丢失）时再次锁定帧缓冲，视图恢复为 <c>drawRect:</c> 呈现。</item>
+/// 不可见期间的帧可能因 <c>nextDrawable</c> 超时被丢弃；渲染目标经 <see cref="RenderTarget.LastFramePresented"/> 报告，
+/// 宿主保留损伤并在下一个节拍整帧重画，窗口本身不再为此调用 <see cref="IWindowEvents.OnResized"/>。GPU 后端回退到软件（设备丢失）时再次锁定帧缓冲，视图恢复为 <c>drawRect:</c> 呈现。</item>
 /// </list>
 /// 不支持 CAMetalLayer 的系统上 <c>GetFeature&lt;IMetalLayerSurface&gt;()</c> 返回 null，GPU 后端因此不能为这个窗口创建渲染目标。
 /// <para>
@@ -117,6 +117,8 @@ public sealed partial class MacWindow : WindowImpl
     }
 
     public override double RenderScale => SendDouble(_window, Sel("backingScaleFactor"));
+
+    public override T? GetFeature<T>() where T : class => base.GetFeature<T>() ?? _platform.ReducedMotionPreference as T;
 
     /// <summary>
     /// 跟随系统设置「显示滚动条」：[NSScroller preferredScrollerStyle] 为 NSScrollerStyleOverlay（1）时用覆盖式，Legacy（0，接有鼠标或设为「始终」）时用经典式。

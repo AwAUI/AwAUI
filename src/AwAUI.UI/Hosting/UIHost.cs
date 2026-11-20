@@ -57,6 +57,7 @@ public sealed class UIHost : IWindowEvents, IDisposable
 {
     readonly WindowImpl _window;
     readonly RenderTarget _target;
+    readonly IReducedMotionPreference? _reducedMotion;
     long _renderedVersion = -1;
     bool _needsPresent = true;
     bool _pointerInside;
@@ -92,6 +93,12 @@ public sealed class UIHost : IWindowEvents, IDisposable
         // 输入法桥与剪贴板：焦点所在的输入框作为文本输入客户端交给窗口（design/04「IME」）
         Root.Input.TextInputMethod = window.TextInput;
         Root.Input.Clipboard = window.Clipboard;
+        _reducedMotion = window.GetFeature<IReducedMotionPreference>();
+        if (_reducedMotion is { } preference)
+        {
+            preference.PrefersReducedMotionChanged += OnReducedMotionChanged;
+            Pipeline.SetPrefersReducedMotion(preference.PrefersReducedMotion);
+        }
     }
 
     /// <summary>UI 根（组件、元素树、输入与焦点）。</summary>
@@ -360,18 +367,24 @@ public sealed class UIHost : IWindowEvents, IDisposable
     {
     }
 
+    void OnReducedMotionChanged(bool value)
+    {
+        if (!_disposed && Pipeline.SetPrefersReducedMotion(value)) RequestFrame();
+    }
+
     bool IWindowEvents.OnCloseRequested() => true;
 
     void IWindowEvents.OnClosed()
     {
-        Closed?.Invoke(this);
-        Dispose();
+        try { Closed?.Invoke(this); }
+        finally { Dispose(); }
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        if (_reducedMotion is { } preference) preference.PrefersReducedMotionChanged -= OnReducedMotionChanged;
         if (ReferenceEquals(_window.Events, this)) _window.Events = null;
         Root.Input.TextInputMethod = null;
         _devTools?.Dispose();

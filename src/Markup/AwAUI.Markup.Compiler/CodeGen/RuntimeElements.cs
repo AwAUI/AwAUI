@@ -59,7 +59,7 @@ internal sealed class RuntimeEvent
 /// <summary>
 /// 目标运行时 <c>AwAUI.UI</c> 中实际存在的内建元素描述类型、属性与事件（design/12「元素与事件（M1 实现）」）。
 /// 语言层面的元素/属性表（<see cref="Analysis.IntrinsicElements"/>，design/17）比运行时宽：
-/// 运行时还没有的元素（<c>textarea canvas</c>，以及 <c>svg</c> 之外的 <c>path</c>）与事件在代码生成时报 AW4012 错误，
+/// 运行时还没有的元素（<c>canvas</c>，以及 <c>svg</c> 之外的 <c>path</c>）与事件在代码生成时报 AW4012 错误，
 /// 没有强类型成员的属性透传为自定义属性（行为尚未实现的报 AW4012 警告）。运行时补齐后只需更新这张表。
 /// <para>
 /// <c>svg</c> 映射到 <c>AwAUI.UI.Svg</c>：宿主属性（<see cref="IsSvgHostAttribute"/>：<c>id class style role tabindex aria-* data-*</c> 等）
@@ -72,7 +72,7 @@ internal static class RuntimeElements
 
     static readonly Dictionary<string, string> Types = new(StringComparer.Ordinal)
     {
-        ["div"] = "Div", ["span"] = "Span", ["text"] = "Text", ["img"] = "Image", ["input"] = "Input", ["svg"] = "Svg",
+        ["div"] = "Div", ["span"] = "Span", ["text"] = "Text", ["img"] = "Image", ["input"] = "Input", ["textarea"] = "TextArea", ["svg"] = "Svg",
     };
 
     static readonly Dictionary<string, RuntimeAttr> Global = new(StringComparer.Ordinal)
@@ -100,6 +100,14 @@ internal static class RuntimeElements
             new("width", new("Width", RuntimeAttrKind.Number)),
             new("height", new("Height", RuntimeAttrKind.Number)),
             Unsupported("loading")),
+        ["textarea"] = Table(
+            new("value", new("Value", RuntimeAttrKind.String)),
+            new("placeholder", new("Placeholder", RuntimeAttrKind.String)),
+            new("disabled", new("Disabled", RuntimeAttrKind.Bool)),
+            new("readonly", new("ReadOnly", RuntimeAttrKind.Bool)),
+            new("name", new("name", RuntimeAttrKind.PassThrough)),
+            Unsupported("required"), Unsupported("autofocus"), Unsupported("spellcheck"),
+            Unsupported("maxlength"), Unsupported("minlength"), Unsupported("rows"), Unsupported("cols"), Unsupported("wrap")),
         ["input"] = Table(
             new("value", new("Value", RuntimeAttrKind.String)),
             new("placeholder", new("Placeholder", RuntimeAttrKind.String)),
@@ -197,7 +205,7 @@ internal static class RuntimeElements
     public static RuntimeEvent? Event(string? element, string name)
     {
         if (GlobalEvents.TryGetValue(name, out var e)) return e;
-        if (element == "input" && InputEvents.TryGetValue(name, out e)) return e;
+        if (element is "input" or "textarea" && InputEvents.TryGetValue(name, out e)) return e;
         return null;
     }
 

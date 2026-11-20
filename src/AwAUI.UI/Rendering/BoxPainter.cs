@@ -75,6 +75,20 @@ internal static class BoxPainter
     {
         if (border.Width <= 0 && border.Height <= 0) return;
         var outer = OuterShape(s, border);
+        if (outer.IsRect || (border.X == 0 && border.Y == 0))
+        {
+            PaintBoxCore(dc, s, outer, scale, skipBackgroundColor);
+            return;
+        }
+        // 在局部坐标构造圆角曲线与边框圆环。先按绝对位置生成控制点再平移，会让同一缓存移动前后产生不同的浮点舍入。
+        dc.Save();
+        dc.Translate(border.X, border.Y);
+        PaintBoxCore(dc, s, OuterShape(s, new Rect(0, 0, border.Width, border.Height)), scale, skipBackgroundColor);
+        dc.Restore();
+    }
+
+    static void PaintBoxCore(DrawingContext dc, ComputedStyle s, in RoundRect outer, float scale, bool skipBackgroundColor)
+    {
         var widths = GetBorderWidths(s, scale);
         var shadows = s.BoxShadow;
 
@@ -219,6 +233,19 @@ internal static class BoxPainter
         if (float.IsNaN(offset) || float.IsInfinity(offset)) offset = 0;
         offset = (float)Math.Round(offset * scale) / scale;
         var shape = OuterShape(s, border);
+        if (shape.IsRect || (border.X == 0 && border.Y == 0))
+        {
+            PaintOutlineCore(dc, shape, color, style, width, offset);
+            return;
+        }
+        dc.Save();
+        dc.Translate(border.X, border.Y);
+        PaintOutlineCore(dc, OuterShape(s, new Rect(0, 0, border.Width, border.Height)), color, style, width, offset);
+        dc.Restore();
+    }
+
+    static void PaintOutlineCore(DrawingContext dc, in RoundRect shape, Color color, CssLineStyle style, float width, float offset)
+    {
         var inner = Grow(shape, offset);
         var outer = Grow(shape, offset + width);
         if (style is CssLineStyle.Dashed or CssLineStyle.Dotted)

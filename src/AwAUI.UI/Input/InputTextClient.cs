@@ -32,7 +32,7 @@ internal sealed class InputTextClient : ITextInputClient
                 "tel" => TextInputContentType.Phone,
                 _ => TextInputContentType.Text,
             };
-            return new TextInputOptions(type);
+            return new TextInputOptions(_element.IsMultiline ? TextInputContentType.Text : type, multiline: _element.IsMultiline);
         }
     }
 
@@ -99,7 +99,7 @@ internal sealed class InputTextClient : ITextInputClient
         if (!Editable) return;
         // 密码框关闭输入法组合：平台仍然送来组合时，忽略预编辑（提交的文本照常经 Commit 到达）
         if (_element.IsPassword && text.Length > 0) return;
-        Run(() => _element.Root!.Input.UpdateComposition(_element, TextEditing.SanitizeSingleLine(text), selection.Start, selection.End));
+        Run(() => _element.Root!.Input.UpdateComposition(_element, _element.SanitizeInsertedText(text), selection.Start, selection.End));
     }
 
     public void Commit(string text)

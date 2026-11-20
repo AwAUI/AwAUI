@@ -23,7 +23,13 @@ public sealed class InputElement : Element
     int _compositionStart, _compositionSelStart, _compositionSelEnd;
     InputTextClient? _client;
 
-    public InputElement() : base("input") => SetState(PseudoStates.PlaceholderShown, false);
+    public InputElement() : this("input") { }
+
+    internal InputElement(string tag) : base(tag) => SetState(PseudoStates.PlaceholderShown, false);
+
+    public bool IsMultiline => Tag == "textarea";
+
+    internal string SanitizeInsertedText(string text) => IsMultiline ? TextEditing.SanitizeMultiline(text) : TextEditing.SanitizeSingleLine(text);
 
     /// <summary>已提交的文本（不含预编辑文本）。</summary>
     public string Value => _value;
@@ -35,7 +41,7 @@ public sealed class InputElement : Element
     public bool ReadOnly { get; private set; }
 
     /// <summary>是否为密码框（<c>type="password"</c>）：显示为圆点、关闭输入法组合、不能复制。</summary>
-    public bool IsPassword => string.Equals(InputType, "password", StringComparison.OrdinalIgnoreCase);
+    public bool IsPassword => !IsMultiline && string.Equals(InputType, "password", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>选区起点（≤ <see cref="SelectionEnd"/>，<see cref="Value"/> 中的下标）。</summary>
     public int SelectionStart => Math.Min(_anchor, _focus);
@@ -83,6 +89,7 @@ public sealed class InputElement : Element
 
     /// <summary>文本水平滚动量（内容比内容盒宽时让插入点保持可见）。</summary>
     internal float ScrollX;
+    internal float ScrollY;
 
     /// <summary>段落原点与插入点矩形（相对边框盒原点）；<see cref="HasPaintedGeometry"/> 为 false 时尚未绘制过。</summary>
     internal Point TextOriginLocal;
@@ -96,7 +103,8 @@ public sealed class InputElement : Element
     {
         "value" => _value,
         "placeholder" => Placeholder,
-        "type" => InputType ?? "text",
+        "type" => IsMultiline ? null : InputType ?? "text",
+        "aria-multiline" when IsMultiline => "true",
         "disabled" => IsDisabled ? "" : null,
         "readonly" => ReadOnly ? "" : null,
         "selectionStart" => SelectionStart.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -162,7 +170,7 @@ public sealed class InputElement : Element
     /// <summary>值被程序（受控值）改变：插入点移到末尾，放弃进行中的组合。</summary>
     internal void SetValue(string value)
     {
-        value ??= "";
+        value = IsMultiline ? TextEditing.SanitizeMultiline(value) : value ?? "";
         if (string.Equals(_value, value, StringComparison.Ordinal)) return;
         if (IsComposing)
         {

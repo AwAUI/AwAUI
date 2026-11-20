@@ -29,8 +29,49 @@ public abstract class ReplacedElement : Element
     internal void OnContentChanged(bool layout) =>
         MarkDirty(layout ? ElementDirtyFlags.Layout | ElementDirtyFlags.Paint : ElementDirtyFlags.Paint);
 
-    /// <summary>固有尺寸的提示（HTML 的 <c>width</c> / <c>height</c> 属性）：内容加载前也能占位，加载后覆盖对应的固有尺寸。</summary>
+    /// <summary>
+    /// HTML 的 <c>width</c> / <c>height</c> 属性。它们是<b>表现提示</b>（HTML §15.4.3）：经 <see cref="PresentationalHintText"/> 映射为
+    /// CSS 的 <c>width</c> / <c>height</c>（与 <c>aspect-ratio: auto w / h</c>），位于作者样式之下，不是固有尺寸——
+    /// <c>&lt;img width=100 height=50 style="width:200px"&gt;</c> 是 200×50，<c>img { height: auto }</c> 按宽高比推出高度。
+    /// </summary>
     internal float? HintWidth, HintHeight;
+
+    string? _hintText;
+    bool _hintTextValid;
+
+    /// <summary>设置尺寸提示（<c>width</c> / <c>height</c> 属性）；变化时重算样式（提示参与级联）并重新布局。</summary>
+    private protected void SetHints(float? width, float? height)
+    {
+        if (HintWidth == width && HintHeight == height) return;
+        HintWidth = width;
+        HintHeight = height;
+        _hintTextValid = false;
+        MarkDirty(ElementDirtyFlags.Style | ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
+    }
+
+    /// <summary>
+    /// 尺寸提示映射成的声明文本（<c>width: 100px; height: 50px; aspect-ratio: auto 100 / 50</c>）；没有有效提示时为 null。
+    /// 负数、NaN、无穷与 HTML 中无效的属性值一样忽略；两个提示都给出（且都为正）时才映射 <c>aspect-ratio</c>。
+    /// </summary>
+    internal string? PresentationalHintText
+    {
+        get
+        {
+            if (_hintTextValid) return _hintText;
+            _hintTextValid = true;
+            float? w = Valid(HintWidth), h = Valid(HintHeight);
+            if (w is null && h is null) return _hintText = null;
+            var sb = new System.Text.StringBuilder();
+            if (w is float ww) sb.Append("width:").Append(Format(ww)).Append("px;");
+            if (h is float hh) sb.Append("height:").Append(Format(hh)).Append("px;");
+            if (w is float rw && h is float rh && rw > 0 && rh > 0) sb.Append("aspect-ratio:auto ").Append(Format(rw)).Append(" / ").Append(Format(rh)).Append(';');
+            return _hintText = sb.ToString();
+        }
+    }
+
+    static float? Valid(float? v) => v is float f && f >= 0 && f <= float.MaxValue ? Math.Min(f, 1e7f) : null;
+
+    static string Format(float v) => v.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>
@@ -350,13 +391,7 @@ public sealed class ImageElement : ReplacedElement
         PropertyChanged("alt", flags);
     }
 
-    internal void SetSizeHints(float? width, float? height)
-    {
-        if (HintWidth == width && HintHeight == height) return;
-        HintWidth = width;
-        HintHeight = height;
-        MarkDirty(ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
-    }
+    internal void SetSizeHints(float? width, float? height) => SetHints(width, height);
 
     internal override ReplacedContent? GetContent(RenderPipeline pipeline)
     {
@@ -628,13 +663,7 @@ public sealed class SvgElement : ReplacedElement
         PropertyChanged("src", ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
     }
 
-    internal void SetSizeHints(float? width, float? height)
-    {
-        if (HintWidth == width && HintHeight == height) return;
-        HintWidth = width;
-        HintHeight = height;
-        MarkDirty(ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
-    }
+    internal void SetSizeHints(float? width, float? height) => SetHints(width, height);
 
     internal override ReplacedContent? GetContent(RenderPipeline pipeline) => _view;
 

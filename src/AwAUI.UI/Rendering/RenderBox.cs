@@ -190,5 +190,49 @@ internal sealed class RenderBox
     /// <summary>替换元素的内容（图片、SVG）；其他元素为 null。</summary>
     public ReplacedContent? Replaced;
 
+    // ---------------- 几何与视觉效果（transform、filter、backdrop-filter、clip-path，见 RenderPipeline.Effects.cs）
+
+    /// <summary>效果缓存所依据的计算样式与边框盒；与当前不同时重新计算（<see cref="RenderPipeline.EnsureEffects"/>）。</summary>
+    public ComputedStyle? EffectsStyle;
+    public Rect EffectsBorder;
+    public float EffectsScale;
+
+    /// <summary>
+    /// 元素的变换（绝对坐标：把未变换的布局坐标映射到父元素的坐标空间，已含 transform-origin 与参考盒的位置）。
+    /// <see cref="HasTransform"/> 为 false 时是单位矩阵。
+    /// </summary>
+    public bool HasTransform;
+    public System.Numerics.Matrix3x2 Transform = System.Numerics.Matrix3x2.Identity;
+    public System.Numerics.Matrix3x2 InverseTransform = System.Numerics.Matrix3x2.Identity;
+
+    /// <summary>变换不可逆（缩放为 0 等）或背面朝前且 <c>backface-visibility: hidden</c>：元素及其后代不绘制、不可命中。</summary>
+    public bool EffectsInvisible;
+
+    /// <summary><c>filter</c> 换算成的滤镜链（none 或含 url() 时为 null）。</summary>
+    public Graphics.Filter? Filter;
+
+    /// <summary><c>backdrop-filter</c> 换算成的滤镜链（none 或含 url() 时为 null）。</summary>
+    public Graphics.Filter? BackdropFilter;
+
+    /// <summary><c>clip-path</c> 的形状（绝对坐标，未变换的布局空间）；none 或 url() 时为 null。</summary>
+    public Graphics.VectorPath? ClipPath;
+
+    /// <summary>元素是否有任何几何 / 视觉效果（变换、滤镜、背景滤镜、裁剪路径）。</summary>
+    public bool HasEffects;
+
+    /// <summary>
+    /// 内容墨迹：自身与全部后代的墨迹之并，位于元素自己（未变换）的坐标空间，未计入滤镜外扩，<b>相对边框盒原点</b>保存
+    /// （滚动只平移几何、不重算墨迹，相对值随边框盒一起移动）。<see cref="Ink"/> 是它经滤镜外扩、变换后的结果。
+    /// 滤镜图层以它为输入范围。
+    /// </summary>
+    public Rect ContentInkLocal;
+
+    /// <summary><see cref="ContentInkLocal"/> 的绝对坐标。</summary>
+    public Rect ContentInk => ContentInkLocal.Width <= 0 && ContentInkLocal.Height <= 0 ? default : ContentInkLocal.Offset(Border.X, Border.Y);
+
+    /// <summary>录制缓存时是否以边框盒原点为局部原点（否则按绝对坐标录制，见 RenderPipeline.PaintUnit）与当时的原点。</summary>
+    public bool CacheLocalOrigin = true;
+    public Point CacheOrigin;
+
     public override string ToString() => "RenderBox(" + Element + ", " + Kind + ")";
 }

@@ -68,6 +68,11 @@ public class Element
     string? _inlineStyle;
     string? _scope;
 
+    // 运行时覆盖（SetStyleOverride / SetAttributeOverride）：叠加在节点给出的值之上，协调器的写入不会冲掉它们
+    List<KeyValuePair<string, string>>? _styleOverrides;
+    string? _effectiveStyle;
+    AttributeMap? _attributeOverrides;
+
     internal Element? _parent;
     internal List<Element> _children = s_noChildren;
     internal int _index;
@@ -122,15 +127,27 @@ public class Element
         return false;
     }
 
-    /// <summary>内联样式的原始声明文本。</summary>
-    public string? InlineStyle => _inlineStyle;
+    /// <summary>
+    /// 内联样式的声明文本：节点的 <c>Style</c> 文本，其后接上 <see cref="SetStyleOverride"/> 设置的运行时覆盖（因此覆盖在级联中胜出）。
+    /// </summary>
+    public string? InlineStyle => _styleOverrides is null ? _inlineStyle : _effectiveStyle;
 
     /// <summary>作用域样式标记；作为一个值为空串的属性对 CSS 可见。</summary>
     public string? Scope => _scope;
 
     /// <summary>自定义属性（不含反射到属性的内建字段）。</summary>
-    public IReadOnlyList<KeyValuePair<string, string>> Attributes =>
-        (IReadOnlyList<KeyValuePair<string, string>>?)_attributes ?? Array.Empty<KeyValuePair<string, string>>();
+    public IReadOnlyList<KeyValuePair<string, string>> Attributes
+    {
+        get
+        {
+            if (_attributeOverrides is null)
+                return (IReadOnlyList<KeyValuePair<string, string>>?)_attributes ?? Array.Empty<KeyValuePair<string, string>>();
+            // 有运行时覆盖：节点属性按位置替换为覆盖值，其余覆盖接在后面
+            var merged = new AttributeMap(_attributes);
+            foreach (var kv in _attributeOverrides) merged[kv.Key] = kv.Value;
+            return merged;
+        }
+    }
 
     /// <summary>
     /// 属性值（CSS 属性选择器使用）：自定义属性优先，然后是内建字段的反射（<c>id</c>、<c>class</c>、<c>role</c>、
@@ -138,7 +155,7 @@ public class Element
     /// </summary>
     public string? GetAttribute(string name)
     {
-        var v = _attributes?[name];
+        var v = _attributeOverrides?[name] ?? _attributes?[name];
         if (v is not null) return v;
         if (_scope is not null && string.Equals(name, _scope, StringComparison.Ordinal)) return "";
         return GetReflectedAttribute(ToLowerAscii(name));
@@ -449,10 +466,49 @@ public class Element
     /// <summary>以程序方式聚焦本元素；不可聚焦时返回 false。</summary>
     public bool Focus() => _root is not null && _root.FocusManager.Focus(this, FocusOrigin.Programmatic);
 
+    /// <summary>
+    /// 按选项聚焦本元素（DOM 的 <c>focus(options)</c>）：<see cref="FocusOptions.PreventScroll"/> 不把它滚动到可见，
+    /// <see cref="FocusOptions.SelectText"/> 聚焦输入框后全选（Radix 的 <c>focus({ select: true })</c>）。不可聚焦时返回 false。
+    /// </summary>
+    public bool Focus(FocusOptions options) => _root is not null && _root.FocusManager.Focus(this, options);
+
     /// <summary>若本元素持有焦点则移除焦点。</summary>
     public void Blur()
     {
         if (IsFocused) _root!.FocusManager.ClearFocus();
+    }
+
+    /// <summary>
+    /// 是否被渲染：已挂载，且自身与祖先的计算样式都不是 <c>display: none</c>。根没有帧管线时，已挂载即视为渲染；
+    /// 有帧管线但还没经过样式阶段（本帧新插入、尚未布局）的元素返回 false——需要可见性的逻辑应在
+    /// <see cref="UIRoot.LayoutCompleted"/> / <see cref="UIRoot.RequestAfterLayout"/> 中判断。文本节点看父元素。
+    /// </summary>
+    public bool IsRendered
+    {
+        get
+        {
+            var root = _root;
+            if (root is null) return false;
+            if (root.Pipeline is not RenderPipeline) return true;
+            for (var e = IsTextNode ? _parent : this; e is not null; e = e._parent)
+            {
+                var s = e.Render?.Style;
+                if (s is null || s.Display == AwAUI.Css.Values.CssDisplay.None) return false;
+            }
+            return true;
+        }
+    }
+
+    /// <summary>是否可见：<see cref="IsRendered"/>，且计算样式的 <c>visibility</c> 为 visible（没有帧管线时等于 <see cref="IsRendered"/>）。</summary>
+    public bool IsVisible
+    {
+        get
+        {
+            if (!IsRendered) return false;
+            var e = IsTextNode ? _parent : this;
+            var s = e?.Render?.Style;
+            return s is null || s.Visibility == AwAUI.Css.Values.CssVisibility.Visible;
+        }
     }
 
     // ------------------------------------------------------------ 指针捕获
@@ -477,6 +533,102 @@ public class Element
 
     public Rect GetBoundingRect() => BoundingRect;
 
+    /// <summary>
+    /// 边框盒在窗口客户区中的矩形（逻辑像素，DOM 的 <c>getBoundingClientRect()</c>）：已计入所有祖先滚动容器的偏移，
+    /// fixed 定位的元素不随滚动移动。在 <see cref="UIRoot.LayoutCompleted"/> 中读取得到本帧的布局结果。
+    /// <para>
+    /// 计入自身与祖先的 CSS 变换（<c>transform / translate / scale / rotate</c>，<see cref="RenderPipeline.GetTransformedBounds"/>）：
+    /// 结果是变换后的轴对齐包围盒，与浏览器相同。需要未变换的布局尺寸（Floating UI 中浮层的 <c>offsetWidth</c>）时用 <see cref="BoundingRect"/>。
+    /// 没有帧管线时等于 <see cref="BoundingRect"/>。
+    /// </para>
+    /// </summary>
+    public Rect GetBoundingClientRect() =>
+        _root?.Pipeline is RenderPipeline pipeline && Render is not null ? pipeline.GetTransformedBounds(this) : BoundingRect;
+
+    /// <summary>
+    /// 裁剪本元素的矩形（窗口坐标）：视口与沿包含块链各个裁剪溢出（<c>overflow</c> 不为 visible）的祖先的内边距盒之交，
+    /// 内边距盒先经 CSS 变换映射到窗口，再取轴对齐的交集。fixed 定位的元素只受视口裁剪；absolute 跳过非定位的祖先。
+    /// 根没有帧管线时返回空矩形；完全被裁掉时返回空矩形（宽高为 0）。
+    /// </summary>
+    public Rect GetClippingRect()
+    {
+        var root = _root;
+        if (root?.Pipeline is not RenderPipeline pipeline) return Rect.Empty;
+        var viewport = pipeline.Viewport;
+        var clip = new Rect(0, 0, viewport.Width, viewport.Height);
+        var cur = IsTextNode ? _parent : this;
+        int guard = 0;
+        while (cur is not null && guard++ < 100_000)
+        {
+            var cs = cur.Render?.Style;
+            if (cs is null || cs.Position == AwAUI.Css.Values.CssPosition.Fixed) break;
+            var next = cur._parent;
+            if (cs.Position == AwAUI.Css.Values.CssPosition.Absolute)
+            {
+                // 包含块：最近的定位祖先（根为初始包含块）
+                while (next is not null && next._parent is not null && (next.Render?.Style is not { } ns || ns.Position == AwAUI.Css.Values.CssPosition.Static))
+                    next = next._parent;
+            }
+            if (next is null || next._parent is null) break; // 根即视口
+            if (next.Render is { HasBox: true, Style: { } s } && s.Display != AwAUI.Css.Values.CssDisplay.Contents
+                && (s.OverflowX != AwAUI.Css.Values.CssOverflow.Visible || s.OverflowY != AwAUI.Css.Values.CssOverflow.Visible))
+            {
+                clip = Intersect(clip, pipeline.ScrollViewportRect(next).TransformBounds(pipeline.GetElementTransform(next)));
+            }
+            cur = next;
+        }
+        return clip;
+    }
+
+    static Rect Intersect(Rect a, Rect b)
+    {
+        float l = Math.Max(a.Left, b.Left), t = Math.Max(a.Top, b.Top);
+        float r = Math.Min(a.Right, b.Right), btm = Math.Min(a.Bottom, b.Bottom);
+        return r > l && btm > t ? Rect.FromLTRB(l, t, r, btm) : new Rect(l, t, 0, 0);
+    }
+
+    // ------------------------------------------------------------ 文档顺序
+
+    /// <summary>
+    /// <paramref name="other"/> 相对本元素的位置（DOM 的 <c>compareDocumentPosition</c>）：<see cref="DocumentPosition.Preceding"/> 表示它在本元素之前
+    /// （树序，先序遍历），<see cref="DocumentPosition.Contains"/> 表示它是本元素的祖先（同时为 Preceding），<see cref="DocumentPosition.ContainedBy"/>
+    /// 表示它是后代（同时为 Following）；不在同一棵树时为 <see cref="DocumentPosition.Disconnected"/> 加上一个稳定的前后关系。同一元素返回 None。
+    /// 覆盖层（Portal）中的元素在树序上位于全部常规内容之后。O(深度)。
+    /// </summary>
+    public DocumentPosition CompareDocumentPosition(Element other)
+    {
+        if (other is null) throw new ArgumentNullException(nameof(other));
+        if (ReferenceEquals(this, other)) return DocumentPosition.None;
+        var mine = new List<Element>();
+        var theirs = new List<Element>();
+        for (var e = this; e is not null; e = e._parent) mine.Add(e);
+        for (var e = other; e is not null; e = e._parent) theirs.Add(e);
+        if (!ReferenceEquals(mine[mine.Count - 1], theirs[theirs.Count - 1]))
+        {
+            var top = mine[mine.Count - 1].UniqueId < theirs[theirs.Count - 1].UniqueId ? DocumentPosition.Following : DocumentPosition.Preceding;
+            return DocumentPosition.Disconnected | top;
+        }
+        // 自根向下找到分叉点
+        int i = mine.Count - 1, j = theirs.Count - 1;
+        while (i >= 0 && j >= 0 && ReferenceEquals(mine[i], theirs[j]))
+        {
+            i--;
+            j--;
+        }
+        if (j < 0) return DocumentPosition.Contains | DocumentPosition.Preceding;   // other 是本元素的祖先
+        if (i < 0) return DocumentPosition.ContainedBy | DocumentPosition.Following; // other 是后代
+        return theirs[j].IndexInParent < mine[i].IndexInParent ? DocumentPosition.Preceding : DocumentPosition.Following;
+    }
+
+    /// <summary>树序比较（排序用）：<paramref name="a"/> 在 <paramref name="b"/> 之前（含祖先在后代之前）返回负数，相同返回 0，之后返回正数。</summary>
+    public static int CompareTreeOrder(Element a, Element b)
+    {
+        if (a is null) throw new ArgumentNullException(nameof(a));
+        if (b is null) throw new ArgumentNullException(nameof(b));
+        if (ReferenceEquals(a, b)) return 0;
+        return (a.CompareDocumentPosition(b) & DocumentPosition.Following) != 0 ? -1 : 1;
+    }
+
     // ------------------------------------------------------------ 滚动
 
     internal ScrollController? _scroll;
@@ -497,6 +649,18 @@ public class Element
             }
             return _scroll;
         }
+    }
+
+    /// <summary>
+    /// 最近的滚动容器祖先的控制器（不含自身；根元素即视口总是滚动容器）。没有帧管线或还没有计算样式时返回根元素的控制器。
+    /// 浮层据此知道锚点随哪个容器滚动。
+    /// </summary>
+    public ScrollController? GetScrollContainer()
+    {
+        if (_root is null) return null;
+        for (var e = _parent; e is not null; e = e._parent)
+            if (e._parent is null || RenderPipeline.ScrollAxes(e) != 0) return e.ScrollController;
+        return null;
     }
 
     /// <summary>
@@ -586,6 +750,177 @@ public class Element
         MarkDirty(ElementDirtyFlags.Paint);
     }
 
+    // ------------------------------------------------------------ 运行时覆盖
+
+    /// <summary>
+    /// 设置一个运行时样式声明（DOM 的 <c>element.style.setProperty</c>）：接在节点的 <c>Style</c> 之后，因此在内联样式中胜出；
+    /// 组件重建写入节点样式时保留。<paramref name="value"/> 为 null 或空时移除。用于在 <see cref="UIRoot.LayoutCompleted"/> 中命令式地定位浮层
+    /// （<c>left / top</c>、<c>--aw-popper-*</c> 变量），不需要重建组件。只在值变化时打样式脏标记。
+    /// <para><paramref name="property"/> 必须是属性名或自定义属性名（字母、数字、<c>-</c>、<c>_</c>）；<paramref name="value"/> 不能包含 <c>; { }</c>。</para>
+    /// </summary>
+    public void SetStyleOverride(string property, string? value)
+    {
+        ValidateOverrideName(property, nameof(property));
+        if (value is not null && value.Trim().Length == 0) value = null;
+        if (value is not null)
+        {
+            if (value.Length > MaxOverrideValueLength) throw new ArgumentException("样式值过长。", nameof(value));
+            if (value.IndexOfAny(s_forbiddenStyleChars) >= 0) throw new ArgumentException("样式值不能包含 ; { }。", nameof(value));
+            if (!IsSelfContainedValue(value)) throw new ArgumentException("样式值的引号或括号不配对，或含有注释。", nameof(value));
+        }
+        var list = _styleOverrides;
+        int index = -1;
+        if (list is not null)
+        {
+            for (int i = 0; i < list.Count; i++)
+                if (string.Equals(list[i].Key, property, StringComparison.Ordinal)) { index = i; break; }
+        }
+        if (value is null)
+        {
+            if (index < 0) return;
+            list!.RemoveAt(index);
+            if (list.Count == 0) _styleOverrides = null;
+        }
+        else
+        {
+            if (index >= 0 && string.Equals(list![index].Value, value, StringComparison.Ordinal)) return;
+            list ??= _styleOverrides = new List<KeyValuePair<string, string>>();
+            if (list.Count >= MaxOverrides && index < 0) throw new InvalidOperationException("运行时样式覆盖过多。");
+            var kv = new KeyValuePair<string, string>(property, value);
+            if (index >= 0) list[index] = kv;
+            else list.Add(kv);
+        }
+        _effectiveStyle = _styleOverrides is null ? null : ComposeStyle();
+        MarkDirty(ElementDirtyFlags.Style);
+        _root?.NotifyInlineStyleChanged(this);
+    }
+
+    /// <summary>读取 <see cref="SetStyleOverride"/> 设置的值；没有时返回 null。</summary>
+    public string? GetStyleOverride(string property)
+    {
+        var list = _styleOverrides;
+        if (list is null || property is null) return null;
+        foreach (var kv in list)
+            if (string.Equals(kv.Key, property, StringComparison.Ordinal)) return kv.Value;
+        return null;
+    }
+
+    /// <summary>移除全部运行时样式覆盖。</summary>
+    public void ClearStyleOverrides()
+    {
+        if (_styleOverrides is null) return;
+        _styleOverrides = null;
+        _effectiveStyle = null;
+        MarkDirty(ElementDirtyFlags.Style);
+        _root?.NotifyInlineStyleChanged(this);
+    }
+
+    /// <summary>
+    /// 设置一个运行时属性（如浮层实际方位 <c>data-side / data-align</c>）：优先于节点的同名属性，组件重建时保留；<paramref name="value"/> 为 null 时移除覆盖。
+    /// 只在值变化时打样式脏标记并通知观察者。
+    /// </summary>
+    public void SetAttributeOverride(string name, string? value)
+    {
+        ValidateOverrideName(name, nameof(name));
+        if (value is not null && value.Length > MaxOverrideValueLength) throw new ArgumentException("属性值过长。", nameof(value));
+        var old = GetAttribute(name);
+        var map = _attributeOverrides;
+        if (value is null)
+        {
+            if (map is null || !map.Contains(name)) return;
+            map[name] = null;
+            if (map.Count == 0) _attributeOverrides = null;
+        }
+        else
+        {
+            if (map is not null && string.Equals(map[name], value, StringComparison.Ordinal)) return;
+            map ??= _attributeOverrides = new AttributeMap();
+            if (map.Count >= MaxOverrides && !map.Contains(name)) throw new InvalidOperationException("运行时属性覆盖过多。");
+            map[name] = value;
+        }
+        if (!string.Equals(old, GetAttribute(name), StringComparison.Ordinal)) AttributeChanged(name, old);
+    }
+
+    /// <summary>读取 <see cref="SetAttributeOverride"/> 设置的值；没有时返回 null。</summary>
+    public string? GetAttributeOverride(string name) => name is null ? null : _attributeOverrides?[name];
+
+    const int MaxOverrides = 256;
+    const int MaxOverrideValueLength = 4096;
+    static readonly char[] s_forbiddenStyleChars = { ';', '{', '}' };
+    static readonly char[] s_structuralStyleChars = { '"', '\'', '(', ')', '[', ']', '\\', '/' };
+
+    /// <summary>
+    /// 值是否自成一体：引号与括号配对、没有注释开头、没有悬空的转义。否则它会吞掉拼接在其后的声明
+    /// （未闭合的字符串、<c>(</c> 块或注释一直延续到文本末尾），使其他覆盖失效。
+    /// </summary>
+    static bool IsSelfContainedValue(string v)
+    {
+        if (v.IndexOfAny(s_structuralStyleChars) < 0) return true; // 常见情况（长度、颜色、关键字）：不分配
+        var open = new Stack<char>();
+        char quote = '\0';
+        for (int i = 0; i < v.Length; i++)
+        {
+            char c = v[i];
+            if (quote != '\0')
+            {
+                if (c == '\\') i++;
+                else if (c == quote) quote = '\0';
+                else if (c is '\n' or '\r' or '\f') return false;
+                continue;
+            }
+            switch (c)
+            {
+                case '\\':
+                    if (++i >= v.Length) return false;
+                    break;
+                case '"' or '\'':
+                    quote = c;
+                    break;
+                case '(':
+                    open.Push(')');
+                    break;
+                case '[':
+                    open.Push(']');
+                    break;
+                case ')' or ']':
+                    if (open.Count == 0 || open.Pop() != c) return false;
+                    break;
+                case '/':
+                    if (i + 1 < v.Length && v[i + 1] == '*') return false;
+                    break;
+            }
+        }
+        return quote == '\0' && open.Count == 0;
+    }
+
+    static void ValidateOverrideName(string name, string paramName)
+    {
+        if (name is null) throw new ArgumentNullException(paramName);
+        if (name.Length == 0 || name.Length > 256) throw new ArgumentException("名称为空或过长。", paramName);
+        foreach (char c in name)
+        {
+            bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
+            if (!ok) throw new ArgumentException("名称只能包含字母、数字、- 与 _：" + name, paramName);
+        }
+    }
+
+    string ComposeStyle()
+    {
+        var sb = new StringBuilder();
+        var node = _inlineStyle;
+        if (!string.IsNullOrWhiteSpace(node))
+        {
+            sb.Append(node!.TrimEnd());
+            if (sb[sb.Length - 1] != ';') sb.Append(';');
+        }
+        foreach (var kv in _styleOverrides!)
+        {
+            if (sb.Length > 0) sb.Append(' ');
+            sb.Append(kv.Key).Append(": ").Append(kv.Value).Append(';');
+        }
+        return sb.ToString();
+    }
+
     // ------------------------------------------------------------ 脏标记
 
     public ElementDirtyFlags DirtyFlags => _dirty;
@@ -638,6 +973,7 @@ public class Element
     {
         if (string.Equals(_inlineStyle, text, StringComparison.Ordinal)) return;
         _inlineStyle = text;
+        if (_styleOverrides is not null) _effectiveStyle = ComposeStyle();
         MarkDirty(ElementDirtyFlags.Style);
         _root?.NotifyInlineStyleChanged(this);
     }
@@ -747,6 +1083,41 @@ public class Element
         }
     }
 
+    /// <summary>
+    /// 不经协调器插入子元素（覆盖层的层元素）：<paramref name="index"/> 为 -1 时追加。挂在根上时设置根并通知观察者。
+    /// 只用于没有任何实例记录（Fiber）管理其子节点的宿主（覆盖层根），或宿主同步会保留它的位置（根元素上的覆盖层根）。
+    /// </summary>
+    internal void InsertChildDirect(Element child, int index = -1)
+    {
+        if (child._parent is not null) throw new InvalidOperationException("元素 " + child + " 已有父节点。");
+        if (ReferenceEquals(_children, s_noChildren)) _children = new List<Element>();
+        if (index < 0 || index > _children.Count) index = _children.Count;
+        _children.Insert(index, child);
+        child._parent = this;
+        _indicesValid = false;
+        if (_root is not null) SetRootRecursive(child, _root);
+        child.MarkInsertedDirty();
+        _root?.NotifyChildInserted(this, child);
+        MarkDirty(ElementDirtyFlags.Style | ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
+    }
+
+    /// <summary>不经协调器移除子元素（与 <see cref="InsertChildDirect"/> 配对）。</summary>
+    internal bool RemoveChildDirect(Element child)
+    {
+        if (!ReferenceEquals(child._parent, this)) return false;
+        int index = _children.IndexOf(child);
+        if (index < 0) return false;
+        _children.RemoveAt(index);
+        child._parent = null;
+        _indicesValid = false;
+        var root = _root;
+        if (root is not null) root.OnSubtreeRemoved(this, child);
+        SetRootRecursive(child, null);
+        root?.NotifyChildRemoved(this, child);
+        MarkDirty(ElementDirtyFlags.Style | ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
+        return true;
+    }
+
     /// <summary>新插入的子树需要完整的样式、布局与绘制。</summary>
     internal void MarkInsertedDirty()
     {
@@ -762,6 +1133,29 @@ public class Element
         foreach (var c in _classes) sb.Append('.').Append(c);
         return sb.ToString();
     }
+}
+
+/// <summary><see cref="Element.CompareDocumentPosition"/> 的结果（位与 DOM 的 <c>Node.DOCUMENT_POSITION_*</c> 相同）。</summary>
+[Flags]
+public enum DocumentPosition
+{
+    /// <summary>同一元素。</summary>
+    None = 0,
+
+    /// <summary>不在同一棵树中。</summary>
+    Disconnected = 1,
+
+    /// <summary>另一元素在本元素之前（树序）。</summary>
+    Preceding = 2,
+
+    /// <summary>另一元素在本元素之后。</summary>
+    Following = 4,
+
+    /// <summary>另一元素是本元素的祖先。</summary>
+    Contains = 8,
+
+    /// <summary>另一元素是本元素的后代。</summary>
+    ContainedBy = 16,
 }
 
 /// <summary>纯文本节点（由 <see cref="NodeList"/> 中的字符串产生）。不参与 CSS 兄弟关系。</summary>

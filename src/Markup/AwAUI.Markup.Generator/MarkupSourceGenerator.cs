@@ -52,6 +52,9 @@ public sealed class MarkupSourceGenerator : IIncrementalGenerator
             .SelectMany(static (pair, ct) => ComponentResolver.Resolve(pair.Left.Left, pair.Left.Right, pair.Right as CSharpParseOptions, ct));
 
         context.RegisterSourceOutput(resolved, static (spc, file) => Produce(spc, file));
+
+        // Tailwind 构建期接入（design/23）：有 AwAUITailwindStylesheet 入口时生成 TailwindStyles
+        TailwindIntegration.TailwindPipeline.Register(context, inputs);
     }
 
     static ProjectSettings ReadSettings(AnalyzerConfigOptions options, string assemblyName)

@@ -104,6 +104,7 @@ public sealed partial class RenderPipeline
 
     void ScrollbarStyleChanged()
     {
+        GuttersForStyleChange(); // 经典滚动条占布局空间，覆盖式不占（RenderPipeline.Gutter.cs）
         _cacheEpoch++;
         _damageAll = true;
         _forceRepaint = true;
@@ -111,10 +112,10 @@ public sealed partial class RenderPipeline
     }
 
     /// <summary>
-    /// 是否需要下一帧来推进滚动（平滑滚动、惯性、回弹、覆盖式滚动条淡出、待报告的 scroll 事件）。<see cref="UIHost"/> 每帧之后检查它；
+    /// 是否需要下一帧来推进 CSS 动画或滚动（平滑滚动、惯性、回弹、滚动条淡出、待报告的 scroll 事件）。<see cref="UIHost"/> 每帧之后检查它；
     /// 自己驱动 <see cref="UIRoot.RunFrame"/> 的宿主也应如此。
     /// </summary>
-    public bool NeedsAnimationFrame => _scrollManager?.NeedsAnimationFrame ?? false;
+    public bool NeedsAnimationFrame => HasRunningAnimations || _scrollManager?.NeedsAnimationFrame == true;
 
     /// <summary>最近一帧是否因滚动改变了元素的位置（不经布局）。宿主据此在指针下重新命中、更新悬停。</summary>
     public bool LastFrameScrolled { get; private set; }
@@ -262,10 +263,16 @@ public sealed partial class RenderPipeline
         var ch = e.Children;
         for (int i = ch.Count - 1; i >= 0; i--)
             stack.Push(new GeomWork(ch[i], box.Border.X, box.Border.Y, ux, uy, shift.X, shift.Y, csx, csy, acs.X, acs.Y));
+        var (before, after) = GetGenerated(e);
+        if (before?.Render?.Layout is not null)
+            stack.Push(new GeomWork(before, box.Border.X, box.Border.Y, ux, uy, shift.X, shift.Y, csx, csy, acs.X, acs.Y));
+        if (after?.Render?.Layout is not null)
+            stack.Push(new GeomWork(after, box.Border.X, box.Border.Y, ux, uy, shift.X, shift.Y, csx, csy, acs.X, acs.Y));
         WalkGeometry(scrollOnly: true);
         RecomputeInkUpward(e);
         InvalidateCache(box);
-        AddDamage(ScrollViewportRect(e).Inflate(1));
+        // 视口在容器自己的（未变换）空间：经容器与祖先的变换映射到根空间
+        AddDamageIn(e, ScrollViewportRect(e).Inflate(1));
         _scrollRepaint = true;
         LastFrameScrolled = true;
     }
@@ -301,11 +308,7 @@ public sealed partial class RenderPipeline
         {
             var b = x.Render;
             if (b is null || !b.HasBox || b.Kind != BoxKind.Container) break;
-            var ink = OwnInk(b);
-            var ch = x.Children;
-            for (int i = 0; i < ch.Count; i++)
-                if (ch[i].Render is { HasBox: true } cb) ink = Union(ink, cb.Ink);
-            b.Ink = ink;
+            FinishInk(b, UnionChildInk(x, OwnInk(b)));
         }
     }
 
@@ -315,13 +318,14 @@ public sealed partial class RenderPipeline
     {
         if (e._scroll is not { _hasMetrics: true } c) return default;
         int axes = ScrollAxes(e);
-        if ((axes & (UserScrollX | UserScrollY)) == 0 || c.ScrollbarWidth == ScrollbarWidth.None) return default;
+        var width = ScrollCss.Width(c); // scrollbar-width（控制器显式设置的优先）
+        if ((axes & (UserScrollX | UserScrollY)) == 0 || width == ScrollbarWidth.None) return default;
         var s = e.Render?.Style;
         if (s is null) return default;
         var vp = ScrollViewportRect(e);
         if (vp.IsEmpty) return default;
         bool classic = EffectiveScrollbarStyle == ScrollbarStyle.Classic;
-        bool thin = c.ScrollbarWidth == ScrollbarWidth.Thin;
+        bool thin = width == ScrollbarWidth.Thin;
         float t = classic ? (thin ? 8f : 12f) : (thin ? 6f : (c._scrollbarHover != 0 || c._scrollbarPressed != 0 ? 11f : 8f));
         bool showY = (axes & UserScrollY) != 0 && (c._contentH > c._viewportH + 0.5f || (classic && s.OverflowY == CssOverflow.Scroll));
         bool showX = (axes & UserScrollX) != 0 && (c._contentW > c._viewportW + 0.5f || (classic && s.OverflowX == CssOverflow.Scroll));
@@ -437,7 +441,7 @@ public sealed partial class RenderPipeline
             }
             if (classic)
             {
-                var track = c.ScrollbarTrackColor ?? Color.FromRgb(0xF1, 0xF1, 0xF1);
+                var track = ScrollCss.TrackColor(c) ?? Color.FromRgb(0xF1, 0xF1, 0xF1);
                 if (!g.TrackY.IsEmpty) dc.FillRect(g.TrackY, track);
                 if (!g.TrackX.IsEmpty) dc.FillRect(g.TrackX, track);
                 if (!g.Corner.IsEmpty) dc.FillRect(g.Corner, track);
@@ -451,14 +455,14 @@ public sealed partial class RenderPipeline
             }
             if (rounded) dc.Restore();
         }
-        if (!g.TrackY.IsEmpty) _hits.Add(new HitEntry(e, new RoundRect(g.TrackY, 0), _hitClip, _hitClipShape, false, 2));
-        if (!g.TrackX.IsEmpty) _hits.Add(new HitEntry(e, new RoundRect(g.TrackX, 0), _hitClip, _hitClipShape, false, 1));
+        if (!g.TrackY.IsEmpty) _hits.Add(new HitEntry(e, new RoundRect(g.TrackY, 0), _hitClip, _hitClipShape, false, _hitSpace, 2));
+        if (!g.TrackX.IsEmpty) _hits.Add(new HitEntry(e, new RoundRect(g.TrackX, 0), _hitClip, _hitClipShape, false, _hitSpace, 1));
     }
 
     static void PaintClassicThumb(DrawingContext dc, ScrollController c, Rect thumb, int part, float thickness)
     {
         if (thumb.IsEmpty) return;
-        var color = c.ScrollbarThumbColor
+        var color = ScrollCss.ThumbColor(c)
                     ?? (c._scrollbarPressed == part ? Color.FromRgb(0x78, 0x78, 0x78)
                         : c._scrollbarHover == part ? Color.FromRgb(0xA8, 0xA8, 0xA8) : Color.FromRgb(0xC1, 0xC1, 0xC1));
         float inset = thickness >= 10 ? 2 : 1;
@@ -474,7 +478,7 @@ public sealed partial class RenderPipeline
         const float inset = 2;
         var r = new Rect(thumb.X + inset, thumb.Y + inset, thumb.Width - 2 * inset, thumb.Height - 2 * inset);
         if (r.Width <= 0 || r.Height <= 0) return;
-        var baseColor = c.ScrollbarThumbColor ?? new Color(0, 0, 0, c._scrollbarHover == part || c._scrollbarPressed == part ? 0.55f : 0.42f);
+        var baseColor = ScrollCss.ThumbColor(c) ?? new Color(0, 0, 0, c._scrollbarHover == part || c._scrollbarPressed == part ? 0.55f : 0.42f);
         dc.FillRoundRect(new RoundRect(r, Math.Min(r.Width, r.Height) / 2), baseColor.WithAlpha(baseColor.A * opacity));
     }
 
@@ -493,21 +497,20 @@ public sealed partial class RenderPipeline
         if (e.Render is not { HasBox: true } b) return;
         var vp = ScrollViewportRect(e);
         if (vp.IsEmpty) return;
-        AddDamage(Rect.FromLTRB(vp.Right - 13, vp.Top, vp.Right, vp.Bottom).Inflate(1));
-        AddDamage(Rect.FromLTRB(vp.Left, vp.Bottom - 13, vp.Right, vp.Bottom).Inflate(1));
+        AddDamageIn(e, Rect.FromLTRB(vp.Right - 13, vp.Top, vp.Right, vp.Bottom).Inflate(1));
+        AddDamageIn(e, Rect.FromLTRB(vp.Left, vp.Bottom - 13, vp.Right, vp.Bottom).Inflate(1));
         InvalidateCache(b);
     }
 
     /// <summary>指针处最上层的命中项若是某个滚动容器的滚动条，返回它；否则返回空结果（内容在滚动条之上，或没有命中）。</summary>
     internal ScrollbarHit HitTestScrollbar(Point p)
     {
+        _hitQuery++;
         for (int i = _hits.Count - 1; i >= 0; i--)
         {
             var h = _hits[i];
             if (h.PointerEventsNone) continue;
-            if (!h.Clip.Contains(p)) continue;
-            if (!h.ClipShape.IsRect && !Contains(h.ClipShape, p)) continue;
-            if (!Contains(h.Shape, p)) continue;
+            if (!HitsEntry(h, p)) continue;
             if (!h.Element.IsAttached || !ReferenceEquals(h.Element.Root, _root)) continue;
             if (h.ScrollbarAxis == 0 || h.Element._scroll is not { } c) return default;
             return new ScrollbarHit(c, h.ScrollbarAxis - 1, ScrollbarGeometryFor(h.Element));

@@ -52,12 +52,20 @@ public sealed class ComponentInfo : IEquatable<ComponentInfo>
 {
     Dictionary<string, PropInfo>? _byName;
 
-    public ComponentInfo(string fullName, IReadOnlyList<PropInfo> props, bool isElement = false)
+    public ComponentInfo(string fullName, IReadOnlyList<PropInfo> props, bool isElement = false, string? captureUnmatchedProp = null)
     {
         FullName = fullName ?? throw new ArgumentNullException(nameof(fullName));
         Props = props ?? throw new ArgumentNullException(nameof(props));
         IsElement = isElement;
+        CaptureUnmatchedProp = captureUnmatchedProp;
     }
+
+    /// <summary>
+    /// 标了 <c>[CaptureUnmatchedAttributes]</c> 的 Prop 名（类型为 <c>AwAUI.UI.AttributeDictionary</c>）：标签上小写开头、没有对应 Prop 的属性、
+    /// 没有对应 Prop 的 <c>@onxxx</c> 与 <c>@attributes="..."</c> 收集到这里（相当于 Blazor 的 CaptureUnmatchedValues）：先写入全部展开值，
+    /// 再写显式属性（显式优先、与位置无关；<c>class</c> / <c>style</c> 拼接），与元素上的展开规则一致。没有为 null。
+    /// </summary>
+    public string? CaptureUnmatchedProp { get; }
 
     /// <summary>可在 <c>global::</c> 之后书写的类型全名（不含类型实参），如 <c>MyApp.TodoRow</c>。</summary>
     public string FullName { get; }
@@ -90,7 +98,8 @@ public sealed class ComponentInfo : IEquatable<ComponentInfo>
     public bool Equals(ComponentInfo? other)
     {
         if (other is null) return false;
-        if (FullName != other.FullName || IsElement != other.IsElement || Props.Count != other.Props.Count) return false;
+        if (FullName != other.FullName || IsElement != other.IsElement || CaptureUnmatchedProp != other.CaptureUnmatchedProp
+            || Props.Count != other.Props.Count) return false;
         for (int i = 0; i < Props.Count; i++)
             if (!Props[i].Equals(other.Props[i])) return false;
         return true;
