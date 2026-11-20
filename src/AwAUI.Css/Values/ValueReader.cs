@@ -54,6 +54,9 @@ internal struct ValueReader
         return _i < _list.Count ? _list[_i++] : null;
     }
 
+    /// <summary>按绝对下标取组件值（不移动位置）。</summary>
+    public readonly CssComponentValue? PeekAt(int index) => index < _list.Count ? _list[index] : null;
+
     /// <summary>不跳过空白，前进一个组件值。</summary>
     public void Advance() => _i++;
 

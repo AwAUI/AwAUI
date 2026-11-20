@@ -110,6 +110,9 @@ internal static class ValueParsers
         return node is null ? null : SizeSpecifiedValue.Length(node, nonNegative);
     }
 
+    /// <summary>&lt;length&gt;（可为负，不接受百分比），如 <c>scroll-margin</c>。</summary>
+    public static CssValue? SignedLength(ref ValueReader r) => Numeric(LengthPercentageNode(r.Next(), nonNegative: false, allowPercent: false));
+
     public static CssValue? LengthPercentage(ref ValueReader r, ValueFlags flags)
         => Numeric(LengthPercentageNode(r.Next(), (flags & ValueFlags.NonNegative) != 0));
 
@@ -349,6 +352,8 @@ internal static class ValueParsers
                     case "repeating-linear-gradient": return LinearGradient(f.Arguments, repeating: true);
                     case "radial-gradient": return RadialGradient(f.Arguments, repeating: false);
                     case "repeating-radial-gradient": return RadialGradient(f.Arguments, repeating: true);
+                    case "conic-gradient": return ConicGradient(f.Arguments, repeating: false);
+                    case "repeating-conic-gradient": return ConicGradient(f.Arguments, repeating: true);
                     default: return null;
                 }
             default:
@@ -356,11 +361,46 @@ internal static class ValueParsers
         }
     }
 
+    /// <summary>&lt;color-interpolation-method&gt; = <c>in &lt;colorspace&gt; [&lt;hue-interpolation-method&gt; hue]?</c>。</summary>
+    static bool TryInterpolation(ref ValueReader r, ref CssColorSpace? space, ref CssHueInterpolation hue, out bool error)
+    {
+        error = false;
+        if (space is not null || !r.TryIdent("in")) return false;
+        var name = r.PeekIdentLower();
+        if (name is null || !CssColorParser.TryColorSpace(name, allowPolar: true, out var s)) { error = true; return false; }
+        r.Advance();
+        var method = r.PeekIdentLower();
+        if (method is "shorter" or "longer" or "increasing" or "decreasing")
+        {
+            if (s is not (CssColorSpace.Hsl or CssColorSpace.Hwb or CssColorSpace.Lch or CssColorSpace.Oklch)) { error = true; return false; }
+            r.Advance();
+            if (!r.TryIdent("hue")) { error = true; return false; }
+            hue = method switch
+            {
+                "longer" => CssHueInterpolation.Longer,
+                "increasing" => CssHueInterpolation.Increasing,
+                "decreasing" => CssHueInterpolation.Decreasing,
+                _ => CssHueInterpolation.Shorter,
+            };
+        }
+        space = s;
+        return true;
+    }
+
     static SpecifiedImage? LinearGradient(IReadOnlyList<CssComponentValue> args, bool repeating)
     {
         var r = new ValueReader(args);
         double angle = 180;
         var corner = GradientCorner.None;
+        CssColorSpace? space = null;
+        var hue = CssHueInterpolation.Shorter;
+        bool interp = TryInterpolation(ref r, ref space, ref hue, out bool bad);
+        if (bad) return null;
+        if (interp && r.TryComma())
+        {
+            var s0 = ColorStops(ref r);
+            return s0 is null ? null : new SpecifiedLinearGradient(angle, corner, repeating, s0) { Interpolation = space, Hue = hue };
+        }
         int save = r.Position;
         if (r.TryIdent("to"))
         {
@@ -382,21 +422,59 @@ internal static class ValueParsers
             if (h != 0 && v != 0)
                 corner = v < 0 ? (h < 0 ? GradientCorner.TopLeft : GradientCorner.TopRight) : (h < 0 ? GradientCorner.BottomLeft : GradientCorner.BottomRight);
             else angle = v < 0 ? 0 : v > 0 ? 180 : h > 0 ? 90 : 270;
+            if (!interp) { TryInterpolation(ref r, ref space, ref hue, out bad); if (bad) return null; }
             if (!r.TryComma()) return null;
         }
         else if (TryAngle(r.Next(), out var deg))
         {
             angle = deg;
+            if (!interp) { TryInterpolation(ref r, ref space, ref hue, out bad); if (bad) return null; }
             if (!r.TryComma()) return null;
         }
-        else r.Position = save;
+        else
+        {
+            r.Position = save;
+            if (interp) return null;
+        }
         var stops = ColorStops(ref r);
-        return stops is null ? null : new SpecifiedLinearGradient(angle, corner, repeating, stops);
+        return stops is null ? null : new SpecifiedLinearGradient(angle, corner, repeating, stops) { Interpolation = space, Hue = hue };
+    }
+
+    /// <summary><c>conic-gradient( [ [ from &lt;angle&gt; ]? [ at &lt;position&gt; ]? ] || &lt;color-interpolation-method&gt; , &lt;angular-color-stop-list&gt; )</c></summary>
+    static SpecifiedImage? ConicGradient(IReadOnlyList<CssComponentValue> args, bool repeating)
+    {
+        var r = new ValueReader(args);
+        double from = 0;
+        CalcNode cx = CalcLeaf.Percent(50), cy = CalcLeaf.Percent(50);
+        CssColorSpace? space = null;
+        var hue = CssHueInterpolation.Shorter;
+        bool any = false;
+        if (TryInterpolation(ref r, ref space, ref hue, out bool bad)) any = true;
+        if (bad) return null;
+        if (r.TryIdent("from"))
+        {
+            if (!TryAngle(r.Next(), out from)) return null;
+            any = true;
+        }
+        if (r.TryIdent("at"))
+        {
+            if (!Position(ref r, out cx, out cy)) return null;
+            any = true;
+        }
+        if (space is null && TryInterpolation(ref r, ref space, ref hue, out bad)) any = true;
+        if (bad) return null;
+        if (any && !r.TryComma()) return null;
+        var stops = ColorStops(ref r, angular: true);
+        return stops is null ? null : new SpecifiedConicGradient(from, cx, cy, repeating, stops) { Interpolation = space, Hue = hue };
     }
 
     static SpecifiedImage? RadialGradient(IReadOnlyList<CssComponentValue> args, bool repeating)
     {
         var r = new ValueReader(args);
+        CssColorSpace? space = null;
+        var hue = CssHueInterpolation.Shorter;
+        bool interp = TryInterpolation(ref r, ref space, ref hue, out bool bad);
+        if (bad) return null;
         RadialShape? shape = null;
         var size = RadialSizeKeyword.FarthestCorner;
         bool sizeSet = false;
@@ -469,14 +547,16 @@ internal static class ValueParsers
             if (!Position(ref r, out cx, out cy)) return null;
             any = true;
         }
-        if (any && !r.TryComma()) return null;
+        if (!interp && TryInterpolation(ref r, ref space, ref hue, out bad)) interp = true;
+        if (bad) return null;
+        if ((any || interp) && !r.TryComma()) return null;
         var stops = ColorStops(ref r);
         if (stops is null) return null;
-        return new SpecifiedRadialGradient(shape ?? RadialShape.Ellipse, size, rx, ry, cx, cy, repeating, stops);
+        return new SpecifiedRadialGradient(shape ?? RadialShape.Ellipse, size, rx, ry, cx, cy, repeating, stops) { Interpolation = space, Hue = hue };
     }
 
     /// <summary>&lt;color-stop-list&gt;：至少两个色标；插值提示只能出现在两个色标之间。</summary>
-    static SpecifiedStop[]? ColorStops(ref ValueReader r)
+    static SpecifiedStop[]? ColorStops(ref ValueReader r, bool angular = false)
     {
         var stops = new List<SpecifiedStop>();
         int colorCount = 0;
@@ -489,7 +569,7 @@ internal static class ValueParsers
             {
                 colorCount++;
                 int save = r.Position;
-                var p1 = r.AtEnd ? null : LengthPercentageNode(r.Next(), nonNegative: false);
+                var p1 = r.AtEnd ? null : StopPosition(r.Next(), angular);
                 if (p1 is null)
                 {
                     r.Position = save;
@@ -499,7 +579,7 @@ internal static class ValueParsers
                 {
                     stops.Add(new SpecifiedStop(color, p1, false));
                     save = r.Position;
-                    var p2 = r.AtEnd ? null : LengthPercentageNode(r.Next(), nonNegative: false);
+                    var p2 = r.AtEnd ? null : StopPosition(r.Next(), angular);
                     if (p2 is null) r.Position = save;
                     else stops.Add(new SpecifiedStop(color, p2, false));
                 }
@@ -508,7 +588,7 @@ internal static class ValueParsers
             else
             {
                 if (lastWasHint) return null;
-                var hint = LengthPercentageNode(v, nonNegative: false);
+                var hint = StopPosition(v, angular);
                 if (hint is null) return null;
                 stops.Add(new SpecifiedStop(default, hint, true));
                 lastWasHint = true;
@@ -518,6 +598,15 @@ internal static class ValueParsers
         }
         if (colorCount < 2 || lastWasHint) return null;
         return stops.ToArray();
+    }
+
+    /// <summary>色标位置：长度百分比；锥形渐变为角度或百分比（角度换算为整圈的百分比）。</summary>
+    static CalcNode? StopPosition(CssComponentValue? v, bool angular)
+    {
+        if (!angular) return LengthPercentageNode(v, nonNegative: false);
+        if (v is CssToken { Type: CssTokenType.Percentage } p) return CalcLeaf.Percent(p.Number);
+        if (v is CssToken { Type: CssTokenType.Number, Number: 0 }) return CalcLeaf.Percent(0);
+        return TryAngle(v, out var deg) ? CalcLeaf.Percent(deg / 3.6) : null;
     }
 
     /// <summary><c>&lt;position&gt;</c> 作为属性值（<c>object-position</c>）：1、2、4 值形式（CSS Values 4 不含 3 值形式）。</summary>

@@ -207,8 +207,207 @@ internal sealed class CompiledRule
     public MediaGate? Media { get; }
     public CascadeOrigin Origin => Sheet.Origin;
 
+    /// <summary>所在的 <c>@container</c> 条件链；没有为 null。</summary>
+    public ContainerGate? Container;
+
     /// <summary>全局出现顺序（跨样式表）。</summary>
     public int Order;
+}
+
+/// <summary><c>@container</c> 条件（可嵌套），按元素求值。</summary>
+internal sealed class ContainerGate
+{
+    public ContainerGate(CssContainerRule rule, ContainerGate? parent)
+    {
+        Rule = rule;
+        Parent = parent;
+        Axes = rule.Condition.RequiredAxes;
+    }
+
+    public CssContainerRule Rule { get; }
+
+    public ContainerGate? Parent { get; }
+
+    public ContainerAxes Axes { get; }
+
+    /// <summary>
+    /// 找到元素的查询容器并求值条件。查询容器：最近的祖先（伪元素从原始元素开始）中 <c>container-type</c> 支持所需轴、且
+    /// <c>container-name</c> 含所需名称的那个。找不到、或容器尚未布局（尺寸未知）时条件不成立。
+    /// </summary>
+    public bool Evaluate(StyleElement element, bool includeSelf, CssEnvironment environment)
+    {
+        bool needWidth = (Axes & ContainerAxes.Inline) != 0, needHeight = (Axes & ContainerAxes.Block) != 0;
+        if (!TryFindContainer(element, includeSelf, Rule.Name, needWidth, needHeight, out var style, out var w, out var h)) return false;
+        var input = new ContainerQueryInput(w, h, style!.FontSize, style.RootFontSize, environment.Media);
+        return Rule.Condition.EvaluateContainer(input) == MediaTri.True;
+    }
+
+    /// <summary>
+    /// 查找查询容器（深度至多 4096 层）。返回 false 表示没有合适的容器，或容器尚未布局。只支持行内轴的容器（inline-size）的高度为 NaN。
+    /// </summary>
+    public static bool TryFindContainer(StyleElement? element, bool includeSelf, string? name, bool needWidth, bool needHeight,
+        out ComputedStyle? style, out double width, out double height)
+    {
+        style = null;
+        width = height = double.NaN;
+        int guard = 0;
+        for (var e = includeSelf ? element : element?.Parent; e is not null && guard++ < 4096; e = e.Parent)
+        {
+            var s = e.CurrentStyle;
+            if (s is null) continue;
+            var type = s.ContainerType;
+            if (type == CssContainerType.Normal) continue;
+            bool hasHeight = type == CssContainerType.Size;
+            if (needHeight && !hasHeight) continue;
+            if (name is not null && !Contains(s.ContainerName, name)) continue;
+            if (!e.TryGetContainerSize(out var w, out var h)) return false;
+            style = s;
+            width = w;
+            height = hasHeight ? h : double.NaN;
+            return true;
+        }
+        return false;
+
+        static bool Contains(CssList<string> names, string name)
+        {
+            for (int i = 0; i < names.Count; i++)
+                if (string.Equals(names[i], name, StringComparison.Ordinal)) return true;
+            return false;
+        }
+    }
+}
+
+/// <summary>
+/// <c>:has()</c> 的失效特征集：从全部样式表的 <c>:has()</c> 参数中收集的 class、id、属性、伪状态与结构依赖。
+/// <para>
+/// 宿主（UI 层）的用法：某元素 E 的这些输入变化（或 E 被插入、移除）时，<c>:has()</c> 的结果可能改变的锚点是 E 的祖先
+/// （<see cref="HasSiblingRelative"/> 时还有 E 及其祖先的前面的兄弟）。这些锚点要重算样式；若 <see cref="HasNonSubjectHas"/>，
+/// 锚点的子树也要重算（如 <c>.group:has(:focus) .item</c>）。只需检查带 <see cref="ComputedStyleFlags.DependsOnHas"/> 的锚点。
+/// 没有 <c>:has()</c> 时（<see cref="UsesHas"/> 为假）无需任何额外工作。
+/// </para>
+/// </summary>
+public sealed class HasInvalidationSet
+{
+    public static readonly HasInvalidationSet Empty = new(false, false, false, false, new HashSet<string>(), new HashSet<string>(), new HashSet<string>(), PseudoStates.None, false);
+
+    readonly HashSet<string> _classes, _ids, _attributes;
+
+    HasInvalidationSet(bool uses, bool sibling, bool nonSubject, bool structural, HashSet<string> classes, HashSet<string> ids, HashSet<string> attributes,
+        PseudoStates states, bool hookedStates)
+    {
+        UsesHas = uses;
+        HasSiblingRelative = sibling;
+        HasNonSubjectHas = nonSubject;
+        UsesStructural = structural;
+        _classes = classes;
+        _ids = ids;
+        _attributes = attributes;
+        States = states;
+        UsesStatePseudoClasses = hookedStates;
+    }
+
+    /// <summary>样式表中有 <c>:has()</c>。</summary>
+    public bool UsesHas { get; }
+
+    /// <summary>有以 <c>+</c> / <c>~</c> 开头的相对选择器：变化也影响前面的兄弟。</summary>
+    public bool HasSiblingRelative { get; }
+
+    /// <summary><c>:has()</c> 出现在非主体位置（或 <c>&amp;</c> 引用的父选择器中）：锚点的后代也依赖它的结果。</summary>
+    public bool HasNonSubjectHas { get; }
+
+    /// <summary><c>:has()</c> 的参数中有结构伪类（<c>:first-child :nth-*() :empty</c> 等）。</summary>
+    public bool UsesStructural { get; }
+
+    /// <summary><c>:has()</c> 参数中出现的伪状态（悬停、焦点…）。</summary>
+    public PseudoStates States { get; }
+
+    /// <summary><c>:has()</c> 参数中有表单 / 文档状态伪类（<c>:invalid</c> 等）。</summary>
+    public bool UsesStatePseudoClasses { get; }
+
+    public bool IsRelevantClass(string name) => _classes.Contains(name);
+
+    public bool IsRelevantId(string? id) => id is not null && _ids.Contains(id);
+
+    /// <summary>属性名按 ASCII 小写比较。</summary>
+    public bool IsRelevantAttribute(string name) => _attributes.Contains(Syntax.CssSerializer.ToAsciiLower(name));
+
+    internal sealed class Builder
+    {
+        bool _uses, _sibling, _nonSubject, _structural, _hooked;
+        PseudoStates _states;
+        readonly HashSet<string> _classes = new(StringComparer.Ordinal), _ids = new(StringComparer.Ordinal), _attributes = new(StringComparer.Ordinal);
+
+        public void Add(SelectorList list)
+        {
+            foreach (var s in list.Selectors)
+                if (s.ContainsHas) Walk(s, nonSubject: false, inHas: false, 0);
+        }
+
+        void Walk(ComplexSelector s, bool nonSubject, bool inHas, int depth)
+        {
+            if (depth > 64) { _nonSubject = _structural = true; return; }
+            var compounds = s.Compounds;
+            for (int i = 0; i < compounds.Count; i++)
+            {
+                bool ns = nonSubject || i < compounds.Count - 1;
+                foreach (var x in compounds[i].Selectors) Simple(x, ns, inHas, depth);
+                foreach (var x in compounds[i].PseudoElementStates) Simple(x, ns, inHas, depth);
+            }
+        }
+
+        void Simple(SimpleSelector x, bool nonSubject, bool inHas, int depth)
+        {
+            switch (x)
+            {
+                case HasSelector h:
+                    _uses = true;
+                    if (nonSubject) _nonSubject = true;
+                    foreach (var rel in h.Arguments.Selectors)
+                    {
+                        if (rel.Combinators.Count > 0 && rel.Combinators[0] is Combinator.NextSibling or Combinator.SubsequentSibling) _sibling = true;
+                        Walk(rel, nonSubject, inHas: true, depth + 1);
+                    }
+                    break;
+                case LogicalSelector l:
+                    foreach (var c in l.Arguments.Selectors) Walk(c, nonSubject, inHas, depth + 1);
+                    break;
+                case NthSelector n:
+                    if (inHas) _structural = true;
+                    if (n.Of is { } of) foreach (var c in of.Selectors) Walk(c, nonSubject, inHas, depth + 1);
+                    break;
+                case NestingSelector { Parent: { } p }:
+                    foreach (var c in p.Selectors) Walk(c, true, inHas, depth + 1);
+                    break;
+                case ClassSelector c when inHas: _classes.Add(c.Name); break;
+                case IdSelector id when inHas: _ids.Add(id.Id); break;
+                case AttributeSelector a when inHas: _attributes.Add(Syntax.CssSerializer.ToAsciiLower(a.Name)); break;
+                case PseudoClassSelector pc when inHas:
+                    switch (pc.PseudoClass)
+                    {
+                        case PseudoClass.Hover: _states |= PseudoStates.Hover; break;
+                        case PseudoClass.Active: _states |= PseudoStates.Active; break;
+                        case PseudoClass.Focus: _states |= PseudoStates.Focus; break;
+                        case PseudoClass.FocusVisible: _states |= PseudoStates.FocusVisible; break;
+                        case PseudoClass.FocusWithin: _states |= PseudoStates.FocusWithin; break;
+                        case PseudoClass.Disabled:
+                        case PseudoClass.Enabled: _states |= PseudoStates.Disabled; break;
+                        case PseudoClass.Checked: _states |= PseudoStates.Checked; break;
+                        case PseudoClass.PlaceholderShown: _states |= PseudoStates.PlaceholderShown; break;
+                        case PseudoClass.Root:
+                        case PseudoClass.Scope:
+                        case PseudoClass.Host: break;
+                        default:
+                            if (pc.IsHookedState) _hooked = true;
+                            else _structural = true;
+                            break;
+                    }
+                    break;
+            }
+        }
+
+        public HasInvalidationSet Build()
+            => !_uses ? Empty : new HasInvalidationSet(true, _sibling, _nonSubject, _structural, _classes, _ids, _attributes, _states, _hooked);
+    }
 }
 
 /// <summary>一条命中的规则（或内联样式），DevTools 样式面板的数据源（design/20 的 RuleMatch）。</summary>

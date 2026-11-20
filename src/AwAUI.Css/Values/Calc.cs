@@ -132,7 +132,7 @@ internal sealed class CalcLeaf : CalcNode
 
     public override bool IsContextDependent => Category == CalcCategory.Length && !new CssLength(Value, Unit).IsAbsolute;
 
-    public override bool UsesViewport => Category == CalcCategory.Length && new CssLength(Value, Unit).IsViewportRelative;
+    public override bool UsesViewport => Category == CalcCategory.Length && (new CssLength(Value, Unit).IsViewportRelative || new CssLength(Value, Unit).IsContainerRelative);
 
     public override CalcResult Compute(in LengthContext context)
     {

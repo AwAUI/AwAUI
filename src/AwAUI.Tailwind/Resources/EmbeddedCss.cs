@@ -16,7 +16,9 @@ internal static partial class EmbeddedCss
     /// AwAUI 的 preflight：由 Tailwind v4.3.5 的 preflight 裁剪而来。与原版的差异（逐条）：
     /// <list type="number">
     /// <item>全局重置只针对 <c>*, ::before, ::after</c>：去掉 <c>::backdrop</c> 与 <c>::file-selector-button</c>（AwAUI 没有这两个伪元素，未知伪元素会让整条规则失效）。</item>
-    /// <item><c>html</c> 规则去掉 <c>:host</c>（无 Shadow DOM）、<c>-webkit-text-size-adjust</c> 与 <c>-webkit-tap-highlight-color</c>（浏览器专有）。</item>
+    /// <item><c>html, :host</c> 规则改为 <c>:root</c>（AwAUI 的根元素标签是 <c>root</c>，没有 <c>html</c>；无 Shadow DOM），去掉 <c>-webkit-text-size-adjust</c>
+    /// 与 <c>-webkit-tap-highlight-color</c>（浏览器专有），并加上 <c>font-size: 16px</c>：AwAUI 的默认样式表把根字号设为 14px（桌面界面习惯），
+    /// 而 Tailwind 的 rem 刻度（<c>--spacing: 0.25rem</c>、<c>text-sm</c> ...）以浏览器默认的 16px 为准，不改则全部尺寸缩小到 87.5%。</item>
     /// <item>删除只为修正浏览器差异的规则：<c>abbr[title]</c>、<c>:-moz-focusring</c>、<c>progress</c>、<c>summary</c>、<c>:-moz-ui-invalid</c>、
     /// <c>::-webkit-*</c> 系列、<c>select</c> 的 <c>optgroup</c> 缩进、<c>appearance: button</c> 修正、<c>textarea { resize }</c>。</item>
     /// <item>替换元素只列 AwAUI 支持的 <c>img, svg, canvas</c>（去掉 video / audio / iframe / embed / object）。</item>
@@ -37,7 +39,8 @@ internal static partial class EmbeddedCss
   border: 0 solid;
 }
 
-html {
+:root {
+  font-size: 16px;
   line-height: 1.5;
   tab-size: 4;
   font-family: --theme(

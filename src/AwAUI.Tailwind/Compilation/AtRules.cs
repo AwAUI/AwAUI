@@ -204,6 +204,7 @@ internal static class AtRules
 
         foreach (var p in parents) Visit(p, new List<AstNode>());
 
+        int expanded = 0;
         foreach (var parent in sorted)
         {
             if (!parent.HasChildren) continue;
@@ -232,10 +233,20 @@ internal static class AtRules
                     if (clone.Kind == AstKind.Rule) newNodes.AddRange(clone.Nodes);
                     else newNodes.Add(clone);
                 }
+                expanded += CountNodes(newNodes, Limits.MaxApplyExpansionNodes - expanded + 1);
+                if (expanded > Limits.MaxApplyExpansionNodes) throw new TailwindException("`@apply` expands to too much CSS (more than " + Limits.MaxApplyExpansionNodes + " nodes). Check for utilities that `@apply` each other repeatedly.");
                 return WalkAction<AstNode>.Replace(newNodes);
             });
         }
         return features;
+    }
+
+    /// <summary>节点总数（含所有后代），数到 <paramref name="limit"/> 即停止。</summary>
+    internal static int CountNodes(List<AstNode> nodes, int limit)
+    {
+        int count = 0;
+        AstNode.Walk(nodes, (_, _) => ++count >= limit ? WalkAction<AstNode>.Stop : WalkAction<AstNode>.Continue);
+        return count;
     }
 
     static TailwindException UnknownApply(string candidate, DesignSystem ds)

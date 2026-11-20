@@ -22,9 +22,19 @@ internal static class MediaQueryParser
         public bool IsRange => Type != ValueType.Discrete;
     }
 
-    static FeatureDef? Lookup(string name) => name switch
+    static FeatureDef? Lookup(string name, bool container) => container ? LookupContainer(name) : name switch
     {
         "width" or "height" => new FeatureDef(ValueType.Length),
+        "forced-colors" => new FeatureDef(ValueType.Discrete, "none", "active"),
+        "prefers-contrast" => new FeatureDef(ValueType.Discrete, "no-preference", "more", "less", "custom"),
+        "inverted-colors" => new FeatureDef(ValueType.Discrete, "none", "inverted"),
+        "scripting" => new FeatureDef(ValueType.Discrete, "none", "initial-only", "enabled"),
+        "prefers-reduced-transparency" => new FeatureDef(ValueType.Discrete, "no-preference", "reduce"),
+        "prefers-reduced-data" => new FeatureDef(ValueType.Discrete, "no-preference", "reduce"),
+        "color-gamut" => new FeatureDef(ValueType.Discrete, "srgb", "p3", "rec2020"),
+        "dynamic-range" or "video-dynamic-range" => new FeatureDef(ValueType.Discrete, "standard", "high"),
+        "update" => new FeatureDef(ValueType.Discrete, "none", "slow", "fast"),
+        "display-mode" => new FeatureDef(ValueType.Discrete, "browser", "fullscreen", "standalone", "minimal-ui", "picture-in-picture", "window-controls-overlay"),
         "aspect-ratio" => new FeatureDef(ValueType.Ratio),
         "resolution" => new FeatureDef(ValueType.Resolution),
         "orientation" => new FeatureDef(ValueType.Discrete, "portrait", "landscape"),
@@ -32,6 +42,15 @@ internal static class MediaQueryParser
         "prefers-reduced-motion" => new FeatureDef(ValueType.Discrete, "no-preference", "reduce"),
         "hover" or "any-hover" => new FeatureDef(ValueType.Discrete, "none", "hover"),
         "pointer" or "any-pointer" => new FeatureDef(ValueType.Discrete, "none", "coarse", "fine"),
+        _ => null,
+    };
+
+    /// <summary>容器尺寸查询的特性（CSS Containment 3 §6.1）。</summary>
+    static FeatureDef? LookupContainer(string name) => name switch
+    {
+        "width" or "height" or "inline-size" or "block-size" => new FeatureDef(ValueType.Length),
+        "aspect-ratio" => new FeatureDef(ValueType.Ratio),
+        "orientation" => new FeatureDef(ValueType.Discrete, "portrait", "landscape"),
         _ => null,
     };
 
@@ -55,6 +74,18 @@ internal static class MediaQueryParser
             }
         }
         return new MediaQueryList(queries);
+    }
+
+    /// <summary>
+    /// 解析 <c>@container</c> 的条件部分（从 <paramref name="start"/> 到末尾）：与媒体条件同一语法，特性为容器尺寸特性。
+    /// 语法错误返回 null。
+    /// </summary>
+    public static MediaCondition? ParseContainerCondition(IReadOnlyList<CssComponentValue> values, int start, List<CssDiagnostic> diagnostics)
+    {
+        var c = new Cursor(values, start, values.Count);
+        if (c.AtEnd) return null;
+        var cond = ParseCondition(ref c, allowOr: true, diagnostics, container: true);
+        return cond is not null && c.AtEnd ? cond : null;
     }
 
     /// <summary>去掉空白后的组件值游标。</summary>
@@ -163,15 +194,15 @@ internal static class MediaQueryParser
         return condition is not null && c.AtEnd;
     }
 
-    static MediaCondition? ParseCondition(ref Cursor c, bool allowOr, List<CssDiagnostic> diagnostics)
+    static MediaCondition? ParseCondition(ref Cursor c, bool allowOr, List<CssDiagnostic> diagnostics, bool container = false)
     {
         if (c.PeekIdent("not"))
         {
             c.Next();
-            var operand = ParseInParens(ref c, diagnostics);
+            var operand = ParseInParens(ref c, diagnostics, container);
             return operand is null ? null : new MediaNotCondition(operand);
         }
-        var first = ParseInParens(ref c, diagnostics);
+        var first = ParseInParens(ref c, diagnostics, container);
         if (first is null) return null;
         bool isAnd;
         if (c.PeekIdent("and")) isAnd = true;
@@ -183,7 +214,7 @@ internal static class MediaQueryParser
         while (c.PeekIdent(op))
         {
             c.Next();
-            var next = ParseInParens(ref c, diagnostics);
+            var next = ParseInParens(ref c, diagnostics, container);
             if (next is null) return null;
             list.Add(next);
         }
@@ -191,7 +222,7 @@ internal static class MediaQueryParser
         return new MediaCombinedCondition(isAnd, list);
     }
 
-    static MediaCondition? ParseInParens(ref Cursor c, List<CssDiagnostic> diagnostics)
+    static MediaCondition? ParseInParens(ref Cursor c, List<CssDiagnostic> diagnostics, bool container)
     {
         var v = c.Peek;
         if (v is CssSimpleBlock { Open: '(' } block)
@@ -202,27 +233,29 @@ internal static class MediaQueryParser
             if (!inner.AtEnd && (inner.Peek is CssSimpleBlock { Open: '(' } || inner.PeekIdent("not") || inner.Peek is CssFunction))
             {
                 var probe = new List<CssDiagnostic>();
-                var cond = ParseCondition(ref inner, allowOr: true, probe);
+                var cond = ParseCondition(ref inner, allowOr: true, probe, container);
                 if (cond is not null && inner.AtEnd)
                 {
                     diagnostics.AddRange(probe);
                     return cond;
                 }
             }
-            return ParseFeature(block, diagnostics);
+            return ParseFeature(block, diagnostics, container);
         }
         if (v is CssFunction f)
         {
             c.Next();
             diagnostics.Add(new CssDiagnostic(CssDiagnosticCodes.InvalidMediaQuery, CssDiagnosticSeverity.Warning,
-                $"无法识别的媒体条件 '{f.ToCss()}'，按规范视为未知（不成立）。", f.Range));
+                container
+                    ? $"暂不支持的容器查询 '{f.ToCss()}'（style()、scroll-state() 后置），按规范视为未知（不成立）。"
+                    : $"无法识别的媒体条件 '{f.ToCss()}'，按规范视为未知（不成立）。", f.Range));
             return new MediaGeneralEnclosed(f.ToCss());
         }
         return null;
     }
 
     /// <summary>解析 <c>( &lt;media-feature&gt; )</c>；语法不是特性时作为 general-enclosed（未知）。</summary>
-    static MediaCondition ParseFeature(CssSimpleBlock block, List<CssDiagnostic> diagnostics)
+    static MediaCondition ParseFeature(CssSimpleBlock block, List<CssDiagnostic> diagnostics, bool container)
     {
         string text = block.ToCss();
         var items = new List<CssComponentValue>();
@@ -243,7 +276,7 @@ internal static class MediaQueryParser
             if (name.StartsWith("min-", StringComparison.Ordinal)) { prefix = "min"; name = name.Substring(4); }
             else if (name.StartsWith("max-", StringComparison.Ordinal)) { prefix = "max"; name = name.Substring(4); }
 
-            var def = Lookup(name);
+            var def = Lookup(name, container);
             string? problem = null;
             if (def is null)
             {
@@ -275,7 +308,9 @@ internal static class MediaQueryParser
                 return new MediaFeature(name, constraints, text);
 
             diagnostics.Add(new CssDiagnostic(CssDiagnosticCodes.InvalidMediaQuery, CssDiagnosticSeverity.Warning,
-                problem + "，该条件按规范视为未知（不成立）。支持：width、height、aspect-ratio、orientation、resolution、prefers-color-scheme、prefers-reduced-motion、hover、pointer、any-hover、any-pointer。",
+                problem + (container
+                    ? "，该条件按规范视为未知（不成立）。容器查询支持：width、height、inline-size、block-size、aspect-ratio、orientation。"
+                    : "，该条件按规范视为未知（不成立）。支持：width、height、aspect-ratio、orientation、resolution、prefers-color-scheme、prefers-reduced-motion、prefers-contrast、prefers-reduced-transparency、forced-colors、inverted-colors、scripting、hover、pointer、any-hover、any-pointer、color-gamut、dynamic-range、update、display-mode。"),
                 block.Range));
             return new MediaGeneralEnclosed(text);
         }

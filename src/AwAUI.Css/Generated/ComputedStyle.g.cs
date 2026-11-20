@@ -67,6 +67,39 @@ public sealed partial class BoxStyleGroup : IEquatable<BoxStyleGroup>
     /// <summary><c>aspect-ratio</c></summary>
     public AspectRatioValue AspectRatio { get; internal set; }
 
+    /// <summary><c>vertical-align</c></summary>
+    public CssVerticalAlign VerticalAlign { get; internal set; }
+
+    /// <summary><c>field-sizing</c></summary>
+    public CssFieldSizing FieldSizing { get; internal set; }
+
+    /// <summary><c>container-type</c></summary>
+    public CssContainerType ContainerType { get; internal set; }
+
+    /// <summary><c>container-name</c></summary>
+    public CssList<string> ContainerName { get; internal set; } = null!;
+
+    /// <summary><c>-webkit-line-clamp</c></summary>
+    public int WebkitLineClamp { get; internal set; }
+
+    /// <summary><c>-webkit-box-orient</c></summary>
+    public CssBoxOrient WebkitBoxOrient { get; internal set; }
+
+    /// <summary><c>content</c></summary>
+    public CssContent Content { get; internal set; } = null!;
+
+    /// <summary><c>table-layout</c></summary>
+    public CssTableLayout TableLayout { get; internal set; }
+
+    /// <summary><c>appearance</c></summary>
+    public CssAppearance Appearance { get; internal set; }
+
+    /// <summary><c>resize</c></summary>
+    public CssResize Resize { get; internal set; }
+
+    /// <summary><c>contain</c></summary>
+    public CssContain Contain { get; internal set; }
+
     internal BoxStyleGroup Clone() => (BoxStyleGroup)MemberwiseClone();
 
     public bool Equals(BoxStyleGroup? other)
@@ -92,6 +125,17 @@ public sealed partial class BoxStyleGroup : IEquatable<BoxStyleGroup>
         if (OverflowX != other.OverflowX) return false;
         if (OverflowY != other.OverflowY) return false;
         if (!AspectRatio.Equals(other.AspectRatio)) return false;
+        if (!VerticalAlign.Equals(other.VerticalAlign)) return false;
+        if (FieldSizing != other.FieldSizing) return false;
+        if (ContainerType != other.ContainerType) return false;
+        if (!object.Equals(ContainerName, other.ContainerName)) return false;
+        if (WebkitLineClamp != other.WebkitLineClamp) return false;
+        if (WebkitBoxOrient != other.WebkitBoxOrient) return false;
+        if (!object.Equals(Content, other.Content)) return false;
+        if (TableLayout != other.TableLayout) return false;
+        if (Appearance != other.Appearance) return false;
+        if (Resize != other.Resize) return false;
+        if (Contain != other.Contain) return false;
         return true;
     }
 
@@ -119,6 +163,17 @@ public sealed partial class BoxStyleGroup : IEquatable<BoxStyleGroup>
         h = HashCodeCompat.Combine(h, (int)OverflowX);
         h = HashCodeCompat.Combine(h, (int)OverflowY);
         h = HashCodeCompat.Combine(h, AspectRatio.GetHashCode());
+        h = HashCodeCompat.Combine(h, VerticalAlign.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)FieldSizing);
+        h = HashCodeCompat.Combine(h, (int)ContainerType);
+        h = HashCodeCompat.Combine(h, (ContainerName?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, WebkitLineClamp.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)WebkitBoxOrient);
+        h = HashCodeCompat.Combine(h, (Content?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (int)TableLayout);
+        h = HashCodeCompat.Combine(h, (int)Appearance);
+        h = HashCodeCompat.Combine(h, (int)Resize);
+        h = HashCodeCompat.Combine(h, (int)Contain);
         return h;
     }
 }
@@ -144,6 +199,9 @@ public sealed partial class PositionStyleGroup : IEquatable<PositionStyleGroup>
     /// <summary><c>z-index</c></summary>
     public IntegerOrAuto ZIndex { get; internal set; }
 
+    /// <summary><c>isolation</c></summary>
+    public CssIsolation Isolation { get; internal set; }
+
     internal PositionStyleGroup Clone() => (PositionStyleGroup)MemberwiseClone();
 
     public bool Equals(PositionStyleGroup? other)
@@ -156,6 +214,7 @@ public sealed partial class PositionStyleGroup : IEquatable<PositionStyleGroup>
         if (!Bottom.Equals(other.Bottom)) return false;
         if (!Left.Equals(other.Left)) return false;
         if (!ZIndex.Equals(other.ZIndex)) return false;
+        if (Isolation != other.Isolation) return false;
         return true;
     }
 
@@ -170,6 +229,7 @@ public sealed partial class PositionStyleGroup : IEquatable<PositionStyleGroup>
         h = HashCodeCompat.Combine(h, Bottom.GetHashCode());
         h = HashCodeCompat.Combine(h, Left.GetHashCode());
         h = HashCodeCompat.Combine(h, ZIndex.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)Isolation);
         return h;
     }
 }
@@ -425,6 +485,9 @@ public sealed partial class BackgroundStyleGroup : IEquatable<BackgroundStyleGro
     /// <summary><c>background-image</c></summary>
     public ImageList BackgroundImage { get; internal set; } = null!;
 
+    /// <summary><c>background-blend-mode</c></summary>
+    public CssList<CssBlendMode> BackgroundBlendMode { get; internal set; } = null!;
+
     internal BackgroundStyleGroup Clone() => (BackgroundStyleGroup)MemberwiseClone();
 
     public bool Equals(BackgroundStyleGroup? other)
@@ -433,6 +496,7 @@ public sealed partial class BackgroundStyleGroup : IEquatable<BackgroundStyleGro
         if (other is null) return false;
         if (!BackgroundColor.Equals(other.BackgroundColor)) return false;
         if (!object.Equals(BackgroundImage, other.BackgroundImage)) return false;
+        if (!object.Equals(BackgroundBlendMode, other.BackgroundBlendMode)) return false;
         return true;
     }
 
@@ -443,6 +507,7 @@ public sealed partial class BackgroundStyleGroup : IEquatable<BackgroundStyleGro
         int h = 0;
         h = HashCodeCompat.Combine(h, BackgroundColor.GetHashCode());
         h = HashCodeCompat.Combine(h, (BackgroundImage?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (BackgroundBlendMode?.GetHashCode() ?? 0));
         return h;
     }
 }
@@ -477,6 +542,57 @@ public sealed partial class EffectsStyleGroup : IEquatable<EffectsStyleGroup>
     /// <summary><c>object-position</c></summary>
     public PositionValue ObjectPosition { get; internal set; }
 
+    /// <summary><c>filter</c></summary>
+    public CssFilterList Filter { get; internal set; } = null!;
+
+    /// <summary><c>backdrop-filter</c></summary>
+    public CssFilterList BackdropFilter { get; internal set; } = null!;
+
+    /// <summary><c>clip-path</c></summary>
+    public CssClipPath ClipPath { get; internal set; } = null!;
+
+    /// <summary><c>mix-blend-mode</c></summary>
+    public CssBlendMode MixBlendMode { get; internal set; }
+
+    /// <summary><c>text-decoration-line</c></summary>
+    public CssTextDecorationLine TextDecorationLine { get; internal set; }
+
+    /// <summary><c>text-decoration-style</c></summary>
+    public CssTextDecorationStyle TextDecorationStyle { get; internal set; }
+
+    /// <summary><c>text-decoration-color</c></summary>
+    public CssColor TextDecorationColor { get; internal set; }
+
+    /// <summary><c>text-decoration-thickness</c></summary>
+    public CssDecorationThickness TextDecorationThickness { get; internal set; }
+
+    /// <summary><c>mask-image</c></summary>
+    public ImageList MaskImage { get; internal set; } = null!;
+
+    /// <summary><c>mask-mode</c></summary>
+    public CssList<CssMaskMode> MaskMode { get; internal set; } = null!;
+
+    /// <summary><c>mask-repeat</c></summary>
+    public string MaskRepeat { get; internal set; } = null!;
+
+    /// <summary><c>mask-position</c></summary>
+    public string MaskPosition { get; internal set; } = null!;
+
+    /// <summary><c>mask-clip</c></summary>
+    public CssList<CssMaskClip> MaskClip { get; internal set; } = null!;
+
+    /// <summary><c>mask-origin</c></summary>
+    public CssList<CssMaskOrigin> MaskOrigin { get; internal set; } = null!;
+
+    /// <summary><c>mask-size</c></summary>
+    public string MaskSize { get; internal set; } = null!;
+
+    /// <summary><c>mask-composite</c></summary>
+    public CssList<CssMaskComposite> MaskComposite { get; internal set; } = null!;
+
+    /// <summary><c>mask-type</c></summary>
+    public CssMaskType MaskType { get; internal set; }
+
     internal EffectsStyleGroup Clone() => (EffectsStyleGroup)MemberwiseClone();
 
     public bool Equals(EffectsStyleGroup? other)
@@ -492,6 +608,23 @@ public sealed partial class EffectsStyleGroup : IEquatable<EffectsStyleGroup>
         if (!OutlineOffset.Equals(other.OutlineOffset)) return false;
         if (ObjectFit != other.ObjectFit) return false;
         if (!ObjectPosition.Equals(other.ObjectPosition)) return false;
+        if (!object.Equals(Filter, other.Filter)) return false;
+        if (!object.Equals(BackdropFilter, other.BackdropFilter)) return false;
+        if (!object.Equals(ClipPath, other.ClipPath)) return false;
+        if (MixBlendMode != other.MixBlendMode) return false;
+        if (TextDecorationLine != other.TextDecorationLine) return false;
+        if (TextDecorationStyle != other.TextDecorationStyle) return false;
+        if (!TextDecorationColor.Equals(other.TextDecorationColor)) return false;
+        if (!TextDecorationThickness.Equals(other.TextDecorationThickness)) return false;
+        if (!object.Equals(MaskImage, other.MaskImage)) return false;
+        if (!object.Equals(MaskMode, other.MaskMode)) return false;
+        if (MaskRepeat != other.MaskRepeat) return false;
+        if (MaskPosition != other.MaskPosition) return false;
+        if (!object.Equals(MaskClip, other.MaskClip)) return false;
+        if (!object.Equals(MaskOrigin, other.MaskOrigin)) return false;
+        if (MaskSize != other.MaskSize) return false;
+        if (!object.Equals(MaskComposite, other.MaskComposite)) return false;
+        if (MaskType != other.MaskType) return false;
         return true;
     }
 
@@ -509,6 +642,301 @@ public sealed partial class EffectsStyleGroup : IEquatable<EffectsStyleGroup>
         h = HashCodeCompat.Combine(h, OutlineOffset.GetHashCode());
         h = HashCodeCompat.Combine(h, (int)ObjectFit);
         h = HashCodeCompat.Combine(h, ObjectPosition.GetHashCode());
+        h = HashCodeCompat.Combine(h, (Filter?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (BackdropFilter?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (ClipPath?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (int)MixBlendMode);
+        h = HashCodeCompat.Combine(h, (int)TextDecorationLine);
+        h = HashCodeCompat.Combine(h, (int)TextDecorationStyle);
+        h = HashCodeCompat.Combine(h, TextDecorationColor.GetHashCode());
+        h = HashCodeCompat.Combine(h, TextDecorationThickness.GetHashCode());
+        h = HashCodeCompat.Combine(h, (MaskImage?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskMode?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskRepeat?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskPosition?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskClip?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskOrigin?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskSize?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (MaskComposite?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (int)MaskType);
+        return h;
+    }
+}
+
+/// <summary>变换与 3D 渲染。不可变（对外），在多个 <see cref="ComputedStyle"/> 之间按引用共享。</summary>
+public sealed partial class TransformStyleGroup : IEquatable<TransformStyleGroup>
+{
+    /// <summary><c>transform</c></summary>
+    public CssTransformList Transform { get; internal set; } = null!;
+
+    /// <summary><c>transform-origin</c></summary>
+    public CssTransformOrigin TransformOrigin { get; internal set; }
+
+    /// <summary><c>transform-box</c></summary>
+    public CssTransformBox TransformBox { get; internal set; }
+
+    /// <summary><c>translate</c></summary>
+    public CssTranslate Translate { get; internal set; }
+
+    /// <summary><c>rotate</c></summary>
+    public CssRotate Rotate { get; internal set; }
+
+    /// <summary><c>scale</c></summary>
+    public CssScale Scale { get; internal set; }
+
+    /// <summary><c>perspective</c></summary>
+    public float Perspective { get; internal set; }
+
+    /// <summary><c>perspective-origin</c></summary>
+    public PositionValue PerspectiveOrigin { get; internal set; }
+
+    /// <summary><c>backface-visibility</c></summary>
+    public CssBackfaceVisibility BackfaceVisibility { get; internal set; }
+
+    /// <summary><c>transform-style</c></summary>
+    public CssTransformStyle TransformStyle { get; internal set; }
+
+    internal TransformStyleGroup Clone() => (TransformStyleGroup)MemberwiseClone();
+
+    public bool Equals(TransformStyleGroup? other)
+    {
+        if (ReferenceEquals(this, other)) return true;
+        if (other is null) return false;
+        if (!object.Equals(Transform, other.Transform)) return false;
+        if (!TransformOrigin.Equals(other.TransformOrigin)) return false;
+        if (TransformBox != other.TransformBox) return false;
+        if (!Translate.Equals(other.Translate)) return false;
+        if (!Rotate.Equals(other.Rotate)) return false;
+        if (!Scale.Equals(other.Scale)) return false;
+        if (Perspective != other.Perspective) return false;
+        if (!PerspectiveOrigin.Equals(other.PerspectiveOrigin)) return false;
+        if (BackfaceVisibility != other.BackfaceVisibility) return false;
+        if (TransformStyle != other.TransformStyle) return false;
+        return true;
+    }
+
+    public override bool Equals(object? obj) => obj is TransformStyleGroup o && Equals(o);
+
+    public override int GetHashCode()
+    {
+        int h = 0;
+        h = HashCodeCompat.Combine(h, (Transform?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, TransformOrigin.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)TransformBox);
+        h = HashCodeCompat.Combine(h, Translate.GetHashCode());
+        h = HashCodeCompat.Combine(h, Rotate.GetHashCode());
+        h = HashCodeCompat.Combine(h, Scale.GetHashCode());
+        h = HashCodeCompat.Combine(h, Perspective.GetHashCode());
+        h = HashCodeCompat.Combine(h, PerspectiveOrigin.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)BackfaceVisibility);
+        h = HashCodeCompat.Combine(h, (int)TransformStyle);
+        return h;
+    }
+}
+
+/// <summary>过渡与动画。不可变（对外），在多个 <see cref="ComputedStyle"/> 之间按引用共享。</summary>
+public sealed partial class AnimationStyleGroup : IEquatable<AnimationStyleGroup>
+{
+    /// <summary><c>transition-property</c></summary>
+    public CssList<string> TransitionProperty { get; internal set; } = null!;
+
+    /// <summary><c>transition-duration</c></summary>
+    public CssList<float> TransitionDuration { get; internal set; } = null!;
+
+    /// <summary><c>transition-timing-function</c></summary>
+    public CssList<CssEasingFunction> TransitionTimingFunction { get; internal set; } = null!;
+
+    /// <summary><c>transition-delay</c></summary>
+    public CssList<float> TransitionDelay { get; internal set; } = null!;
+
+    /// <summary><c>transition-behavior</c></summary>
+    public CssList<CssTransitionBehavior> TransitionBehavior { get; internal set; } = null!;
+
+    /// <summary><c>animation-name</c></summary>
+    public CssList<string> AnimationName { get; internal set; } = null!;
+
+    /// <summary><c>animation-duration</c></summary>
+    public CssList<float> AnimationDuration { get; internal set; } = null!;
+
+    /// <summary><c>animation-timing-function</c></summary>
+    public CssList<CssEasingFunction> AnimationTimingFunction { get; internal set; } = null!;
+
+    /// <summary><c>animation-delay</c></summary>
+    public CssList<float> AnimationDelay { get; internal set; } = null!;
+
+    /// <summary><c>animation-iteration-count</c></summary>
+    public CssList<float> AnimationIterationCount { get; internal set; } = null!;
+
+    /// <summary><c>animation-direction</c></summary>
+    public CssList<CssAnimationDirection> AnimationDirection { get; internal set; } = null!;
+
+    /// <summary><c>animation-fill-mode</c></summary>
+    public CssList<CssAnimationFillMode> AnimationFillMode { get; internal set; } = null!;
+
+    /// <summary><c>animation-play-state</c></summary>
+    public CssList<CssAnimationPlayState> AnimationPlayState { get; internal set; } = null!;
+
+    /// <summary><c>animation-composition</c></summary>
+    public CssList<CssAnimationComposition> AnimationComposition { get; internal set; } = null!;
+
+    internal AnimationStyleGroup Clone() => (AnimationStyleGroup)MemberwiseClone();
+
+    public bool Equals(AnimationStyleGroup? other)
+    {
+        if (ReferenceEquals(this, other)) return true;
+        if (other is null) return false;
+        if (!object.Equals(TransitionProperty, other.TransitionProperty)) return false;
+        if (!object.Equals(TransitionDuration, other.TransitionDuration)) return false;
+        if (!object.Equals(TransitionTimingFunction, other.TransitionTimingFunction)) return false;
+        if (!object.Equals(TransitionDelay, other.TransitionDelay)) return false;
+        if (!object.Equals(TransitionBehavior, other.TransitionBehavior)) return false;
+        if (!object.Equals(AnimationName, other.AnimationName)) return false;
+        if (!object.Equals(AnimationDuration, other.AnimationDuration)) return false;
+        if (!object.Equals(AnimationTimingFunction, other.AnimationTimingFunction)) return false;
+        if (!object.Equals(AnimationDelay, other.AnimationDelay)) return false;
+        if (!object.Equals(AnimationIterationCount, other.AnimationIterationCount)) return false;
+        if (!object.Equals(AnimationDirection, other.AnimationDirection)) return false;
+        if (!object.Equals(AnimationFillMode, other.AnimationFillMode)) return false;
+        if (!object.Equals(AnimationPlayState, other.AnimationPlayState)) return false;
+        if (!object.Equals(AnimationComposition, other.AnimationComposition)) return false;
+        return true;
+    }
+
+    public override bool Equals(object? obj) => obj is AnimationStyleGroup o && Equals(o);
+
+    public override int GetHashCode()
+    {
+        int h = 0;
+        h = HashCodeCompat.Combine(h, (TransitionProperty?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (TransitionDuration?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (TransitionTimingFunction?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (TransitionDelay?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (TransitionBehavior?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationName?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationDuration?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationTimingFunction?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationDelay?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationIterationCount?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationDirection?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationFillMode?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationPlayState?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (AnimationComposition?.GetHashCode() ?? 0));
+        return h;
+    }
+}
+
+/// <summary>交互、滚动与手势（不继承）。不可变（对外），在多个 <see cref="ComputedStyle"/> 之间按引用共享。</summary>
+public sealed partial class BehaviorStyleGroup : IEquatable<BehaviorStyleGroup>
+{
+    /// <summary><c>user-select</c></summary>
+    public CssUserSelect UserSelect { get; internal set; }
+
+    /// <summary><c>touch-action</c></summary>
+    public CssTouchAction TouchAction { get; internal set; }
+
+    /// <summary><c>will-change</c></summary>
+    public CssList<string> WillChange { get; internal set; } = null!;
+
+    /// <summary><c>scroll-behavior</c></summary>
+    public CssScrollBehavior ScrollBehavior { get; internal set; }
+
+    /// <summary><c>overscroll-behavior-x</c></summary>
+    public CssOverscrollBehavior OverscrollBehaviorX { get; internal set; }
+
+    /// <summary><c>overscroll-behavior-y</c></summary>
+    public CssOverscrollBehavior OverscrollBehaviorY { get; internal set; }
+
+    /// <summary><c>scroll-snap-type</c></summary>
+    public CssScrollSnapType ScrollSnapType { get; internal set; }
+
+    /// <summary><c>scroll-snap-align</c></summary>
+    public CssScrollSnapAlign ScrollSnapAlign { get; internal set; }
+
+    /// <summary><c>scroll-snap-stop</c></summary>
+    public CssScrollSnapStop ScrollSnapStop { get; internal set; }
+
+    /// <summary><c>scroll-margin-top</c></summary>
+    public float ScrollMarginTop { get; internal set; }
+
+    /// <summary><c>scroll-margin-right</c></summary>
+    public float ScrollMarginRight { get; internal set; }
+
+    /// <summary><c>scroll-margin-bottom</c></summary>
+    public float ScrollMarginBottom { get; internal set; }
+
+    /// <summary><c>scroll-margin-left</c></summary>
+    public float ScrollMarginLeft { get; internal set; }
+
+    /// <summary><c>scroll-padding-top</c></summary>
+    public SizeValue ScrollPaddingTop { get; internal set; }
+
+    /// <summary><c>scroll-padding-right</c></summary>
+    public SizeValue ScrollPaddingRight { get; internal set; }
+
+    /// <summary><c>scroll-padding-bottom</c></summary>
+    public SizeValue ScrollPaddingBottom { get; internal set; }
+
+    /// <summary><c>scroll-padding-left</c></summary>
+    public SizeValue ScrollPaddingLeft { get; internal set; }
+
+    /// <summary><c>scrollbar-width</c></summary>
+    public CssScrollbarWidth ScrollbarWidth { get; internal set; }
+
+    /// <summary><c>scrollbar-gutter</c></summary>
+    public CssScrollbarGutter ScrollbarGutter { get; internal set; }
+
+    internal BehaviorStyleGroup Clone() => (BehaviorStyleGroup)MemberwiseClone();
+
+    public bool Equals(BehaviorStyleGroup? other)
+    {
+        if (ReferenceEquals(this, other)) return true;
+        if (other is null) return false;
+        if (UserSelect != other.UserSelect) return false;
+        if (TouchAction != other.TouchAction) return false;
+        if (!object.Equals(WillChange, other.WillChange)) return false;
+        if (ScrollBehavior != other.ScrollBehavior) return false;
+        if (OverscrollBehaviorX != other.OverscrollBehaviorX) return false;
+        if (OverscrollBehaviorY != other.OverscrollBehaviorY) return false;
+        if (!ScrollSnapType.Equals(other.ScrollSnapType)) return false;
+        if (!ScrollSnapAlign.Equals(other.ScrollSnapAlign)) return false;
+        if (ScrollSnapStop != other.ScrollSnapStop) return false;
+        if (ScrollMarginTop != other.ScrollMarginTop) return false;
+        if (ScrollMarginRight != other.ScrollMarginRight) return false;
+        if (ScrollMarginBottom != other.ScrollMarginBottom) return false;
+        if (ScrollMarginLeft != other.ScrollMarginLeft) return false;
+        if (!ScrollPaddingTop.Equals(other.ScrollPaddingTop)) return false;
+        if (!ScrollPaddingRight.Equals(other.ScrollPaddingRight)) return false;
+        if (!ScrollPaddingBottom.Equals(other.ScrollPaddingBottom)) return false;
+        if (!ScrollPaddingLeft.Equals(other.ScrollPaddingLeft)) return false;
+        if (ScrollbarWidth != other.ScrollbarWidth) return false;
+        if (ScrollbarGutter != other.ScrollbarGutter) return false;
+        return true;
+    }
+
+    public override bool Equals(object? obj) => obj is BehaviorStyleGroup o && Equals(o);
+
+    public override int GetHashCode()
+    {
+        int h = 0;
+        h = HashCodeCompat.Combine(h, (int)UserSelect);
+        h = HashCodeCompat.Combine(h, (int)TouchAction);
+        h = HashCodeCompat.Combine(h, (WillChange?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (int)ScrollBehavior);
+        h = HashCodeCompat.Combine(h, (int)OverscrollBehaviorX);
+        h = HashCodeCompat.Combine(h, (int)OverscrollBehaviorY);
+        h = HashCodeCompat.Combine(h, ScrollSnapType.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollSnapAlign.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)ScrollSnapStop);
+        h = HashCodeCompat.Combine(h, ScrollMarginTop.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollMarginRight.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollMarginBottom.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollMarginLeft.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollPaddingTop.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollPaddingRight.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollPaddingBottom.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollPaddingLeft.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)ScrollbarWidth);
+        h = HashCodeCompat.Combine(h, (int)ScrollbarGutter);
         return h;
     }
 }
@@ -534,6 +962,30 @@ public sealed partial class FontStyleGroup : IEquatable<FontStyleGroup>
     /// <summary><c>line-height</c></summary>
     public LineHeight LineHeight { get; internal set; }
 
+    /// <summary><c>font-feature-settings</c></summary>
+    public CssList<CssFontFeature> FontFeatureSettings { get; internal set; } = null!;
+
+    /// <summary><c>font-variation-settings</c></summary>
+    public CssList<CssFontVariation> FontVariationSettings { get; internal set; } = null!;
+
+    /// <summary><c>font-variant-numeric</c></summary>
+    public CssFontVariantNumeric FontVariantNumeric { get; internal set; }
+
+    /// <summary><c>font-variant-caps</c></summary>
+    public CssFontVariantCaps FontVariantCaps { get; internal set; }
+
+    /// <summary><c>font-kerning</c></summary>
+    public CssFontKerning FontKerning { get; internal set; }
+
+    /// <summary><c>font-optical-sizing</c></summary>
+    public CssFontOpticalSizing FontOpticalSizing { get; internal set; }
+
+    /// <summary><c>-webkit-font-smoothing</c></summary>
+    public CssFontSmoothing WebkitFontSmoothing { get; internal set; }
+
+    /// <summary><c>-moz-osx-font-smoothing</c></summary>
+    public CssOsxFontSmoothing MozOsxFontSmoothing { get; internal set; }
+
     internal FontStyleGroup Clone() => (FontStyleGroup)MemberwiseClone();
 
     public bool Equals(FontStyleGroup? other)
@@ -546,6 +998,14 @@ public sealed partial class FontStyleGroup : IEquatable<FontStyleGroup>
         if (FontStyle != other.FontStyle) return false;
         if (FontStretch != other.FontStretch) return false;
         if (!LineHeight.Equals(other.LineHeight)) return false;
+        if (!object.Equals(FontFeatureSettings, other.FontFeatureSettings)) return false;
+        if (!object.Equals(FontVariationSettings, other.FontVariationSettings)) return false;
+        if (FontVariantNumeric != other.FontVariantNumeric) return false;
+        if (FontVariantCaps != other.FontVariantCaps) return false;
+        if (FontKerning != other.FontKerning) return false;
+        if (FontOpticalSizing != other.FontOpticalSizing) return false;
+        if (WebkitFontSmoothing != other.WebkitFontSmoothing) return false;
+        if (MozOsxFontSmoothing != other.MozOsxFontSmoothing) return false;
         return true;
     }
 
@@ -560,6 +1020,14 @@ public sealed partial class FontStyleGroup : IEquatable<FontStyleGroup>
         h = HashCodeCompat.Combine(h, (int)FontStyle);
         h = HashCodeCompat.Combine(h, FontStretch.GetHashCode());
         h = HashCodeCompat.Combine(h, LineHeight.GetHashCode());
+        h = HashCodeCompat.Combine(h, (FontFeatureSettings?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (FontVariationSettings?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (int)FontVariantNumeric);
+        h = HashCodeCompat.Combine(h, (int)FontVariantCaps);
+        h = HashCodeCompat.Combine(h, (int)FontKerning);
+        h = HashCodeCompat.Combine(h, (int)FontOpticalSizing);
+        h = HashCodeCompat.Combine(h, (int)WebkitFontSmoothing);
+        h = HashCodeCompat.Combine(h, (int)MozOsxFontSmoothing);
         return h;
     }
 }
@@ -588,6 +1056,90 @@ public sealed partial class TextStyleGroup : IEquatable<TextStyleGroup>
     /// <summary><c>image-rendering</c></summary>
     public CssImageRendering ImageRendering { get; internal set; }
 
+    /// <summary><c>letter-spacing</c></summary>
+    public float LetterSpacing { get; internal set; }
+
+    /// <summary><c>word-spacing</c></summary>
+    public float WordSpacing { get; internal set; }
+
+    /// <summary><c>text-indent</c></summary>
+    public CssTextIndent TextIndent { get; internal set; }
+
+    /// <summary><c>tab-size</c></summary>
+    public CssTabSize TabSize { get; internal set; }
+
+    /// <summary><c>text-wrap-mode</c></summary>
+    public CssTextWrapMode TextWrapMode { get; internal set; }
+
+    /// <summary><c>text-wrap-style</c></summary>
+    public CssTextWrapStyle TextWrapStyle { get; internal set; }
+
+    /// <summary><c>text-transform</c></summary>
+    public CssTextTransform TextTransform { get; internal set; }
+
+    /// <summary><c>text-shadow</c></summary>
+    public ShadowList TextShadow { get; internal set; } = null!;
+
+    /// <summary><c>text-underline-offset</c></summary>
+    public SizeValue TextUnderlineOffset { get; internal set; }
+
+    /// <summary><c>text-underline-position</c></summary>
+    public CssTextUnderlinePosition TextUnderlinePosition { get; internal set; }
+
+    /// <summary><c>hyphens</c></summary>
+    public CssHyphens Hyphens { get; internal set; }
+
+    /// <summary><c>-webkit-text-fill-color</c></summary>
+    public CssColor WebkitTextFillColor { get; internal set; }
+
+    /// <summary><c>quotes</c></summary>
+    public CssQuotes Quotes { get; internal set; } = null!;
+
+    /// <summary><c>list-style-type</c></summary>
+    public CssListStyleType ListStyleType { get; internal set; }
+
+    /// <summary><c>list-style-position</c></summary>
+    public CssListStylePosition ListStylePosition { get; internal set; }
+
+    /// <summary><c>list-style-image</c></summary>
+    public ImageList ListStyleImage { get; internal set; } = null!;
+
+    /// <summary><c>border-collapse</c></summary>
+    public CssBorderCollapse BorderCollapse { get; internal set; }
+
+    /// <summary><c>border-spacing</c></summary>
+    public CssBorderSpacing BorderSpacing { get; internal set; }
+
+    /// <summary><c>caption-side</c></summary>
+    public CssCaptionSide CaptionSide { get; internal set; }
+
+    /// <summary><c>empty-cells</c></summary>
+    public CssEmptyCells EmptyCells { get; internal set; }
+
+    /// <summary><c>caret-color</c></summary>
+    public CssAutoColor CaretColor { get; internal set; }
+
+    /// <summary><c>accent-color</c></summary>
+    public CssAutoColor AccentColor { get; internal set; }
+
+    /// <summary><c>scrollbar-color</c></summary>
+    public CssScrollbarColor ScrollbarColor { get; internal set; }
+
+    /// <summary><c>color-scheme</c></summary>
+    public CssColorScheme ColorScheme { get; internal set; }
+
+    /// <summary><c>fill</c></summary>
+    public CssSvgPaint Fill { get; internal set; }
+
+    /// <summary><c>stroke</c></summary>
+    public CssSvgPaint Stroke { get; internal set; }
+
+    /// <summary><c>stroke-width</c></summary>
+    public LengthPercentage StrokeWidth { get; internal set; }
+
+    /// <summary><c>forced-color-adjust</c></summary>
+    public CssForcedColorAdjust ForcedColorAdjust { get; internal set; }
+
     internal TextStyleGroup Clone() => (TextStyleGroup)MemberwiseClone();
 
     public bool Equals(TextStyleGroup? other)
@@ -601,6 +1153,34 @@ public sealed partial class TextStyleGroup : IEquatable<TextStyleGroup>
         if (OverflowWrap != other.OverflowWrap) return false;
         if (Visibility != other.Visibility) return false;
         if (ImageRendering != other.ImageRendering) return false;
+        if (LetterSpacing != other.LetterSpacing) return false;
+        if (WordSpacing != other.WordSpacing) return false;
+        if (!TextIndent.Equals(other.TextIndent)) return false;
+        if (!TabSize.Equals(other.TabSize)) return false;
+        if (TextWrapMode != other.TextWrapMode) return false;
+        if (TextWrapStyle != other.TextWrapStyle) return false;
+        if (TextTransform != other.TextTransform) return false;
+        if (!object.Equals(TextShadow, other.TextShadow)) return false;
+        if (!TextUnderlineOffset.Equals(other.TextUnderlineOffset)) return false;
+        if (TextUnderlinePosition != other.TextUnderlinePosition) return false;
+        if (Hyphens != other.Hyphens) return false;
+        if (!WebkitTextFillColor.Equals(other.WebkitTextFillColor)) return false;
+        if (!object.Equals(Quotes, other.Quotes)) return false;
+        if (!ListStyleType.Equals(other.ListStyleType)) return false;
+        if (ListStylePosition != other.ListStylePosition) return false;
+        if (!object.Equals(ListStyleImage, other.ListStyleImage)) return false;
+        if (BorderCollapse != other.BorderCollapse) return false;
+        if (!BorderSpacing.Equals(other.BorderSpacing)) return false;
+        if (CaptionSide != other.CaptionSide) return false;
+        if (EmptyCells != other.EmptyCells) return false;
+        if (!CaretColor.Equals(other.CaretColor)) return false;
+        if (!AccentColor.Equals(other.AccentColor)) return false;
+        if (!ScrollbarColor.Equals(other.ScrollbarColor)) return false;
+        if (ColorScheme != other.ColorScheme) return false;
+        if (!Fill.Equals(other.Fill)) return false;
+        if (!Stroke.Equals(other.Stroke)) return false;
+        if (!StrokeWidth.Equals(other.StrokeWidth)) return false;
+        if (ForcedColorAdjust != other.ForcedColorAdjust) return false;
         return true;
     }
 
@@ -616,6 +1196,34 @@ public sealed partial class TextStyleGroup : IEquatable<TextStyleGroup>
         h = HashCodeCompat.Combine(h, (int)OverflowWrap);
         h = HashCodeCompat.Combine(h, (int)Visibility);
         h = HashCodeCompat.Combine(h, (int)ImageRendering);
+        h = HashCodeCompat.Combine(h, LetterSpacing.GetHashCode());
+        h = HashCodeCompat.Combine(h, WordSpacing.GetHashCode());
+        h = HashCodeCompat.Combine(h, TextIndent.GetHashCode());
+        h = HashCodeCompat.Combine(h, TabSize.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)TextWrapMode);
+        h = HashCodeCompat.Combine(h, (int)TextWrapStyle);
+        h = HashCodeCompat.Combine(h, (int)TextTransform);
+        h = HashCodeCompat.Combine(h, (TextShadow?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, TextUnderlineOffset.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)TextUnderlinePosition);
+        h = HashCodeCompat.Combine(h, (int)Hyphens);
+        h = HashCodeCompat.Combine(h, WebkitTextFillColor.GetHashCode());
+        h = HashCodeCompat.Combine(h, (Quotes?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, ListStyleType.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)ListStylePosition);
+        h = HashCodeCompat.Combine(h, (ListStyleImage?.GetHashCode() ?? 0));
+        h = HashCodeCompat.Combine(h, (int)BorderCollapse);
+        h = HashCodeCompat.Combine(h, BorderSpacing.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)CaptionSide);
+        h = HashCodeCompat.Combine(h, (int)EmptyCells);
+        h = HashCodeCompat.Combine(h, CaretColor.GetHashCode());
+        h = HashCodeCompat.Combine(h, AccentColor.GetHashCode());
+        h = HashCodeCompat.Combine(h, ScrollbarColor.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)ColorScheme);
+        h = HashCodeCompat.Combine(h, Fill.GetHashCode());
+        h = HashCodeCompat.Combine(h, Stroke.GetHashCode());
+        h = HashCodeCompat.Combine(h, StrokeWidth.GetHashCode());
+        h = HashCodeCompat.Combine(h, (int)ForcedColorAdjust);
         return h;
     }
 }
@@ -661,11 +1269,15 @@ public sealed partial class ComputedStyle
         BorderGroup = b.Border;
         BackgroundGroup = b.Background;
         EffectsGroup = b.Effects;
+        TransformGroup = b.Transform;
+        AnimationGroup = b.Animation;
+        BehaviorGroup = b.Behavior;
         FontGroup = b.Font;
         TextGroup = b.Text;
         InteractionGroup = b.Interaction;
         CustomProperties = b.CustomProperties;
         RootFontSize = b.RootFontSize;
+        RootLineHeight = b.RootLineHeight;
         Flags = b.Flags;
     }
 
@@ -686,6 +1298,15 @@ public sealed partial class ComputedStyle
 
     /// <summary>不透明度、阴影与其他视觉效果分组。</summary>
     public EffectsStyleGroup EffectsGroup { get; }
+
+    /// <summary>变换与 3D 渲染分组。</summary>
+    public TransformStyleGroup TransformGroup { get; }
+
+    /// <summary>过渡与动画分组。</summary>
+    public AnimationStyleGroup AnimationGroup { get; }
+
+    /// <summary>交互、滚动与手势（不继承）分组。</summary>
+    public BehaviorStyleGroup BehaviorGroup { get; }
 
     /// <summary>字体（继承）分组。</summary>
     public FontStyleGroup FontGroup { get; }
@@ -753,6 +1374,39 @@ public sealed partial class ComputedStyle
     /// <summary><c>aspect-ratio</c></summary>
     public AspectRatioValue AspectRatio => BoxGroup.AspectRatio;
 
+    /// <summary><c>vertical-align</c></summary>
+    public CssVerticalAlign VerticalAlign => BoxGroup.VerticalAlign;
+
+    /// <summary><c>field-sizing</c></summary>
+    public CssFieldSizing FieldSizing => BoxGroup.FieldSizing;
+
+    /// <summary><c>container-type</c></summary>
+    public CssContainerType ContainerType => BoxGroup.ContainerType;
+
+    /// <summary><c>container-name</c></summary>
+    public CssList<string> ContainerName => BoxGroup.ContainerName;
+
+    /// <summary><c>-webkit-line-clamp</c></summary>
+    public int WebkitLineClamp => BoxGroup.WebkitLineClamp;
+
+    /// <summary><c>-webkit-box-orient</c></summary>
+    public CssBoxOrient WebkitBoxOrient => BoxGroup.WebkitBoxOrient;
+
+    /// <summary><c>content</c></summary>
+    public CssContent Content => BoxGroup.Content;
+
+    /// <summary><c>table-layout</c></summary>
+    public CssTableLayout TableLayout => BoxGroup.TableLayout;
+
+    /// <summary><c>appearance</c></summary>
+    public CssAppearance Appearance => BoxGroup.Appearance;
+
+    /// <summary><c>resize</c></summary>
+    public CssResize Resize => BoxGroup.Resize;
+
+    /// <summary><c>contain</c></summary>
+    public CssContain Contain => BoxGroup.Contain;
+
     /// <summary><c>position</c></summary>
     public CssPosition Position => PositionGroup.Position;
 
@@ -770,6 +1424,9 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>z-index</c></summary>
     public IntegerOrAuto ZIndex => PositionGroup.ZIndex;
+
+    /// <summary><c>isolation</c></summary>
+    public CssIsolation Isolation => PositionGroup.Isolation;
 
     /// <summary><c>flex-direction</c></summary>
     public CssFlexDirection FlexDirection => FlexGroup.FlexDirection;
@@ -897,6 +1554,9 @@ public sealed partial class ComputedStyle
     /// <summary><c>background-image</c></summary>
     public ImageList BackgroundImage => BackgroundGroup.BackgroundImage;
 
+    /// <summary><c>background-blend-mode</c></summary>
+    public CssList<CssBlendMode> BackgroundBlendMode => BackgroundGroup.BackgroundBlendMode;
+
     /// <summary><c>opacity</c></summary>
     public float Opacity => EffectsGroup.Opacity;
 
@@ -924,6 +1584,186 @@ public sealed partial class ComputedStyle
     /// <summary><c>object-position</c></summary>
     public PositionValue ObjectPosition => EffectsGroup.ObjectPosition;
 
+    /// <summary><c>filter</c></summary>
+    public CssFilterList Filter => EffectsGroup.Filter;
+
+    /// <summary><c>backdrop-filter</c></summary>
+    public CssFilterList BackdropFilter => EffectsGroup.BackdropFilter;
+
+    /// <summary><c>clip-path</c></summary>
+    public CssClipPath ClipPath => EffectsGroup.ClipPath;
+
+    /// <summary><c>mix-blend-mode</c></summary>
+    public CssBlendMode MixBlendMode => EffectsGroup.MixBlendMode;
+
+    /// <summary><c>text-decoration-line</c></summary>
+    public CssTextDecorationLine TextDecorationLine => EffectsGroup.TextDecorationLine;
+
+    /// <summary><c>text-decoration-style</c></summary>
+    public CssTextDecorationStyle TextDecorationStyle => EffectsGroup.TextDecorationStyle;
+
+    /// <summary><c>text-decoration-color</c></summary>
+    public CssColor TextDecorationColor => EffectsGroup.TextDecorationColor;
+
+    /// <summary><c>text-decoration-thickness</c></summary>
+    public CssDecorationThickness TextDecorationThickness => EffectsGroup.TextDecorationThickness;
+
+    /// <summary><c>mask-image</c></summary>
+    public ImageList MaskImage => EffectsGroup.MaskImage;
+
+    /// <summary><c>mask-mode</c></summary>
+    public CssList<CssMaskMode> MaskMode => EffectsGroup.MaskMode;
+
+    /// <summary><c>mask-repeat</c></summary>
+    public string MaskRepeat => EffectsGroup.MaskRepeat;
+
+    /// <summary><c>mask-position</c></summary>
+    public string MaskPosition => EffectsGroup.MaskPosition;
+
+    /// <summary><c>mask-clip</c></summary>
+    public CssList<CssMaskClip> MaskClip => EffectsGroup.MaskClip;
+
+    /// <summary><c>mask-origin</c></summary>
+    public CssList<CssMaskOrigin> MaskOrigin => EffectsGroup.MaskOrigin;
+
+    /// <summary><c>mask-size</c></summary>
+    public string MaskSize => EffectsGroup.MaskSize;
+
+    /// <summary><c>mask-composite</c></summary>
+    public CssList<CssMaskComposite> MaskComposite => EffectsGroup.MaskComposite;
+
+    /// <summary><c>mask-type</c></summary>
+    public CssMaskType MaskType => EffectsGroup.MaskType;
+
+    /// <summary><c>transform</c></summary>
+    public CssTransformList Transform => TransformGroup.Transform;
+
+    /// <summary><c>transform-origin</c></summary>
+    public CssTransformOrigin TransformOrigin => TransformGroup.TransformOrigin;
+
+    /// <summary><c>transform-box</c></summary>
+    public CssTransformBox TransformBox => TransformGroup.TransformBox;
+
+    /// <summary><c>translate</c></summary>
+    public CssTranslate Translate => TransformGroup.Translate;
+
+    /// <summary><c>rotate</c></summary>
+    public CssRotate Rotate => TransformGroup.Rotate;
+
+    /// <summary><c>scale</c></summary>
+    public CssScale Scale => TransformGroup.Scale;
+
+    /// <summary><c>perspective</c></summary>
+    public float Perspective => TransformGroup.Perspective;
+
+    /// <summary><c>perspective-origin</c></summary>
+    public PositionValue PerspectiveOrigin => TransformGroup.PerspectiveOrigin;
+
+    /// <summary><c>backface-visibility</c></summary>
+    public CssBackfaceVisibility BackfaceVisibility => TransformGroup.BackfaceVisibility;
+
+    /// <summary><c>transform-style</c></summary>
+    public CssTransformStyle TransformStyle => TransformGroup.TransformStyle;
+
+    /// <summary><c>transition-property</c></summary>
+    public CssList<string> TransitionProperty => AnimationGroup.TransitionProperty;
+
+    /// <summary><c>transition-duration</c></summary>
+    public CssList<float> TransitionDuration => AnimationGroup.TransitionDuration;
+
+    /// <summary><c>transition-timing-function</c></summary>
+    public CssList<CssEasingFunction> TransitionTimingFunction => AnimationGroup.TransitionTimingFunction;
+
+    /// <summary><c>transition-delay</c></summary>
+    public CssList<float> TransitionDelay => AnimationGroup.TransitionDelay;
+
+    /// <summary><c>transition-behavior</c></summary>
+    public CssList<CssTransitionBehavior> TransitionBehavior => AnimationGroup.TransitionBehavior;
+
+    /// <summary><c>animation-name</c></summary>
+    public CssList<string> AnimationName => AnimationGroup.AnimationName;
+
+    /// <summary><c>animation-duration</c></summary>
+    public CssList<float> AnimationDuration => AnimationGroup.AnimationDuration;
+
+    /// <summary><c>animation-timing-function</c></summary>
+    public CssList<CssEasingFunction> AnimationTimingFunction => AnimationGroup.AnimationTimingFunction;
+
+    /// <summary><c>animation-delay</c></summary>
+    public CssList<float> AnimationDelay => AnimationGroup.AnimationDelay;
+
+    /// <summary><c>animation-iteration-count</c></summary>
+    public CssList<float> AnimationIterationCount => AnimationGroup.AnimationIterationCount;
+
+    /// <summary><c>animation-direction</c></summary>
+    public CssList<CssAnimationDirection> AnimationDirection => AnimationGroup.AnimationDirection;
+
+    /// <summary><c>animation-fill-mode</c></summary>
+    public CssList<CssAnimationFillMode> AnimationFillMode => AnimationGroup.AnimationFillMode;
+
+    /// <summary><c>animation-play-state</c></summary>
+    public CssList<CssAnimationPlayState> AnimationPlayState => AnimationGroup.AnimationPlayState;
+
+    /// <summary><c>animation-composition</c></summary>
+    public CssList<CssAnimationComposition> AnimationComposition => AnimationGroup.AnimationComposition;
+
+    /// <summary><c>user-select</c></summary>
+    public CssUserSelect UserSelect => BehaviorGroup.UserSelect;
+
+    /// <summary><c>touch-action</c></summary>
+    public CssTouchAction TouchAction => BehaviorGroup.TouchAction;
+
+    /// <summary><c>will-change</c></summary>
+    public CssList<string> WillChange => BehaviorGroup.WillChange;
+
+    /// <summary><c>scroll-behavior</c></summary>
+    public CssScrollBehavior ScrollBehavior => BehaviorGroup.ScrollBehavior;
+
+    /// <summary><c>overscroll-behavior-x</c></summary>
+    public CssOverscrollBehavior OverscrollBehaviorX => BehaviorGroup.OverscrollBehaviorX;
+
+    /// <summary><c>overscroll-behavior-y</c></summary>
+    public CssOverscrollBehavior OverscrollBehaviorY => BehaviorGroup.OverscrollBehaviorY;
+
+    /// <summary><c>scroll-snap-type</c></summary>
+    public CssScrollSnapType ScrollSnapType => BehaviorGroup.ScrollSnapType;
+
+    /// <summary><c>scroll-snap-align</c></summary>
+    public CssScrollSnapAlign ScrollSnapAlign => BehaviorGroup.ScrollSnapAlign;
+
+    /// <summary><c>scroll-snap-stop</c></summary>
+    public CssScrollSnapStop ScrollSnapStop => BehaviorGroup.ScrollSnapStop;
+
+    /// <summary><c>scroll-margin-top</c></summary>
+    public float ScrollMarginTop => BehaviorGroup.ScrollMarginTop;
+
+    /// <summary><c>scroll-margin-right</c></summary>
+    public float ScrollMarginRight => BehaviorGroup.ScrollMarginRight;
+
+    /// <summary><c>scroll-margin-bottom</c></summary>
+    public float ScrollMarginBottom => BehaviorGroup.ScrollMarginBottom;
+
+    /// <summary><c>scroll-margin-left</c></summary>
+    public float ScrollMarginLeft => BehaviorGroup.ScrollMarginLeft;
+
+    /// <summary><c>scroll-padding-top</c></summary>
+    public SizeValue ScrollPaddingTop => BehaviorGroup.ScrollPaddingTop;
+
+    /// <summary><c>scroll-padding-right</c></summary>
+    public SizeValue ScrollPaddingRight => BehaviorGroup.ScrollPaddingRight;
+
+    /// <summary><c>scroll-padding-bottom</c></summary>
+    public SizeValue ScrollPaddingBottom => BehaviorGroup.ScrollPaddingBottom;
+
+    /// <summary><c>scroll-padding-left</c></summary>
+    public SizeValue ScrollPaddingLeft => BehaviorGroup.ScrollPaddingLeft;
+
+    /// <summary><c>scrollbar-width</c></summary>
+    public CssScrollbarWidth ScrollbarWidth => BehaviorGroup.ScrollbarWidth;
+
+    /// <summary><c>scrollbar-gutter</c></summary>
+    public CssScrollbarGutter ScrollbarGutter => BehaviorGroup.ScrollbarGutter;
+
     /// <summary><c>font-family</c></summary>
     public FontFamilyList FontFamily => FontGroup.FontFamily;
 
@@ -941,6 +1781,30 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>line-height</c></summary>
     public LineHeight LineHeight => FontGroup.LineHeight;
+
+    /// <summary><c>font-feature-settings</c></summary>
+    public CssList<CssFontFeature> FontFeatureSettings => FontGroup.FontFeatureSettings;
+
+    /// <summary><c>font-variation-settings</c></summary>
+    public CssList<CssFontVariation> FontVariationSettings => FontGroup.FontVariationSettings;
+
+    /// <summary><c>font-variant-numeric</c></summary>
+    public CssFontVariantNumeric FontVariantNumeric => FontGroup.FontVariantNumeric;
+
+    /// <summary><c>font-variant-caps</c></summary>
+    public CssFontVariantCaps FontVariantCaps => FontGroup.FontVariantCaps;
+
+    /// <summary><c>font-kerning</c></summary>
+    public CssFontKerning FontKerning => FontGroup.FontKerning;
+
+    /// <summary><c>font-optical-sizing</c></summary>
+    public CssFontOpticalSizing FontOpticalSizing => FontGroup.FontOpticalSizing;
+
+    /// <summary><c>-webkit-font-smoothing</c></summary>
+    public CssFontSmoothing WebkitFontSmoothing => FontGroup.WebkitFontSmoothing;
+
+    /// <summary><c>-moz-osx-font-smoothing</c></summary>
+    public CssOsxFontSmoothing MozOsxFontSmoothing => FontGroup.MozOsxFontSmoothing;
 
     /// <summary><c>color</c></summary>
     public CssColor Color => TextGroup.Color;
@@ -962,6 +1826,90 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>image-rendering</c></summary>
     public CssImageRendering ImageRendering => TextGroup.ImageRendering;
+
+    /// <summary><c>letter-spacing</c></summary>
+    public float LetterSpacing => TextGroup.LetterSpacing;
+
+    /// <summary><c>word-spacing</c></summary>
+    public float WordSpacing => TextGroup.WordSpacing;
+
+    /// <summary><c>text-indent</c></summary>
+    public CssTextIndent TextIndent => TextGroup.TextIndent;
+
+    /// <summary><c>tab-size</c></summary>
+    public CssTabSize TabSize => TextGroup.TabSize;
+
+    /// <summary><c>text-wrap-mode</c></summary>
+    public CssTextWrapMode TextWrapMode => TextGroup.TextWrapMode;
+
+    /// <summary><c>text-wrap-style</c></summary>
+    public CssTextWrapStyle TextWrapStyle => TextGroup.TextWrapStyle;
+
+    /// <summary><c>text-transform</c></summary>
+    public CssTextTransform TextTransform => TextGroup.TextTransform;
+
+    /// <summary><c>text-shadow</c></summary>
+    public ShadowList TextShadow => TextGroup.TextShadow;
+
+    /// <summary><c>text-underline-offset</c></summary>
+    public SizeValue TextUnderlineOffset => TextGroup.TextUnderlineOffset;
+
+    /// <summary><c>text-underline-position</c></summary>
+    public CssTextUnderlinePosition TextUnderlinePosition => TextGroup.TextUnderlinePosition;
+
+    /// <summary><c>hyphens</c></summary>
+    public CssHyphens Hyphens => TextGroup.Hyphens;
+
+    /// <summary><c>-webkit-text-fill-color</c></summary>
+    public CssColor WebkitTextFillColor => TextGroup.WebkitTextFillColor;
+
+    /// <summary><c>quotes</c></summary>
+    public CssQuotes Quotes => TextGroup.Quotes;
+
+    /// <summary><c>list-style-type</c></summary>
+    public CssListStyleType ListStyleType => TextGroup.ListStyleType;
+
+    /// <summary><c>list-style-position</c></summary>
+    public CssListStylePosition ListStylePosition => TextGroup.ListStylePosition;
+
+    /// <summary><c>list-style-image</c></summary>
+    public ImageList ListStyleImage => TextGroup.ListStyleImage;
+
+    /// <summary><c>border-collapse</c></summary>
+    public CssBorderCollapse BorderCollapse => TextGroup.BorderCollapse;
+
+    /// <summary><c>border-spacing</c></summary>
+    public CssBorderSpacing BorderSpacing => TextGroup.BorderSpacing;
+
+    /// <summary><c>caption-side</c></summary>
+    public CssCaptionSide CaptionSide => TextGroup.CaptionSide;
+
+    /// <summary><c>empty-cells</c></summary>
+    public CssEmptyCells EmptyCells => TextGroup.EmptyCells;
+
+    /// <summary><c>caret-color</c></summary>
+    public CssAutoColor CaretColor => TextGroup.CaretColor;
+
+    /// <summary><c>accent-color</c></summary>
+    public CssAutoColor AccentColor => TextGroup.AccentColor;
+
+    /// <summary><c>scrollbar-color</c></summary>
+    public CssScrollbarColor ScrollbarColor => TextGroup.ScrollbarColor;
+
+    /// <summary><c>color-scheme</c></summary>
+    public CssColorScheme ColorScheme => TextGroup.ColorScheme;
+
+    /// <summary><c>fill</c></summary>
+    public CssSvgPaint Fill => TextGroup.Fill;
+
+    /// <summary><c>stroke</c></summary>
+    public CssSvgPaint Stroke => TextGroup.Stroke;
+
+    /// <summary><c>stroke-width</c></summary>
+    public LengthPercentage StrokeWidth => TextGroup.StrokeWidth;
+
+    /// <summary><c>forced-color-adjust</c></summary>
+    public CssForcedColorAdjust ForcedColorAdjust => TextGroup.ForcedColorAdjust;
 
     /// <summary><c>cursor</c></summary>
     public CssCursor Cursor => InteractionGroup.Cursor;
@@ -996,6 +1944,17 @@ public sealed partial class ComputedStyle
             if (x.OverflowX != y.OverflowX) d |= StyleDifference.Structure;
             if (x.OverflowY != y.OverflowY) d |= StyleDifference.Structure;
             if (!x.AspectRatio.Equals(y.AspectRatio)) d |= StyleDifference.Layout;
+            if (!x.VerticalAlign.Equals(y.VerticalAlign)) d |= StyleDifference.Layout;
+            if (x.FieldSizing != y.FieldSizing) d |= StyleDifference.Layout;
+            if (x.ContainerType != y.ContainerType) d |= StyleDifference.Layout;
+            if (!object.Equals(x.ContainerName, y.ContainerName)) d |= StyleDifference.Layout;
+            if (x.WebkitLineClamp != y.WebkitLineClamp) d |= StyleDifference.Layout;
+            if (x.WebkitBoxOrient != y.WebkitBoxOrient) d |= StyleDifference.Layout;
+            if (!object.Equals(x.Content, y.Content)) d |= StyleDifference.Structure;
+            if (x.TableLayout != y.TableLayout) d |= StyleDifference.Layout;
+            if (x.Appearance != y.Appearance) d |= StyleDifference.Paint;
+            if (x.Resize != y.Resize) d |= StyleDifference.Behavior;
+            if (x.Contain != y.Contain) d |= StyleDifference.Layout;
         }
         if (!ReferenceEquals(a.PositionGroup, b.PositionGroup))
         {
@@ -1007,6 +1966,7 @@ public sealed partial class ComputedStyle
             if (!x.Bottom.Equals(y.Bottom)) d |= StyleDifference.Layout;
             if (!x.Left.Equals(y.Left)) d |= StyleDifference.Layout;
             if (!x.ZIndex.Equals(y.ZIndex)) d |= StyleDifference.Structure;
+            if (x.Isolation != y.Isolation) d |= StyleDifference.Structure;
         }
         if (!ReferenceEquals(a.FlexGroup, b.FlexGroup))
         {
@@ -1064,6 +2024,7 @@ public sealed partial class ComputedStyle
             var y = b.BackgroundGroup;
             if (!x.BackgroundColor.Equals(y.BackgroundColor)) d |= StyleDifference.Paint;
             if (!object.Equals(x.BackgroundImage, y.BackgroundImage)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.BackgroundBlendMode, y.BackgroundBlendMode)) d |= StyleDifference.Paint;
         }
         if (!ReferenceEquals(a.EffectsGroup, b.EffectsGroup))
         {
@@ -1078,6 +2039,81 @@ public sealed partial class ComputedStyle
             if (!x.OutlineOffset.Equals(y.OutlineOffset)) d |= StyleDifference.Paint;
             if (x.ObjectFit != y.ObjectFit) d |= StyleDifference.Paint;
             if (!x.ObjectPosition.Equals(y.ObjectPosition)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.Filter, y.Filter)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.BackdropFilter, y.BackdropFilter)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.ClipPath, y.ClipPath)) d |= StyleDifference.Paint;
+            if (x.MixBlendMode != y.MixBlendMode) d |= StyleDifference.Structure;
+            if (x.TextDecorationLine != y.TextDecorationLine) d |= StyleDifference.Paint;
+            if (x.TextDecorationStyle != y.TextDecorationStyle) d |= StyleDifference.Paint;
+            if (!x.TextDecorationColor.Equals(y.TextDecorationColor)) d |= StyleDifference.Paint;
+            if (!x.TextDecorationThickness.Equals(y.TextDecorationThickness)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.MaskImage, y.MaskImage)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.MaskMode, y.MaskMode)) d |= StyleDifference.Paint;
+            if (x.MaskRepeat != y.MaskRepeat) d |= StyleDifference.Paint;
+            if (x.MaskPosition != y.MaskPosition) d |= StyleDifference.Paint;
+            if (!object.Equals(x.MaskClip, y.MaskClip)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.MaskOrigin, y.MaskOrigin)) d |= StyleDifference.Paint;
+            if (x.MaskSize != y.MaskSize) d |= StyleDifference.Paint;
+            if (!object.Equals(x.MaskComposite, y.MaskComposite)) d |= StyleDifference.Paint;
+            if (x.MaskType != y.MaskType) d |= StyleDifference.Paint;
+        }
+        if (!ReferenceEquals(a.TransformGroup, b.TransformGroup))
+        {
+            var x = a.TransformGroup;
+            var y = b.TransformGroup;
+            if (!object.Equals(x.Transform, y.Transform)) d |= StyleDifference.Composite;
+            if (!x.TransformOrigin.Equals(y.TransformOrigin)) d |= StyleDifference.Composite;
+            if (x.TransformBox != y.TransformBox) d |= StyleDifference.Composite;
+            if (!x.Translate.Equals(y.Translate)) d |= StyleDifference.Composite;
+            if (!x.Rotate.Equals(y.Rotate)) d |= StyleDifference.Composite;
+            if (!x.Scale.Equals(y.Scale)) d |= StyleDifference.Composite;
+            if (x.Perspective != y.Perspective) d |= StyleDifference.Composite;
+            if (!x.PerspectiveOrigin.Equals(y.PerspectiveOrigin)) d |= StyleDifference.Composite;
+            if (x.BackfaceVisibility != y.BackfaceVisibility) d |= StyleDifference.Composite;
+            if (x.TransformStyle != y.TransformStyle) d |= StyleDifference.Composite;
+        }
+        if (!ReferenceEquals(a.AnimationGroup, b.AnimationGroup))
+        {
+            var x = a.AnimationGroup;
+            var y = b.AnimationGroup;
+            if (!object.Equals(x.TransitionProperty, y.TransitionProperty)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.TransitionDuration, y.TransitionDuration)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.TransitionTimingFunction, y.TransitionTimingFunction)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.TransitionDelay, y.TransitionDelay)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.TransitionBehavior, y.TransitionBehavior)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationName, y.AnimationName)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationDuration, y.AnimationDuration)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationTimingFunction, y.AnimationTimingFunction)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationDelay, y.AnimationDelay)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationIterationCount, y.AnimationIterationCount)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationDirection, y.AnimationDirection)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationFillMode, y.AnimationFillMode)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationPlayState, y.AnimationPlayState)) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.AnimationComposition, y.AnimationComposition)) d |= StyleDifference.Behavior;
+        }
+        if (!ReferenceEquals(a.BehaviorGroup, b.BehaviorGroup))
+        {
+            var x = a.BehaviorGroup;
+            var y = b.BehaviorGroup;
+            if (x.UserSelect != y.UserSelect) d |= StyleDifference.Behavior;
+            if (x.TouchAction != y.TouchAction) d |= StyleDifference.Behavior;
+            if (!object.Equals(x.WillChange, y.WillChange)) d |= StyleDifference.Behavior;
+            if (x.ScrollBehavior != y.ScrollBehavior) d |= StyleDifference.Behavior;
+            if (x.OverscrollBehaviorX != y.OverscrollBehaviorX) d |= StyleDifference.Behavior;
+            if (x.OverscrollBehaviorY != y.OverscrollBehaviorY) d |= StyleDifference.Behavior;
+            if (!x.ScrollSnapType.Equals(y.ScrollSnapType)) d |= StyleDifference.Behavior;
+            if (!x.ScrollSnapAlign.Equals(y.ScrollSnapAlign)) d |= StyleDifference.Behavior;
+            if (x.ScrollSnapStop != y.ScrollSnapStop) d |= StyleDifference.Behavior;
+            if (x.ScrollMarginTop != y.ScrollMarginTop) d |= StyleDifference.Behavior;
+            if (x.ScrollMarginRight != y.ScrollMarginRight) d |= StyleDifference.Behavior;
+            if (x.ScrollMarginBottom != y.ScrollMarginBottom) d |= StyleDifference.Behavior;
+            if (x.ScrollMarginLeft != y.ScrollMarginLeft) d |= StyleDifference.Behavior;
+            if (!x.ScrollPaddingTop.Equals(y.ScrollPaddingTop)) d |= StyleDifference.Behavior;
+            if (!x.ScrollPaddingRight.Equals(y.ScrollPaddingRight)) d |= StyleDifference.Behavior;
+            if (!x.ScrollPaddingBottom.Equals(y.ScrollPaddingBottom)) d |= StyleDifference.Behavior;
+            if (!x.ScrollPaddingLeft.Equals(y.ScrollPaddingLeft)) d |= StyleDifference.Behavior;
+            if (x.ScrollbarWidth != y.ScrollbarWidth) d |= StyleDifference.Layout;
+            if (x.ScrollbarGutter != y.ScrollbarGutter) d |= StyleDifference.Layout;
         }
         if (!ReferenceEquals(a.FontGroup, b.FontGroup))
         {
@@ -1089,6 +2125,14 @@ public sealed partial class ComputedStyle
             if (x.FontStyle != y.FontStyle) d |= StyleDifference.Layout;
             if (x.FontStretch != y.FontStretch) d |= StyleDifference.Layout;
             if (!x.LineHeight.Equals(y.LineHeight)) d |= StyleDifference.Layout;
+            if (!object.Equals(x.FontFeatureSettings, y.FontFeatureSettings)) d |= StyleDifference.Layout;
+            if (!object.Equals(x.FontVariationSettings, y.FontVariationSettings)) d |= StyleDifference.Layout;
+            if (x.FontVariantNumeric != y.FontVariantNumeric) d |= StyleDifference.Layout;
+            if (x.FontVariantCaps != y.FontVariantCaps) d |= StyleDifference.Layout;
+            if (x.FontKerning != y.FontKerning) d |= StyleDifference.Layout;
+            if (x.FontOpticalSizing != y.FontOpticalSizing) d |= StyleDifference.Layout;
+            if (x.WebkitFontSmoothing != y.WebkitFontSmoothing) d |= StyleDifference.Paint;
+            if (x.MozOsxFontSmoothing != y.MozOsxFontSmoothing) d |= StyleDifference.Paint;
         }
         if (!ReferenceEquals(a.TextGroup, b.TextGroup))
         {
@@ -1101,6 +2145,34 @@ public sealed partial class ComputedStyle
             if (x.OverflowWrap != y.OverflowWrap) d |= StyleDifference.Layout;
             if (x.Visibility != y.Visibility) d |= StyleDifference.Paint;
             if (x.ImageRendering != y.ImageRendering) d |= StyleDifference.Paint;
+            if (x.LetterSpacing != y.LetterSpacing) d |= StyleDifference.Layout;
+            if (x.WordSpacing != y.WordSpacing) d |= StyleDifference.Layout;
+            if (!x.TextIndent.Equals(y.TextIndent)) d |= StyleDifference.Layout;
+            if (!x.TabSize.Equals(y.TabSize)) d |= StyleDifference.Layout;
+            if (x.TextWrapMode != y.TextWrapMode) d |= StyleDifference.Layout;
+            if (x.TextWrapStyle != y.TextWrapStyle) d |= StyleDifference.Layout;
+            if (x.TextTransform != y.TextTransform) d |= StyleDifference.Layout;
+            if (!object.Equals(x.TextShadow, y.TextShadow)) d |= StyleDifference.Paint;
+            if (!x.TextUnderlineOffset.Equals(y.TextUnderlineOffset)) d |= StyleDifference.Paint;
+            if (x.TextUnderlinePosition != y.TextUnderlinePosition) d |= StyleDifference.Paint;
+            if (x.Hyphens != y.Hyphens) d |= StyleDifference.Layout;
+            if (!x.WebkitTextFillColor.Equals(y.WebkitTextFillColor)) d |= StyleDifference.Paint;
+            if (!object.Equals(x.Quotes, y.Quotes)) d |= StyleDifference.Layout;
+            if (!x.ListStyleType.Equals(y.ListStyleType)) d |= StyleDifference.Layout;
+            if (x.ListStylePosition != y.ListStylePosition) d |= StyleDifference.Layout;
+            if (!object.Equals(x.ListStyleImage, y.ListStyleImage)) d |= StyleDifference.Layout;
+            if (x.BorderCollapse != y.BorderCollapse) d |= StyleDifference.Layout;
+            if (!x.BorderSpacing.Equals(y.BorderSpacing)) d |= StyleDifference.Layout;
+            if (x.CaptionSide != y.CaptionSide) d |= StyleDifference.Layout;
+            if (x.EmptyCells != y.EmptyCells) d |= StyleDifference.Paint;
+            if (!x.CaretColor.Equals(y.CaretColor)) d |= StyleDifference.Paint;
+            if (!x.AccentColor.Equals(y.AccentColor)) d |= StyleDifference.Paint;
+            if (!x.ScrollbarColor.Equals(y.ScrollbarColor)) d |= StyleDifference.Paint;
+            if (x.ColorScheme != y.ColorScheme) d |= StyleDifference.Paint;
+            if (!x.Fill.Equals(y.Fill)) d |= StyleDifference.Paint;
+            if (!x.Stroke.Equals(y.Stroke)) d |= StyleDifference.Paint;
+            if (!x.StrokeWidth.Equals(y.StrokeWidth)) d |= StyleDifference.Paint;
+            if (x.ForcedColorAdjust != y.ForcedColorAdjust) d |= StyleDifference.Paint;
         }
         if (!ReferenceEquals(a.InteractionGroup, b.InteractionGroup))
         {
@@ -1136,12 +2208,24 @@ public sealed partial class ComputedStyle
             case CssPropertyId.OverflowX: { var x = BoxGroup.OverflowX; return KeywordTables.CssOverflow.NameOf((int)x); }
             case CssPropertyId.OverflowY: { var x = BoxGroup.OverflowY; return KeywordTables.CssOverflow.NameOf((int)x); }
             case CssPropertyId.AspectRatio: { var x = BoxGroup.AspectRatio; return x.ToString(); }
+            case CssPropertyId.VerticalAlign: { var x = BoxGroup.VerticalAlign; return x.ToString(); }
+            case CssPropertyId.FieldSizing: { var x = BoxGroup.FieldSizing; return KeywordTables.CssFieldSizing.NameOf((int)x); }
+            case CssPropertyId.ContainerType: { var x = BoxGroup.ContainerType; return KeywordTables.CssContainerType.NameOf((int)x); }
+            case CssPropertyId.ContainerName: { var x = BoxGroup.ContainerName; return x.Join(s => s, "none"); }
+            case CssPropertyId.WebkitLineClamp: { var x = BoxGroup.WebkitLineClamp; return x == 0 ? "none" : ValueText.Integer(x); }
+            case CssPropertyId.WebkitBoxOrient: { var x = BoxGroup.WebkitBoxOrient; return KeywordTables.CssBoxOrient.NameOf((int)x); }
+            case CssPropertyId.Content: { var x = BoxGroup.Content; return x.ToString(); }
+            case CssPropertyId.TableLayout: { var x = BoxGroup.TableLayout; return KeywordTables.CssTableLayout.NameOf((int)x); }
+            case CssPropertyId.Appearance: { var x = BoxGroup.Appearance; return KeywordTables.CssAppearance.NameOf((int)x); }
+            case CssPropertyId.Resize: { var x = BoxGroup.Resize; return KeywordTables.CssResize.NameOf((int)x); }
+            case CssPropertyId.Contain: { var x = BoxGroup.Contain; return BehaviorParsers.ContainText(x); }
             case CssPropertyId.Position: { var x = PositionGroup.Position; return KeywordTables.CssPosition.NameOf((int)x); }
             case CssPropertyId.Top: { var x = PositionGroup.Top; return x.ToString(); }
             case CssPropertyId.Right: { var x = PositionGroup.Right; return x.ToString(); }
             case CssPropertyId.Bottom: { var x = PositionGroup.Bottom; return x.ToString(); }
             case CssPropertyId.Left: { var x = PositionGroup.Left; return x.ToString(); }
             case CssPropertyId.ZIndex: { var x = PositionGroup.ZIndex; return x.ToString(); }
+            case CssPropertyId.Isolation: { var x = PositionGroup.Isolation; return KeywordTables.CssIsolation.NameOf((int)x); }
             case CssPropertyId.FlexDirection: { var x = FlexGroup.FlexDirection; return KeywordTables.CssFlexDirection.NameOf((int)x); }
             case CssPropertyId.FlexWrap: { var x = FlexGroup.FlexWrap; return KeywordTables.CssFlexWrap.NameOf((int)x); }
             case CssPropertyId.FlexGrow: { var x = FlexGroup.FlexGrow; return ValueText.Number(x); }
@@ -1184,6 +2268,7 @@ public sealed partial class ComputedStyle
             case CssPropertyId.BorderBottomLeftRadius: { var x = BorderGroup.BorderBottomLeftRadius; return x.ToString(); }
             case CssPropertyId.BackgroundColor: { var x = BackgroundGroup.BackgroundColor; return x.ToString(); }
             case CssPropertyId.BackgroundImage: { var x = BackgroundGroup.BackgroundImage; return x.ToString(); }
+            case CssPropertyId.BackgroundBlendMode: { var x = BackgroundGroup.BackgroundBlendMode; return x.Join(e => KeywordTables.CssBlendMode.NameOf((int)e), "none"); }
             case CssPropertyId.Opacity: { var x = EffectsGroup.Opacity; return ValueText.Number(x); }
             case CssPropertyId.BoxShadow: { var x = EffectsGroup.BoxShadow; return x.ToString(); }
             case CssPropertyId.TextOverflow: { var x = EffectsGroup.TextOverflow; return KeywordTables.CssTextOverflow.NameOf((int)x); }
@@ -1193,12 +2278,80 @@ public sealed partial class ComputedStyle
             case CssPropertyId.OutlineOffset: { var x = EffectsGroup.OutlineOffset; return x.ToString(); }
             case CssPropertyId.ObjectFit: { var x = EffectsGroup.ObjectFit; return KeywordTables.CssObjectFit.NameOf((int)x); }
             case CssPropertyId.ObjectPosition: { var x = EffectsGroup.ObjectPosition; return x.ToString(); }
+            case CssPropertyId.Filter: { var x = EffectsGroup.Filter; return x.ToString(); }
+            case CssPropertyId.BackdropFilter: { var x = EffectsGroup.BackdropFilter; return x.ToString(); }
+            case CssPropertyId.ClipPath: { var x = EffectsGroup.ClipPath; return x.ToString(); }
+            case CssPropertyId.MixBlendMode: { var x = EffectsGroup.MixBlendMode; return KeywordTables.CssBlendMode.NameOf((int)x); }
+            case CssPropertyId.TextDecorationLine: { var x = EffectsGroup.TextDecorationLine; return TextParsers.DecorationLineText(x); }
+            case CssPropertyId.TextDecorationStyle: { var x = EffectsGroup.TextDecorationStyle; return KeywordTables.CssTextDecorationStyle.NameOf((int)x); }
+            case CssPropertyId.TextDecorationColor: { var x = EffectsGroup.TextDecorationColor; return x.ToString(); }
+            case CssPropertyId.TextDecorationThickness: { var x = EffectsGroup.TextDecorationThickness; return x.ToString(); }
+            case CssPropertyId.MaskImage: { var x = EffectsGroup.MaskImage; return x.ToString(); }
+            case CssPropertyId.MaskMode: { var x = EffectsGroup.MaskMode; return x.Join(e => KeywordTables.CssMaskMode.NameOf((int)e), "none"); }
+            case CssPropertyId.MaskRepeat: { var x = EffectsGroup.MaskRepeat; return x; }
+            case CssPropertyId.MaskPosition: { var x = EffectsGroup.MaskPosition; return x; }
+            case CssPropertyId.MaskClip: { var x = EffectsGroup.MaskClip; return x.Join(e => KeywordTables.CssMaskClip.NameOf((int)e), "none"); }
+            case CssPropertyId.MaskOrigin: { var x = EffectsGroup.MaskOrigin; return x.Join(e => KeywordTables.CssMaskOrigin.NameOf((int)e), "none"); }
+            case CssPropertyId.MaskSize: { var x = EffectsGroup.MaskSize; return x; }
+            case CssPropertyId.MaskComposite: { var x = EffectsGroup.MaskComposite; return x.Join(e => KeywordTables.CssMaskComposite.NameOf((int)e), "none"); }
+            case CssPropertyId.MaskType: { var x = EffectsGroup.MaskType; return KeywordTables.CssMaskType.NameOf((int)x); }
+            case CssPropertyId.Transform: { var x = TransformGroup.Transform; return x.ToString(); }
+            case CssPropertyId.TransformOrigin: { var x = TransformGroup.TransformOrigin; return x.ToString(); }
+            case CssPropertyId.TransformBox: { var x = TransformGroup.TransformBox; return KeywordTables.CssTransformBox.NameOf((int)x); }
+            case CssPropertyId.Translate: { var x = TransformGroup.Translate; return x.ToString(); }
+            case CssPropertyId.Rotate: { var x = TransformGroup.Rotate; return x.ToString(); }
+            case CssPropertyId.Scale: { var x = TransformGroup.Scale; return x.ToString(); }
+            case CssPropertyId.Perspective: { var x = TransformGroup.Perspective; return x < 0 ? "none" : ValueText.Px(x); }
+            case CssPropertyId.PerspectiveOrigin: { var x = TransformGroup.PerspectiveOrigin; return x.ToString(); }
+            case CssPropertyId.BackfaceVisibility: { var x = TransformGroup.BackfaceVisibility; return KeywordTables.CssBackfaceVisibility.NameOf((int)x); }
+            case CssPropertyId.TransformStyle: { var x = TransformGroup.TransformStyle; return KeywordTables.CssTransformStyle.NameOf((int)x); }
+            case CssPropertyId.TransitionProperty: { var x = AnimationGroup.TransitionProperty; return x.Join(s => s, "none"); }
+            case CssPropertyId.TransitionDuration: { var x = AnimationGroup.TransitionDuration; return x.Join(ValueText.Time, "0s"); }
+            case CssPropertyId.TransitionTimingFunction: { var x = AnimationGroup.TransitionTimingFunction; return x.Join(e => e.ToString(), "ease"); }
+            case CssPropertyId.TransitionDelay: { var x = AnimationGroup.TransitionDelay; return x.Join(ValueText.Time, "0s"); }
+            case CssPropertyId.TransitionBehavior: { var x = AnimationGroup.TransitionBehavior; return x.Join(e => KeywordTables.CssTransitionBehavior.NameOf((int)e), "none"); }
+            case CssPropertyId.AnimationName: { var x = AnimationGroup.AnimationName; return x.Join(s => s.Length == 0 ? "none" : s, "none"); }
+            case CssPropertyId.AnimationDuration: { var x = AnimationGroup.AnimationDuration; return x.Join(ValueText.Time, "0s"); }
+            case CssPropertyId.AnimationTimingFunction: { var x = AnimationGroup.AnimationTimingFunction; return x.Join(e => e.ToString(), "ease"); }
+            case CssPropertyId.AnimationDelay: { var x = AnimationGroup.AnimationDelay; return x.Join(ValueText.Time, "0s"); }
+            case CssPropertyId.AnimationIterationCount: { var x = AnimationGroup.AnimationIterationCount; return x.Join(n => float.IsPositiveInfinity(n) ? "infinite" : ValueText.Number(n), "1"); }
+            case CssPropertyId.AnimationDirection: { var x = AnimationGroup.AnimationDirection; return x.Join(e => KeywordTables.CssAnimationDirection.NameOf((int)e), "none"); }
+            case CssPropertyId.AnimationFillMode: { var x = AnimationGroup.AnimationFillMode; return x.Join(e => KeywordTables.CssAnimationFillMode.NameOf((int)e), "none"); }
+            case CssPropertyId.AnimationPlayState: { var x = AnimationGroup.AnimationPlayState; return x.Join(e => KeywordTables.CssAnimationPlayState.NameOf((int)e), "none"); }
+            case CssPropertyId.AnimationComposition: { var x = AnimationGroup.AnimationComposition; return x.Join(e => KeywordTables.CssAnimationComposition.NameOf((int)e), "none"); }
+            case CssPropertyId.UserSelect: { var x = BehaviorGroup.UserSelect; return KeywordTables.CssUserSelect.NameOf((int)x); }
+            case CssPropertyId.TouchAction: { var x = BehaviorGroup.TouchAction; return BehaviorParsers.TouchActionText(x); }
+            case CssPropertyId.WillChange: { var x = BehaviorGroup.WillChange; return x.Join(s => s, "auto"); }
+            case CssPropertyId.ScrollBehavior: { var x = BehaviorGroup.ScrollBehavior; return KeywordTables.CssScrollBehavior.NameOf((int)x); }
+            case CssPropertyId.OverscrollBehaviorX: { var x = BehaviorGroup.OverscrollBehaviorX; return KeywordTables.CssOverscrollBehavior.NameOf((int)x); }
+            case CssPropertyId.OverscrollBehaviorY: { var x = BehaviorGroup.OverscrollBehaviorY; return KeywordTables.CssOverscrollBehavior.NameOf((int)x); }
+            case CssPropertyId.ScrollSnapType: { var x = BehaviorGroup.ScrollSnapType; return x.ToString(); }
+            case CssPropertyId.ScrollSnapAlign: { var x = BehaviorGroup.ScrollSnapAlign; return x.ToString(); }
+            case CssPropertyId.ScrollSnapStop: { var x = BehaviorGroup.ScrollSnapStop; return KeywordTables.CssScrollSnapStop.NameOf((int)x); }
+            case CssPropertyId.ScrollMarginTop: { var x = BehaviorGroup.ScrollMarginTop; return ValueText.Px(x); }
+            case CssPropertyId.ScrollMarginRight: { var x = BehaviorGroup.ScrollMarginRight; return ValueText.Px(x); }
+            case CssPropertyId.ScrollMarginBottom: { var x = BehaviorGroup.ScrollMarginBottom; return ValueText.Px(x); }
+            case CssPropertyId.ScrollMarginLeft: { var x = BehaviorGroup.ScrollMarginLeft; return ValueText.Px(x); }
+            case CssPropertyId.ScrollPaddingTop: { var x = BehaviorGroup.ScrollPaddingTop; return x.ToString(); }
+            case CssPropertyId.ScrollPaddingRight: { var x = BehaviorGroup.ScrollPaddingRight; return x.ToString(); }
+            case CssPropertyId.ScrollPaddingBottom: { var x = BehaviorGroup.ScrollPaddingBottom; return x.ToString(); }
+            case CssPropertyId.ScrollPaddingLeft: { var x = BehaviorGroup.ScrollPaddingLeft; return x.ToString(); }
+            case CssPropertyId.ScrollbarWidth: { var x = BehaviorGroup.ScrollbarWidth; return KeywordTables.CssScrollbarWidth.NameOf((int)x); }
+            case CssPropertyId.ScrollbarGutter: { var x = BehaviorGroup.ScrollbarGutter; return BehaviorParsers.ScrollbarGutterText(x); }
             case CssPropertyId.FontFamily: { var x = FontGroup.FontFamily; return x.ToString(); }
             case CssPropertyId.FontSize: { var x = FontGroup.FontSize; return ValueText.Px(x); }
             case CssPropertyId.FontWeight: { var x = FontGroup.FontWeight; return ValueText.Number(x); }
             case CssPropertyId.FontStyle: { var x = FontGroup.FontStyle; return KeywordTables.CssFontStyle.NameOf((int)x); }
             case CssPropertyId.FontStretch: { var x = FontGroup.FontStretch; return ValueText.Percent(x); }
             case CssPropertyId.LineHeight: { var x = FontGroup.LineHeight; return x.ToString(); }
+            case CssPropertyId.FontFeatureSettings: { var x = FontGroup.FontFeatureSettings; return x.Join(f => f.ToString(), "normal"); }
+            case CssPropertyId.FontVariationSettings: { var x = FontGroup.FontVariationSettings; return x.Join(f => f.ToString(), "normal"); }
+            case CssPropertyId.FontVariantNumeric: { var x = FontGroup.FontVariantNumeric; return TextParsers.FontVariantNumericText(x); }
+            case CssPropertyId.FontVariantCaps: { var x = FontGroup.FontVariantCaps; return KeywordTables.CssFontVariantCaps.NameOf((int)x); }
+            case CssPropertyId.FontKerning: { var x = FontGroup.FontKerning; return KeywordTables.CssFontKerning.NameOf((int)x); }
+            case CssPropertyId.FontOpticalSizing: { var x = FontGroup.FontOpticalSizing; return KeywordTables.CssFontOpticalSizing.NameOf((int)x); }
+            case CssPropertyId.WebkitFontSmoothing: { var x = FontGroup.WebkitFontSmoothing; return KeywordTables.CssFontSmoothing.NameOf((int)x); }
+            case CssPropertyId.MozOsxFontSmoothing: { var x = FontGroup.MozOsxFontSmoothing; return KeywordTables.CssOsxFontSmoothing.NameOf((int)x); }
             case CssPropertyId.Color: { var x = TextGroup.Color; return x.ToString(); }
             case CssPropertyId.TextAlign: { var x = TextGroup.TextAlign; return KeywordTables.CssTextAlign.NameOf((int)x); }
             case CssPropertyId.WhiteSpace: { var x = TextGroup.WhiteSpace; return KeywordTables.CssWhiteSpace.NameOf((int)x); }
@@ -1206,6 +2359,34 @@ public sealed partial class ComputedStyle
             case CssPropertyId.OverflowWrap: { var x = TextGroup.OverflowWrap; return KeywordTables.CssOverflowWrap.NameOf((int)x); }
             case CssPropertyId.Visibility: { var x = TextGroup.Visibility; return KeywordTables.CssVisibility.NameOf((int)x); }
             case CssPropertyId.ImageRendering: { var x = TextGroup.ImageRendering; return KeywordTables.CssImageRendering.NameOf((int)x); }
+            case CssPropertyId.LetterSpacing: { var x = TextGroup.LetterSpacing; return x == 0 ? "normal" : ValueText.Px(x); }
+            case CssPropertyId.WordSpacing: { var x = TextGroup.WordSpacing; return x == 0 ? "normal" : ValueText.Px(x); }
+            case CssPropertyId.TextIndent: { var x = TextGroup.TextIndent; return x.ToString(); }
+            case CssPropertyId.TabSize: { var x = TextGroup.TabSize; return x.ToString(); }
+            case CssPropertyId.TextWrapMode: { var x = TextGroup.TextWrapMode; return KeywordTables.CssTextWrapMode.NameOf((int)x); }
+            case CssPropertyId.TextWrapStyle: { var x = TextGroup.TextWrapStyle; return KeywordTables.CssTextWrapStyle.NameOf((int)x); }
+            case CssPropertyId.TextTransform: { var x = TextGroup.TextTransform; return KeywordTables.CssTextTransform.NameOf((int)x); }
+            case CssPropertyId.TextShadow: { var x = TextGroup.TextShadow; return TextParsers.TextShadowText(x); }
+            case CssPropertyId.TextUnderlineOffset: { var x = TextGroup.TextUnderlineOffset; return x.ToString(); }
+            case CssPropertyId.TextUnderlinePosition: { var x = TextGroup.TextUnderlinePosition; return TextParsers.UnderlinePositionText(x); }
+            case CssPropertyId.Hyphens: { var x = TextGroup.Hyphens; return KeywordTables.CssHyphens.NameOf((int)x); }
+            case CssPropertyId.WebkitTextFillColor: { var x = TextGroup.WebkitTextFillColor; return x.ToString(); }
+            case CssPropertyId.Quotes: { var x = TextGroup.Quotes; return x.ToString(); }
+            case CssPropertyId.ListStyleType: { var x = TextGroup.ListStyleType; return x.ToString(); }
+            case CssPropertyId.ListStylePosition: { var x = TextGroup.ListStylePosition; return KeywordTables.CssListStylePosition.NameOf((int)x); }
+            case CssPropertyId.ListStyleImage: { var x = TextGroup.ListStyleImage; return x.ToString(); }
+            case CssPropertyId.BorderCollapse: { var x = TextGroup.BorderCollapse; return KeywordTables.CssBorderCollapse.NameOf((int)x); }
+            case CssPropertyId.BorderSpacing: { var x = TextGroup.BorderSpacing; return x.ToString(); }
+            case CssPropertyId.CaptionSide: { var x = TextGroup.CaptionSide; return KeywordTables.CssCaptionSide.NameOf((int)x); }
+            case CssPropertyId.EmptyCells: { var x = TextGroup.EmptyCells; return KeywordTables.CssEmptyCells.NameOf((int)x); }
+            case CssPropertyId.CaretColor: { var x = TextGroup.CaretColor; return x.ToString(); }
+            case CssPropertyId.AccentColor: { var x = TextGroup.AccentColor; return x.ToString(); }
+            case CssPropertyId.ScrollbarColor: { var x = TextGroup.ScrollbarColor; return x.ToString(); }
+            case CssPropertyId.ColorScheme: { var x = TextGroup.ColorScheme; return TextParsers.ColorSchemeText(x); }
+            case CssPropertyId.Fill: { var x = TextGroup.Fill; return x.ToString(); }
+            case CssPropertyId.Stroke: { var x = TextGroup.Stroke; return x.ToString(); }
+            case CssPropertyId.StrokeWidth: { var x = TextGroup.StrokeWidth; return x.ToString(); }
+            case CssPropertyId.ForcedColorAdjust: { var x = TextGroup.ForcedColorAdjust; return KeywordTables.CssForcedColorAdjust.NameOf((int)x); }
             case CssPropertyId.Cursor: { var x = InteractionGroup.Cursor; return KeywordTables.CssCursor.NameOf((int)x); }
             case CssPropertyId.PointerEvents: { var x = InteractionGroup.PointerEvents; return KeywordTables.CssPointerEvents.NameOf((int)x); }
             default: return string.Empty;
@@ -1269,6 +2450,33 @@ internal sealed partial class StyleBuilder
         return Effects;
     }
 
+    public TransformStyleGroup Transform = null!;
+    bool _transformOwned;
+
+    public TransformStyleGroup MutableTransform()
+    {
+        if (!_transformOwned) { Transform = Transform.Clone(); _transformOwned = true; }
+        return Transform;
+    }
+
+    public AnimationStyleGroup Animation = null!;
+    bool _animationOwned;
+
+    public AnimationStyleGroup MutableAnimation()
+    {
+        if (!_animationOwned) { Animation = Animation.Clone(); _animationOwned = true; }
+        return Animation;
+    }
+
+    public BehaviorStyleGroup Behavior = null!;
+    bool _behaviorOwned;
+
+    public BehaviorStyleGroup MutableBehavior()
+    {
+        if (!_behaviorOwned) { Behavior = Behavior.Clone(); _behaviorOwned = true; }
+        return Behavior;
+    }
+
     public FontStyleGroup Font = null!;
     bool _fontOwned;
 
@@ -1311,6 +2519,12 @@ internal sealed partial class StyleBuilder
         _backgroundOwned = false;
         Effects = initial.EffectsGroup;
         _effectsOwned = false;
+        Transform = initial.TransformGroup;
+        _transformOwned = false;
+        Animation = initial.AnimationGroup;
+        _animationOwned = false;
+        Behavior = initial.BehaviorGroup;
+        _behaviorOwned = false;
         Font = parent.FontGroup;
         _fontOwned = false;
         Text = parent.TextGroup;
@@ -1318,6 +2532,38 @@ internal sealed partial class StyleBuilder
         Interaction = parent.InteractionGroup;
         _interactionOwned = false;
     }
+
+    /// <summary>全部分组取 <paramref name="source"/> 的实例（未拥有，写时复制）：在一个已计算的样式上覆盖个别属性（动画值）。</summary>
+    public void ResetGroupsFrom(ComputedStyle source)
+    {
+        Box = source.BoxGroup;
+        _boxOwned = false;
+        Position = source.PositionGroup;
+        _positionOwned = false;
+        Flex = source.FlexGroup;
+        _flexOwned = false;
+        Border = source.BorderGroup;
+        _borderOwned = false;
+        Background = source.BackgroundGroup;
+        _backgroundOwned = false;
+        Effects = source.EffectsGroup;
+        _effectsOwned = false;
+        Transform = source.TransformGroup;
+        _transformOwned = false;
+        Animation = source.AnimationGroup;
+        _animationOwned = false;
+        Behavior = source.BehaviorGroup;
+        _behaviorOwned = false;
+        Font = source.FontGroup;
+        _fontOwned = false;
+        Text = source.TextGroup;
+        _textOwned = false;
+        Interaction = source.InteractionGroup;
+        _interactionOwned = false;
+    }
+
+    /// <summary>是否有分组被复制（写入过与来源不同的值）。</summary>
+    public bool AnyGroupOwned => _boxOwned || _positionOwned || _flexOwned || _borderOwned || _backgroundOwned || _effectsOwned || _transformOwned || _animationOwned || _behaviorOwned || _fontOwned || _textOwned || _interactionOwned;
 
     /// <summary>创建全部分组的空白实例（只用于构造初始样式）。</summary>
     public void CreateEmptyGroups()
@@ -1334,6 +2580,12 @@ internal sealed partial class StyleBuilder
         _backgroundOwned = true;
         Effects = new EffectsStyleGroup();
         _effectsOwned = true;
+        Transform = new TransformStyleGroup();
+        _transformOwned = true;
+        Animation = new AnimationStyleGroup();
+        _animationOwned = true;
+        Behavior = new BehaviorStyleGroup();
+        _behaviorOwned = true;
         Font = new FontStyleGroup();
         _fontOwned = true;
         Text = new TextStyleGroup();
@@ -1366,12 +2618,24 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.OverflowX: { var x = source.BoxGroup.OverflowX; if (Box.OverflowX != x) MutableBox().OverflowX = x; return; }
             case CssPropertyId.OverflowY: { var x = source.BoxGroup.OverflowY; if (Box.OverflowY != x) MutableBox().OverflowY = x; return; }
             case CssPropertyId.AspectRatio: { var x = source.BoxGroup.AspectRatio; if (!Box.AspectRatio.Equals(x)) MutableBox().AspectRatio = x; return; }
+            case CssPropertyId.VerticalAlign: { var x = source.BoxGroup.VerticalAlign; if (!Box.VerticalAlign.Equals(x)) MutableBox().VerticalAlign = x; return; }
+            case CssPropertyId.FieldSizing: { var x = source.BoxGroup.FieldSizing; if (Box.FieldSizing != x) MutableBox().FieldSizing = x; return; }
+            case CssPropertyId.ContainerType: { var x = source.BoxGroup.ContainerType; if (Box.ContainerType != x) MutableBox().ContainerType = x; return; }
+            case CssPropertyId.ContainerName: { var x = source.BoxGroup.ContainerName; if (!object.Equals(Box.ContainerName, x)) MutableBox().ContainerName = x; return; }
+            case CssPropertyId.WebkitLineClamp: { var x = source.BoxGroup.WebkitLineClamp; if (Box.WebkitLineClamp != x) MutableBox().WebkitLineClamp = x; return; }
+            case CssPropertyId.WebkitBoxOrient: { var x = source.BoxGroup.WebkitBoxOrient; if (Box.WebkitBoxOrient != x) MutableBox().WebkitBoxOrient = x; return; }
+            case CssPropertyId.Content: { var x = source.BoxGroup.Content; if (!object.Equals(Box.Content, x)) MutableBox().Content = x; return; }
+            case CssPropertyId.TableLayout: { var x = source.BoxGroup.TableLayout; if (Box.TableLayout != x) MutableBox().TableLayout = x; return; }
+            case CssPropertyId.Appearance: { var x = source.BoxGroup.Appearance; if (Box.Appearance != x) MutableBox().Appearance = x; return; }
+            case CssPropertyId.Resize: { var x = source.BoxGroup.Resize; if (Box.Resize != x) MutableBox().Resize = x; return; }
+            case CssPropertyId.Contain: { var x = source.BoxGroup.Contain; if (Box.Contain != x) MutableBox().Contain = x; return; }
             case CssPropertyId.Position: { var x = source.PositionGroup.Position; if (Position.Position != x) MutablePosition().Position = x; return; }
             case CssPropertyId.Top: { var x = source.PositionGroup.Top; if (!Position.Top.Equals(x)) MutablePosition().Top = x; return; }
             case CssPropertyId.Right: { var x = source.PositionGroup.Right; if (!Position.Right.Equals(x)) MutablePosition().Right = x; return; }
             case CssPropertyId.Bottom: { var x = source.PositionGroup.Bottom; if (!Position.Bottom.Equals(x)) MutablePosition().Bottom = x; return; }
             case CssPropertyId.Left: { var x = source.PositionGroup.Left; if (!Position.Left.Equals(x)) MutablePosition().Left = x; return; }
             case CssPropertyId.ZIndex: { var x = source.PositionGroup.ZIndex; if (!Position.ZIndex.Equals(x)) MutablePosition().ZIndex = x; return; }
+            case CssPropertyId.Isolation: { var x = source.PositionGroup.Isolation; if (Position.Isolation != x) MutablePosition().Isolation = x; return; }
             case CssPropertyId.FlexDirection: { var x = source.FlexGroup.FlexDirection; if (Flex.FlexDirection != x) MutableFlex().FlexDirection = x; return; }
             case CssPropertyId.FlexWrap: { var x = source.FlexGroup.FlexWrap; if (Flex.FlexWrap != x) MutableFlex().FlexWrap = x; return; }
             case CssPropertyId.FlexGrow: { var x = source.FlexGroup.FlexGrow; if (Flex.FlexGrow != x) MutableFlex().FlexGrow = x; return; }
@@ -1414,6 +2678,7 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.BorderBottomLeftRadius: { var x = source.BorderGroup.BorderBottomLeftRadius; if (!Border.BorderBottomLeftRadius.Equals(x)) MutableBorder().BorderBottomLeftRadius = x; return; }
             case CssPropertyId.BackgroundColor: { var x = source.BackgroundGroup.BackgroundColor; if (!Background.BackgroundColor.Equals(x)) MutableBackground().BackgroundColor = x; return; }
             case CssPropertyId.BackgroundImage: { var x = source.BackgroundGroup.BackgroundImage; if (!object.Equals(Background.BackgroundImage, x)) MutableBackground().BackgroundImage = x; return; }
+            case CssPropertyId.BackgroundBlendMode: { var x = source.BackgroundGroup.BackgroundBlendMode; if (!object.Equals(Background.BackgroundBlendMode, x)) MutableBackground().BackgroundBlendMode = x; return; }
             case CssPropertyId.Opacity: { var x = source.EffectsGroup.Opacity; if (Effects.Opacity != x) MutableEffects().Opacity = x; return; }
             case CssPropertyId.BoxShadow: { var x = source.EffectsGroup.BoxShadow; if (!object.Equals(Effects.BoxShadow, x)) MutableEffects().BoxShadow = x; return; }
             case CssPropertyId.TextOverflow: { var x = source.EffectsGroup.TextOverflow; if (Effects.TextOverflow != x) MutableEffects().TextOverflow = x; return; }
@@ -1423,12 +2688,80 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.OutlineOffset: { var x = source.EffectsGroup.OutlineOffset; if (!Effects.OutlineOffset.Equals(x)) MutableEffects().OutlineOffset = x; return; }
             case CssPropertyId.ObjectFit: { var x = source.EffectsGroup.ObjectFit; if (Effects.ObjectFit != x) MutableEffects().ObjectFit = x; return; }
             case CssPropertyId.ObjectPosition: { var x = source.EffectsGroup.ObjectPosition; if (!Effects.ObjectPosition.Equals(x)) MutableEffects().ObjectPosition = x; return; }
+            case CssPropertyId.Filter: { var x = source.EffectsGroup.Filter; if (!object.Equals(Effects.Filter, x)) MutableEffects().Filter = x; return; }
+            case CssPropertyId.BackdropFilter: { var x = source.EffectsGroup.BackdropFilter; if (!object.Equals(Effects.BackdropFilter, x)) MutableEffects().BackdropFilter = x; return; }
+            case CssPropertyId.ClipPath: { var x = source.EffectsGroup.ClipPath; if (!object.Equals(Effects.ClipPath, x)) MutableEffects().ClipPath = x; return; }
+            case CssPropertyId.MixBlendMode: { var x = source.EffectsGroup.MixBlendMode; if (Effects.MixBlendMode != x) MutableEffects().MixBlendMode = x; return; }
+            case CssPropertyId.TextDecorationLine: { var x = source.EffectsGroup.TextDecorationLine; if (Effects.TextDecorationLine != x) MutableEffects().TextDecorationLine = x; return; }
+            case CssPropertyId.TextDecorationStyle: { var x = source.EffectsGroup.TextDecorationStyle; if (Effects.TextDecorationStyle != x) MutableEffects().TextDecorationStyle = x; return; }
+            case CssPropertyId.TextDecorationColor: { var x = source.EffectsGroup.TextDecorationColor; if (!Effects.TextDecorationColor.Equals(x)) MutableEffects().TextDecorationColor = x; return; }
+            case CssPropertyId.TextDecorationThickness: { var x = source.EffectsGroup.TextDecorationThickness; if (!Effects.TextDecorationThickness.Equals(x)) MutableEffects().TextDecorationThickness = x; return; }
+            case CssPropertyId.MaskImage: { var x = source.EffectsGroup.MaskImage; if (!object.Equals(Effects.MaskImage, x)) MutableEffects().MaskImage = x; return; }
+            case CssPropertyId.MaskMode: { var x = source.EffectsGroup.MaskMode; if (!object.Equals(Effects.MaskMode, x)) MutableEffects().MaskMode = x; return; }
+            case CssPropertyId.MaskRepeat: { var x = source.EffectsGroup.MaskRepeat; if (Effects.MaskRepeat != x) MutableEffects().MaskRepeat = x; return; }
+            case CssPropertyId.MaskPosition: { var x = source.EffectsGroup.MaskPosition; if (Effects.MaskPosition != x) MutableEffects().MaskPosition = x; return; }
+            case CssPropertyId.MaskClip: { var x = source.EffectsGroup.MaskClip; if (!object.Equals(Effects.MaskClip, x)) MutableEffects().MaskClip = x; return; }
+            case CssPropertyId.MaskOrigin: { var x = source.EffectsGroup.MaskOrigin; if (!object.Equals(Effects.MaskOrigin, x)) MutableEffects().MaskOrigin = x; return; }
+            case CssPropertyId.MaskSize: { var x = source.EffectsGroup.MaskSize; if (Effects.MaskSize != x) MutableEffects().MaskSize = x; return; }
+            case CssPropertyId.MaskComposite: { var x = source.EffectsGroup.MaskComposite; if (!object.Equals(Effects.MaskComposite, x)) MutableEffects().MaskComposite = x; return; }
+            case CssPropertyId.MaskType: { var x = source.EffectsGroup.MaskType; if (Effects.MaskType != x) MutableEffects().MaskType = x; return; }
+            case CssPropertyId.Transform: { var x = source.TransformGroup.Transform; if (!object.Equals(Transform.Transform, x)) MutableTransform().Transform = x; return; }
+            case CssPropertyId.TransformOrigin: { var x = source.TransformGroup.TransformOrigin; if (!Transform.TransformOrigin.Equals(x)) MutableTransform().TransformOrigin = x; return; }
+            case CssPropertyId.TransformBox: { var x = source.TransformGroup.TransformBox; if (Transform.TransformBox != x) MutableTransform().TransformBox = x; return; }
+            case CssPropertyId.Translate: { var x = source.TransformGroup.Translate; if (!Transform.Translate.Equals(x)) MutableTransform().Translate = x; return; }
+            case CssPropertyId.Rotate: { var x = source.TransformGroup.Rotate; if (!Transform.Rotate.Equals(x)) MutableTransform().Rotate = x; return; }
+            case CssPropertyId.Scale: { var x = source.TransformGroup.Scale; if (!Transform.Scale.Equals(x)) MutableTransform().Scale = x; return; }
+            case CssPropertyId.Perspective: { var x = source.TransformGroup.Perspective; if (Transform.Perspective != x) MutableTransform().Perspective = x; return; }
+            case CssPropertyId.PerspectiveOrigin: { var x = source.TransformGroup.PerspectiveOrigin; if (!Transform.PerspectiveOrigin.Equals(x)) MutableTransform().PerspectiveOrigin = x; return; }
+            case CssPropertyId.BackfaceVisibility: { var x = source.TransformGroup.BackfaceVisibility; if (Transform.BackfaceVisibility != x) MutableTransform().BackfaceVisibility = x; return; }
+            case CssPropertyId.TransformStyle: { var x = source.TransformGroup.TransformStyle; if (Transform.TransformStyle != x) MutableTransform().TransformStyle = x; return; }
+            case CssPropertyId.TransitionProperty: { var x = source.AnimationGroup.TransitionProperty; if (!object.Equals(Animation.TransitionProperty, x)) MutableAnimation().TransitionProperty = x; return; }
+            case CssPropertyId.TransitionDuration: { var x = source.AnimationGroup.TransitionDuration; if (!object.Equals(Animation.TransitionDuration, x)) MutableAnimation().TransitionDuration = x; return; }
+            case CssPropertyId.TransitionTimingFunction: { var x = source.AnimationGroup.TransitionTimingFunction; if (!object.Equals(Animation.TransitionTimingFunction, x)) MutableAnimation().TransitionTimingFunction = x; return; }
+            case CssPropertyId.TransitionDelay: { var x = source.AnimationGroup.TransitionDelay; if (!object.Equals(Animation.TransitionDelay, x)) MutableAnimation().TransitionDelay = x; return; }
+            case CssPropertyId.TransitionBehavior: { var x = source.AnimationGroup.TransitionBehavior; if (!object.Equals(Animation.TransitionBehavior, x)) MutableAnimation().TransitionBehavior = x; return; }
+            case CssPropertyId.AnimationName: { var x = source.AnimationGroup.AnimationName; if (!object.Equals(Animation.AnimationName, x)) MutableAnimation().AnimationName = x; return; }
+            case CssPropertyId.AnimationDuration: { var x = source.AnimationGroup.AnimationDuration; if (!object.Equals(Animation.AnimationDuration, x)) MutableAnimation().AnimationDuration = x; return; }
+            case CssPropertyId.AnimationTimingFunction: { var x = source.AnimationGroup.AnimationTimingFunction; if (!object.Equals(Animation.AnimationTimingFunction, x)) MutableAnimation().AnimationTimingFunction = x; return; }
+            case CssPropertyId.AnimationDelay: { var x = source.AnimationGroup.AnimationDelay; if (!object.Equals(Animation.AnimationDelay, x)) MutableAnimation().AnimationDelay = x; return; }
+            case CssPropertyId.AnimationIterationCount: { var x = source.AnimationGroup.AnimationIterationCount; if (!object.Equals(Animation.AnimationIterationCount, x)) MutableAnimation().AnimationIterationCount = x; return; }
+            case CssPropertyId.AnimationDirection: { var x = source.AnimationGroup.AnimationDirection; if (!object.Equals(Animation.AnimationDirection, x)) MutableAnimation().AnimationDirection = x; return; }
+            case CssPropertyId.AnimationFillMode: { var x = source.AnimationGroup.AnimationFillMode; if (!object.Equals(Animation.AnimationFillMode, x)) MutableAnimation().AnimationFillMode = x; return; }
+            case CssPropertyId.AnimationPlayState: { var x = source.AnimationGroup.AnimationPlayState; if (!object.Equals(Animation.AnimationPlayState, x)) MutableAnimation().AnimationPlayState = x; return; }
+            case CssPropertyId.AnimationComposition: { var x = source.AnimationGroup.AnimationComposition; if (!object.Equals(Animation.AnimationComposition, x)) MutableAnimation().AnimationComposition = x; return; }
+            case CssPropertyId.UserSelect: { var x = source.BehaviorGroup.UserSelect; if (Behavior.UserSelect != x) MutableBehavior().UserSelect = x; return; }
+            case CssPropertyId.TouchAction: { var x = source.BehaviorGroup.TouchAction; if (Behavior.TouchAction != x) MutableBehavior().TouchAction = x; return; }
+            case CssPropertyId.WillChange: { var x = source.BehaviorGroup.WillChange; if (!object.Equals(Behavior.WillChange, x)) MutableBehavior().WillChange = x; return; }
+            case CssPropertyId.ScrollBehavior: { var x = source.BehaviorGroup.ScrollBehavior; if (Behavior.ScrollBehavior != x) MutableBehavior().ScrollBehavior = x; return; }
+            case CssPropertyId.OverscrollBehaviorX: { var x = source.BehaviorGroup.OverscrollBehaviorX; if (Behavior.OverscrollBehaviorX != x) MutableBehavior().OverscrollBehaviorX = x; return; }
+            case CssPropertyId.OverscrollBehaviorY: { var x = source.BehaviorGroup.OverscrollBehaviorY; if (Behavior.OverscrollBehaviorY != x) MutableBehavior().OverscrollBehaviorY = x; return; }
+            case CssPropertyId.ScrollSnapType: { var x = source.BehaviorGroup.ScrollSnapType; if (!Behavior.ScrollSnapType.Equals(x)) MutableBehavior().ScrollSnapType = x; return; }
+            case CssPropertyId.ScrollSnapAlign: { var x = source.BehaviorGroup.ScrollSnapAlign; if (!Behavior.ScrollSnapAlign.Equals(x)) MutableBehavior().ScrollSnapAlign = x; return; }
+            case CssPropertyId.ScrollSnapStop: { var x = source.BehaviorGroup.ScrollSnapStop; if (Behavior.ScrollSnapStop != x) MutableBehavior().ScrollSnapStop = x; return; }
+            case CssPropertyId.ScrollMarginTop: { var x = source.BehaviorGroup.ScrollMarginTop; if (Behavior.ScrollMarginTop != x) MutableBehavior().ScrollMarginTop = x; return; }
+            case CssPropertyId.ScrollMarginRight: { var x = source.BehaviorGroup.ScrollMarginRight; if (Behavior.ScrollMarginRight != x) MutableBehavior().ScrollMarginRight = x; return; }
+            case CssPropertyId.ScrollMarginBottom: { var x = source.BehaviorGroup.ScrollMarginBottom; if (Behavior.ScrollMarginBottom != x) MutableBehavior().ScrollMarginBottom = x; return; }
+            case CssPropertyId.ScrollMarginLeft: { var x = source.BehaviorGroup.ScrollMarginLeft; if (Behavior.ScrollMarginLeft != x) MutableBehavior().ScrollMarginLeft = x; return; }
+            case CssPropertyId.ScrollPaddingTop: { var x = source.BehaviorGroup.ScrollPaddingTop; if (!Behavior.ScrollPaddingTop.Equals(x)) MutableBehavior().ScrollPaddingTop = x; return; }
+            case CssPropertyId.ScrollPaddingRight: { var x = source.BehaviorGroup.ScrollPaddingRight; if (!Behavior.ScrollPaddingRight.Equals(x)) MutableBehavior().ScrollPaddingRight = x; return; }
+            case CssPropertyId.ScrollPaddingBottom: { var x = source.BehaviorGroup.ScrollPaddingBottom; if (!Behavior.ScrollPaddingBottom.Equals(x)) MutableBehavior().ScrollPaddingBottom = x; return; }
+            case CssPropertyId.ScrollPaddingLeft: { var x = source.BehaviorGroup.ScrollPaddingLeft; if (!Behavior.ScrollPaddingLeft.Equals(x)) MutableBehavior().ScrollPaddingLeft = x; return; }
+            case CssPropertyId.ScrollbarWidth: { var x = source.BehaviorGroup.ScrollbarWidth; if (Behavior.ScrollbarWidth != x) MutableBehavior().ScrollbarWidth = x; return; }
+            case CssPropertyId.ScrollbarGutter: { var x = source.BehaviorGroup.ScrollbarGutter; if (Behavior.ScrollbarGutter != x) MutableBehavior().ScrollbarGutter = x; return; }
             case CssPropertyId.FontFamily: { var x = source.FontGroup.FontFamily; if (!object.Equals(Font.FontFamily, x)) MutableFont().FontFamily = x; return; }
             case CssPropertyId.FontSize: { var x = source.FontGroup.FontSize; if (Font.FontSize != x) MutableFont().FontSize = x; return; }
             case CssPropertyId.FontWeight: { var x = source.FontGroup.FontWeight; if (Font.FontWeight != x) MutableFont().FontWeight = x; return; }
             case CssPropertyId.FontStyle: { var x = source.FontGroup.FontStyle; if (Font.FontStyle != x) MutableFont().FontStyle = x; return; }
             case CssPropertyId.FontStretch: { var x = source.FontGroup.FontStretch; if (Font.FontStretch != x) MutableFont().FontStretch = x; return; }
             case CssPropertyId.LineHeight: { var x = source.FontGroup.LineHeight; if (!Font.LineHeight.Equals(x)) MutableFont().LineHeight = x; return; }
+            case CssPropertyId.FontFeatureSettings: { var x = source.FontGroup.FontFeatureSettings; if (!object.Equals(Font.FontFeatureSettings, x)) MutableFont().FontFeatureSettings = x; return; }
+            case CssPropertyId.FontVariationSettings: { var x = source.FontGroup.FontVariationSettings; if (!object.Equals(Font.FontVariationSettings, x)) MutableFont().FontVariationSettings = x; return; }
+            case CssPropertyId.FontVariantNumeric: { var x = source.FontGroup.FontVariantNumeric; if (Font.FontVariantNumeric != x) MutableFont().FontVariantNumeric = x; return; }
+            case CssPropertyId.FontVariantCaps: { var x = source.FontGroup.FontVariantCaps; if (Font.FontVariantCaps != x) MutableFont().FontVariantCaps = x; return; }
+            case CssPropertyId.FontKerning: { var x = source.FontGroup.FontKerning; if (Font.FontKerning != x) MutableFont().FontKerning = x; return; }
+            case CssPropertyId.FontOpticalSizing: { var x = source.FontGroup.FontOpticalSizing; if (Font.FontOpticalSizing != x) MutableFont().FontOpticalSizing = x; return; }
+            case CssPropertyId.WebkitFontSmoothing: { var x = source.FontGroup.WebkitFontSmoothing; if (Font.WebkitFontSmoothing != x) MutableFont().WebkitFontSmoothing = x; return; }
+            case CssPropertyId.MozOsxFontSmoothing: { var x = source.FontGroup.MozOsxFontSmoothing; if (Font.MozOsxFontSmoothing != x) MutableFont().MozOsxFontSmoothing = x; return; }
             case CssPropertyId.Color: { var x = source.TextGroup.Color; if (!Text.Color.Equals(x)) MutableText().Color = x; return; }
             case CssPropertyId.TextAlign: { var x = source.TextGroup.TextAlign; if (Text.TextAlign != x) MutableText().TextAlign = x; return; }
             case CssPropertyId.WhiteSpace: { var x = source.TextGroup.WhiteSpace; if (Text.WhiteSpace != x) MutableText().WhiteSpace = x; return; }
@@ -1436,6 +2769,34 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.OverflowWrap: { var x = source.TextGroup.OverflowWrap; if (Text.OverflowWrap != x) MutableText().OverflowWrap = x; return; }
             case CssPropertyId.Visibility: { var x = source.TextGroup.Visibility; if (Text.Visibility != x) MutableText().Visibility = x; return; }
             case CssPropertyId.ImageRendering: { var x = source.TextGroup.ImageRendering; if (Text.ImageRendering != x) MutableText().ImageRendering = x; return; }
+            case CssPropertyId.LetterSpacing: { var x = source.TextGroup.LetterSpacing; if (Text.LetterSpacing != x) MutableText().LetterSpacing = x; return; }
+            case CssPropertyId.WordSpacing: { var x = source.TextGroup.WordSpacing; if (Text.WordSpacing != x) MutableText().WordSpacing = x; return; }
+            case CssPropertyId.TextIndent: { var x = source.TextGroup.TextIndent; if (!Text.TextIndent.Equals(x)) MutableText().TextIndent = x; return; }
+            case CssPropertyId.TabSize: { var x = source.TextGroup.TabSize; if (!Text.TabSize.Equals(x)) MutableText().TabSize = x; return; }
+            case CssPropertyId.TextWrapMode: { var x = source.TextGroup.TextWrapMode; if (Text.TextWrapMode != x) MutableText().TextWrapMode = x; return; }
+            case CssPropertyId.TextWrapStyle: { var x = source.TextGroup.TextWrapStyle; if (Text.TextWrapStyle != x) MutableText().TextWrapStyle = x; return; }
+            case CssPropertyId.TextTransform: { var x = source.TextGroup.TextTransform; if (Text.TextTransform != x) MutableText().TextTransform = x; return; }
+            case CssPropertyId.TextShadow: { var x = source.TextGroup.TextShadow; if (!object.Equals(Text.TextShadow, x)) MutableText().TextShadow = x; return; }
+            case CssPropertyId.TextUnderlineOffset: { var x = source.TextGroup.TextUnderlineOffset; if (!Text.TextUnderlineOffset.Equals(x)) MutableText().TextUnderlineOffset = x; return; }
+            case CssPropertyId.TextUnderlinePosition: { var x = source.TextGroup.TextUnderlinePosition; if (Text.TextUnderlinePosition != x) MutableText().TextUnderlinePosition = x; return; }
+            case CssPropertyId.Hyphens: { var x = source.TextGroup.Hyphens; if (Text.Hyphens != x) MutableText().Hyphens = x; return; }
+            case CssPropertyId.WebkitTextFillColor: { var x = source.TextGroup.WebkitTextFillColor; if (!Text.WebkitTextFillColor.Equals(x)) MutableText().WebkitTextFillColor = x; return; }
+            case CssPropertyId.Quotes: { var x = source.TextGroup.Quotes; if (!object.Equals(Text.Quotes, x)) MutableText().Quotes = x; return; }
+            case CssPropertyId.ListStyleType: { var x = source.TextGroup.ListStyleType; if (!Text.ListStyleType.Equals(x)) MutableText().ListStyleType = x; return; }
+            case CssPropertyId.ListStylePosition: { var x = source.TextGroup.ListStylePosition; if (Text.ListStylePosition != x) MutableText().ListStylePosition = x; return; }
+            case CssPropertyId.ListStyleImage: { var x = source.TextGroup.ListStyleImage; if (!object.Equals(Text.ListStyleImage, x)) MutableText().ListStyleImage = x; return; }
+            case CssPropertyId.BorderCollapse: { var x = source.TextGroup.BorderCollapse; if (Text.BorderCollapse != x) MutableText().BorderCollapse = x; return; }
+            case CssPropertyId.BorderSpacing: { var x = source.TextGroup.BorderSpacing; if (!Text.BorderSpacing.Equals(x)) MutableText().BorderSpacing = x; return; }
+            case CssPropertyId.CaptionSide: { var x = source.TextGroup.CaptionSide; if (Text.CaptionSide != x) MutableText().CaptionSide = x; return; }
+            case CssPropertyId.EmptyCells: { var x = source.TextGroup.EmptyCells; if (Text.EmptyCells != x) MutableText().EmptyCells = x; return; }
+            case CssPropertyId.CaretColor: { var x = source.TextGroup.CaretColor; if (!Text.CaretColor.Equals(x)) MutableText().CaretColor = x; return; }
+            case CssPropertyId.AccentColor: { var x = source.TextGroup.AccentColor; if (!Text.AccentColor.Equals(x)) MutableText().AccentColor = x; return; }
+            case CssPropertyId.ScrollbarColor: { var x = source.TextGroup.ScrollbarColor; if (!Text.ScrollbarColor.Equals(x)) MutableText().ScrollbarColor = x; return; }
+            case CssPropertyId.ColorScheme: { var x = source.TextGroup.ColorScheme; if (Text.ColorScheme != x) MutableText().ColorScheme = x; return; }
+            case CssPropertyId.Fill: { var x = source.TextGroup.Fill; if (!Text.Fill.Equals(x)) MutableText().Fill = x; return; }
+            case CssPropertyId.Stroke: { var x = source.TextGroup.Stroke; if (!Text.Stroke.Equals(x)) MutableText().Stroke = x; return; }
+            case CssPropertyId.StrokeWidth: { var x = source.TextGroup.StrokeWidth; if (!Text.StrokeWidth.Equals(x)) MutableText().StrokeWidth = x; return; }
+            case CssPropertyId.ForcedColorAdjust: { var x = source.TextGroup.ForcedColorAdjust; if (Text.ForcedColorAdjust != x) MutableText().ForcedColorAdjust = x; return; }
             case CssPropertyId.Cursor: { var x = source.InteractionGroup.Cursor; if (Interaction.Cursor != x) MutableInteraction().Cursor = x; return; }
             case CssPropertyId.PointerEvents: { var x = source.InteractionGroup.PointerEvents; if (Interaction.PointerEvents != x) MutableInteraction().PointerEvents = x; return; }
         }
@@ -1465,12 +2826,24 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.OverflowX: { var x = (CssOverflow)c.Keyword(value); if (Box.OverflowX != x) MutableBox().OverflowX = x; return; }
             case CssPropertyId.OverflowY: { var x = (CssOverflow)c.Keyword(value); if (Box.OverflowY != x) MutableBox().OverflowY = x; return; }
             case CssPropertyId.AspectRatio: { var x = c.ComputeAspectRatio(value); if (!Box.AspectRatio.Equals(x)) MutableBox().AspectRatio = x; return; }
+            case CssPropertyId.VerticalAlign: { var x = c.ComputeVerticalAlign(value); if (!Box.VerticalAlign.Equals(x)) MutableBox().VerticalAlign = x; return; }
+            case CssPropertyId.FieldSizing: { var x = (CssFieldSizing)c.Keyword(value); if (Box.FieldSizing != x) MutableBox().FieldSizing = x; return; }
+            case CssPropertyId.ContainerType: { var x = (CssContainerType)c.Keyword(value); if (Box.ContainerType != x) MutableBox().ContainerType = x; return; }
+            case CssPropertyId.ContainerName: { var x = c.Pre<CssList<string>>(value); if (!object.Equals(Box.ContainerName, x)) MutableBox().ContainerName = x; return; }
+            case CssPropertyId.WebkitLineClamp: { var x = c.ComputeInteger(value); if (Box.WebkitLineClamp != x) MutableBox().WebkitLineClamp = x; return; }
+            case CssPropertyId.WebkitBoxOrient: { var x = (CssBoxOrient)c.Keyword(value); if (Box.WebkitBoxOrient != x) MutableBox().WebkitBoxOrient = x; return; }
+            case CssPropertyId.Content: { var x = c.ComputeContent(value); if (!object.Equals(Box.Content, x)) MutableBox().Content = x; return; }
+            case CssPropertyId.TableLayout: { var x = (CssTableLayout)c.Keyword(value); if (Box.TableLayout != x) MutableBox().TableLayout = x; return; }
+            case CssPropertyId.Appearance: { var x = (CssAppearance)c.Keyword(value); if (Box.Appearance != x) MutableBox().Appearance = x; return; }
+            case CssPropertyId.Resize: { var x = (CssResize)c.Keyword(value); if (Box.Resize != x) MutableBox().Resize = x; return; }
+            case CssPropertyId.Contain: { var x = c.Pre<CssContain>(value); if (Box.Contain != x) MutableBox().Contain = x; return; }
             case CssPropertyId.Position: { var x = (CssPosition)c.Keyword(value); if (Position.Position != x) MutablePosition().Position = x; return; }
             case CssPropertyId.Top: { var x = c.ComputeSize(value); if (!Position.Top.Equals(x)) MutablePosition().Top = x; return; }
             case CssPropertyId.Right: { var x = c.ComputeSize(value); if (!Position.Right.Equals(x)) MutablePosition().Right = x; return; }
             case CssPropertyId.Bottom: { var x = c.ComputeSize(value); if (!Position.Bottom.Equals(x)) MutablePosition().Bottom = x; return; }
             case CssPropertyId.Left: { var x = c.ComputeSize(value); if (!Position.Left.Equals(x)) MutablePosition().Left = x; return; }
             case CssPropertyId.ZIndex: { var x = c.ComputeIntegerOrAuto(value); if (!Position.ZIndex.Equals(x)) MutablePosition().ZIndex = x; return; }
+            case CssPropertyId.Isolation: { var x = (CssIsolation)c.Keyword(value); if (Position.Isolation != x) MutablePosition().Isolation = x; return; }
             case CssPropertyId.FlexDirection: { var x = (CssFlexDirection)c.Keyword(value); if (Flex.FlexDirection != x) MutableFlex().FlexDirection = x; return; }
             case CssPropertyId.FlexWrap: { var x = (CssFlexWrap)c.Keyword(value); if (Flex.FlexWrap != x) MutableFlex().FlexWrap = x; return; }
             case CssPropertyId.FlexGrow: { var x = c.ComputeNumber(value, nonNegative: true); if (Flex.FlexGrow != x) MutableFlex().FlexGrow = x; return; }
@@ -1513,6 +2886,7 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.BorderBottomLeftRadius: { var x = c.ComputeRadius(value); if (!Border.BorderBottomLeftRadius.Equals(x)) MutableBorder().BorderBottomLeftRadius = x; return; }
             case CssPropertyId.BackgroundColor: { var x = c.ComputeColor(value); if (!Background.BackgroundColor.Equals(x)) MutableBackground().BackgroundColor = x; return; }
             case CssPropertyId.BackgroundImage: { var x = c.ComputeImageList(value); if (!object.Equals(Background.BackgroundImage, x)) MutableBackground().BackgroundImage = x; return; }
+            case CssPropertyId.BackgroundBlendMode: { var x = c.Pre<CssList<CssBlendMode>>(value); if (!object.Equals(Background.BackgroundBlendMode, x)) MutableBackground().BackgroundBlendMode = x; return; }
             case CssPropertyId.Opacity: { var x = c.ComputeAlpha(value); if (Effects.Opacity != x) MutableEffects().Opacity = x; return; }
             case CssPropertyId.BoxShadow: { var x = c.ComputeShadowList(value); if (!object.Equals(Effects.BoxShadow, x)) MutableEffects().BoxShadow = x; return; }
             case CssPropertyId.TextOverflow: { var x = (CssTextOverflow)c.Keyword(value); if (Effects.TextOverflow != x) MutableEffects().TextOverflow = x; return; }
@@ -1522,12 +2896,80 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.OutlineOffset: { var x = c.ComputeLengthPercentage(value, nonNegative: false); if (!Effects.OutlineOffset.Equals(x)) MutableEffects().OutlineOffset = x; return; }
             case CssPropertyId.ObjectFit: { var x = (CssObjectFit)c.Keyword(value); if (Effects.ObjectFit != x) MutableEffects().ObjectFit = x; return; }
             case CssPropertyId.ObjectPosition: { var x = c.ComputePosition(value); if (!Effects.ObjectPosition.Equals(x)) MutableEffects().ObjectPosition = x; return; }
+            case CssPropertyId.Filter: { var x = c.ComputeFilterList(value); if (!object.Equals(Effects.Filter, x)) MutableEffects().Filter = x; return; }
+            case CssPropertyId.BackdropFilter: { var x = c.ComputeFilterList(value); if (!object.Equals(Effects.BackdropFilter, x)) MutableEffects().BackdropFilter = x; return; }
+            case CssPropertyId.ClipPath: { var x = c.ComputeClipPath(value); if (!object.Equals(Effects.ClipPath, x)) MutableEffects().ClipPath = x; return; }
+            case CssPropertyId.MixBlendMode: { var x = (CssBlendMode)c.Keyword(value); if (Effects.MixBlendMode != x) MutableEffects().MixBlendMode = x; return; }
+            case CssPropertyId.TextDecorationLine: { var x = c.Pre<CssTextDecorationLine>(value); if (Effects.TextDecorationLine != x) MutableEffects().TextDecorationLine = x; return; }
+            case CssPropertyId.TextDecorationStyle: { var x = (CssTextDecorationStyle)c.Keyword(value); if (Effects.TextDecorationStyle != x) MutableEffects().TextDecorationStyle = x; return; }
+            case CssPropertyId.TextDecorationColor: { var x = c.ComputeColor(value); if (!Effects.TextDecorationColor.Equals(x)) MutableEffects().TextDecorationColor = x; return; }
+            case CssPropertyId.TextDecorationThickness: { var x = c.ComputeDecorationThickness(value); if (!Effects.TextDecorationThickness.Equals(x)) MutableEffects().TextDecorationThickness = x; return; }
+            case CssPropertyId.MaskImage: { var x = c.ComputeImageList(value); if (!object.Equals(Effects.MaskImage, x)) MutableEffects().MaskImage = x; return; }
+            case CssPropertyId.MaskMode: { var x = c.Pre<CssList<CssMaskMode>>(value); if (!object.Equals(Effects.MaskMode, x)) MutableEffects().MaskMode = x; return; }
+            case CssPropertyId.MaskRepeat: { var x = c.Pre<string>(value); if (Effects.MaskRepeat != x) MutableEffects().MaskRepeat = x; return; }
+            case CssPropertyId.MaskPosition: { var x = c.Pre<string>(value); if (Effects.MaskPosition != x) MutableEffects().MaskPosition = x; return; }
+            case CssPropertyId.MaskClip: { var x = c.Pre<CssList<CssMaskClip>>(value); if (!object.Equals(Effects.MaskClip, x)) MutableEffects().MaskClip = x; return; }
+            case CssPropertyId.MaskOrigin: { var x = c.Pre<CssList<CssMaskOrigin>>(value); if (!object.Equals(Effects.MaskOrigin, x)) MutableEffects().MaskOrigin = x; return; }
+            case CssPropertyId.MaskSize: { var x = c.Pre<string>(value); if (Effects.MaskSize != x) MutableEffects().MaskSize = x; return; }
+            case CssPropertyId.MaskComposite: { var x = c.Pre<CssList<CssMaskComposite>>(value); if (!object.Equals(Effects.MaskComposite, x)) MutableEffects().MaskComposite = x; return; }
+            case CssPropertyId.MaskType: { var x = (CssMaskType)c.Keyword(value); if (Effects.MaskType != x) MutableEffects().MaskType = x; return; }
+            case CssPropertyId.Transform: { var x = c.ComputeTransformList(value); if (!object.Equals(Transform.Transform, x)) MutableTransform().Transform = x; return; }
+            case CssPropertyId.TransformOrigin: { var x = c.ComputeTransformOrigin(value); if (!Transform.TransformOrigin.Equals(x)) MutableTransform().TransformOrigin = x; return; }
+            case CssPropertyId.TransformBox: { var x = (CssTransformBox)c.Keyword(value); if (Transform.TransformBox != x) MutableTransform().TransformBox = x; return; }
+            case CssPropertyId.Translate: { var x = c.ComputeTranslate(value); if (!Transform.Translate.Equals(x)) MutableTransform().Translate = x; return; }
+            case CssPropertyId.Rotate: { var x = c.Pre<CssRotate>(value); if (!Transform.Rotate.Equals(x)) MutableTransform().Rotate = x; return; }
+            case CssPropertyId.Scale: { var x = c.Pre<CssScale>(value); if (!Transform.Scale.Equals(x)) MutableTransform().Scale = x; return; }
+            case CssPropertyId.Perspective: { var x = c.ComputePerspective(value); if (Transform.Perspective != x) MutableTransform().Perspective = x; return; }
+            case CssPropertyId.PerspectiveOrigin: { var x = c.ComputePosition(value); if (!Transform.PerspectiveOrigin.Equals(x)) MutableTransform().PerspectiveOrigin = x; return; }
+            case CssPropertyId.BackfaceVisibility: { var x = (CssBackfaceVisibility)c.Keyword(value); if (Transform.BackfaceVisibility != x) MutableTransform().BackfaceVisibility = x; return; }
+            case CssPropertyId.TransformStyle: { var x = (CssTransformStyle)c.Keyword(value); if (Transform.TransformStyle != x) MutableTransform().TransformStyle = x; return; }
+            case CssPropertyId.TransitionProperty: { var x = c.Pre<CssList<string>>(value); if (!object.Equals(Animation.TransitionProperty, x)) MutableAnimation().TransitionProperty = x; return; }
+            case CssPropertyId.TransitionDuration: { var x = c.Pre<CssList<float>>(value); if (!object.Equals(Animation.TransitionDuration, x)) MutableAnimation().TransitionDuration = x; return; }
+            case CssPropertyId.TransitionTimingFunction: { var x = c.Pre<CssList<CssEasingFunction>>(value); if (!object.Equals(Animation.TransitionTimingFunction, x)) MutableAnimation().TransitionTimingFunction = x; return; }
+            case CssPropertyId.TransitionDelay: { var x = c.Pre<CssList<float>>(value); if (!object.Equals(Animation.TransitionDelay, x)) MutableAnimation().TransitionDelay = x; return; }
+            case CssPropertyId.TransitionBehavior: { var x = c.Pre<CssList<CssTransitionBehavior>>(value); if (!object.Equals(Animation.TransitionBehavior, x)) MutableAnimation().TransitionBehavior = x; return; }
+            case CssPropertyId.AnimationName: { var x = c.Pre<CssList<string>>(value); if (!object.Equals(Animation.AnimationName, x)) MutableAnimation().AnimationName = x; return; }
+            case CssPropertyId.AnimationDuration: { var x = c.Pre<CssList<float>>(value); if (!object.Equals(Animation.AnimationDuration, x)) MutableAnimation().AnimationDuration = x; return; }
+            case CssPropertyId.AnimationTimingFunction: { var x = c.Pre<CssList<CssEasingFunction>>(value); if (!object.Equals(Animation.AnimationTimingFunction, x)) MutableAnimation().AnimationTimingFunction = x; return; }
+            case CssPropertyId.AnimationDelay: { var x = c.Pre<CssList<float>>(value); if (!object.Equals(Animation.AnimationDelay, x)) MutableAnimation().AnimationDelay = x; return; }
+            case CssPropertyId.AnimationIterationCount: { var x = c.Pre<CssList<float>>(value); if (!object.Equals(Animation.AnimationIterationCount, x)) MutableAnimation().AnimationIterationCount = x; return; }
+            case CssPropertyId.AnimationDirection: { var x = c.Pre<CssList<CssAnimationDirection>>(value); if (!object.Equals(Animation.AnimationDirection, x)) MutableAnimation().AnimationDirection = x; return; }
+            case CssPropertyId.AnimationFillMode: { var x = c.Pre<CssList<CssAnimationFillMode>>(value); if (!object.Equals(Animation.AnimationFillMode, x)) MutableAnimation().AnimationFillMode = x; return; }
+            case CssPropertyId.AnimationPlayState: { var x = c.Pre<CssList<CssAnimationPlayState>>(value); if (!object.Equals(Animation.AnimationPlayState, x)) MutableAnimation().AnimationPlayState = x; return; }
+            case CssPropertyId.AnimationComposition: { var x = c.Pre<CssList<CssAnimationComposition>>(value); if (!object.Equals(Animation.AnimationComposition, x)) MutableAnimation().AnimationComposition = x; return; }
+            case CssPropertyId.UserSelect: { var x = (CssUserSelect)c.Keyword(value); if (Behavior.UserSelect != x) MutableBehavior().UserSelect = x; return; }
+            case CssPropertyId.TouchAction: { var x = c.Pre<CssTouchAction>(value); if (Behavior.TouchAction != x) MutableBehavior().TouchAction = x; return; }
+            case CssPropertyId.WillChange: { var x = c.Pre<CssList<string>>(value); if (!object.Equals(Behavior.WillChange, x)) MutableBehavior().WillChange = x; return; }
+            case CssPropertyId.ScrollBehavior: { var x = (CssScrollBehavior)c.Keyword(value); if (Behavior.ScrollBehavior != x) MutableBehavior().ScrollBehavior = x; return; }
+            case CssPropertyId.OverscrollBehaviorX: { var x = (CssOverscrollBehavior)c.Keyword(value); if (Behavior.OverscrollBehaviorX != x) MutableBehavior().OverscrollBehaviorX = x; return; }
+            case CssPropertyId.OverscrollBehaviorY: { var x = (CssOverscrollBehavior)c.Keyword(value); if (Behavior.OverscrollBehaviorY != x) MutableBehavior().OverscrollBehaviorY = x; return; }
+            case CssPropertyId.ScrollSnapType: { var x = c.Pre<CssScrollSnapType>(value); if (!Behavior.ScrollSnapType.Equals(x)) MutableBehavior().ScrollSnapType = x; return; }
+            case CssPropertyId.ScrollSnapAlign: { var x = c.Pre<CssScrollSnapAlign>(value); if (!Behavior.ScrollSnapAlign.Equals(x)) MutableBehavior().ScrollSnapAlign = x; return; }
+            case CssPropertyId.ScrollSnapStop: { var x = (CssScrollSnapStop)c.Keyword(value); if (Behavior.ScrollSnapStop != x) MutableBehavior().ScrollSnapStop = x; return; }
+            case CssPropertyId.ScrollMarginTop: { var x = c.ComputeSignedLength(value); if (Behavior.ScrollMarginTop != x) MutableBehavior().ScrollMarginTop = x; return; }
+            case CssPropertyId.ScrollMarginRight: { var x = c.ComputeSignedLength(value); if (Behavior.ScrollMarginRight != x) MutableBehavior().ScrollMarginRight = x; return; }
+            case CssPropertyId.ScrollMarginBottom: { var x = c.ComputeSignedLength(value); if (Behavior.ScrollMarginBottom != x) MutableBehavior().ScrollMarginBottom = x; return; }
+            case CssPropertyId.ScrollMarginLeft: { var x = c.ComputeSignedLength(value); if (Behavior.ScrollMarginLeft != x) MutableBehavior().ScrollMarginLeft = x; return; }
+            case CssPropertyId.ScrollPaddingTop: { var x = c.ComputeSize(value); if (!Behavior.ScrollPaddingTop.Equals(x)) MutableBehavior().ScrollPaddingTop = x; return; }
+            case CssPropertyId.ScrollPaddingRight: { var x = c.ComputeSize(value); if (!Behavior.ScrollPaddingRight.Equals(x)) MutableBehavior().ScrollPaddingRight = x; return; }
+            case CssPropertyId.ScrollPaddingBottom: { var x = c.ComputeSize(value); if (!Behavior.ScrollPaddingBottom.Equals(x)) MutableBehavior().ScrollPaddingBottom = x; return; }
+            case CssPropertyId.ScrollPaddingLeft: { var x = c.ComputeSize(value); if (!Behavior.ScrollPaddingLeft.Equals(x)) MutableBehavior().ScrollPaddingLeft = x; return; }
+            case CssPropertyId.ScrollbarWidth: { var x = (CssScrollbarWidth)c.Keyword(value); if (Behavior.ScrollbarWidth != x) MutableBehavior().ScrollbarWidth = x; return; }
+            case CssPropertyId.ScrollbarGutter: { var x = (CssScrollbarGutter)c.Keyword(value); if (Behavior.ScrollbarGutter != x) MutableBehavior().ScrollbarGutter = x; return; }
             case CssPropertyId.FontFamily: { var x = c.ComputeFontFamily(value); if (!object.Equals(Font.FontFamily, x)) MutableFont().FontFamily = x; return; }
             case CssPropertyId.FontSize: { var x = c.ComputeFontSize(value); if (Font.FontSize != x) MutableFont().FontSize = x; return; }
             case CssPropertyId.FontWeight: { var x = c.ComputeFontWeight(value); if (Font.FontWeight != x) MutableFont().FontWeight = x; return; }
             case CssPropertyId.FontStyle: { var x = (CssFontStyle)c.Keyword(value); if (Font.FontStyle != x) MutableFont().FontStyle = x; return; }
             case CssPropertyId.FontStretch: { var x = c.ComputeFontStretch(value); if (Font.FontStretch != x) MutableFont().FontStretch = x; return; }
             case CssPropertyId.LineHeight: { var x = c.ComputeLineHeight(value); if (!Font.LineHeight.Equals(x)) MutableFont().LineHeight = x; return; }
+            case CssPropertyId.FontFeatureSettings: { var x = c.Pre<CssList<CssFontFeature>>(value); if (!object.Equals(Font.FontFeatureSettings, x)) MutableFont().FontFeatureSettings = x; return; }
+            case CssPropertyId.FontVariationSettings: { var x = c.Pre<CssList<CssFontVariation>>(value); if (!object.Equals(Font.FontVariationSettings, x)) MutableFont().FontVariationSettings = x; return; }
+            case CssPropertyId.FontVariantNumeric: { var x = c.Pre<CssFontVariantNumeric>(value); if (Font.FontVariantNumeric != x) MutableFont().FontVariantNumeric = x; return; }
+            case CssPropertyId.FontVariantCaps: { var x = (CssFontVariantCaps)c.Keyword(value); if (Font.FontVariantCaps != x) MutableFont().FontVariantCaps = x; return; }
+            case CssPropertyId.FontKerning: { var x = (CssFontKerning)c.Keyword(value); if (Font.FontKerning != x) MutableFont().FontKerning = x; return; }
+            case CssPropertyId.FontOpticalSizing: { var x = (CssFontOpticalSizing)c.Keyword(value); if (Font.FontOpticalSizing != x) MutableFont().FontOpticalSizing = x; return; }
+            case CssPropertyId.WebkitFontSmoothing: { var x = (CssFontSmoothing)c.Keyword(value); if (Font.WebkitFontSmoothing != x) MutableFont().WebkitFontSmoothing = x; return; }
+            case CssPropertyId.MozOsxFontSmoothing: { var x = (CssOsxFontSmoothing)c.Keyword(value); if (Font.MozOsxFontSmoothing != x) MutableFont().MozOsxFontSmoothing = x; return; }
             case CssPropertyId.Color: { var x = c.ComputeColor(value); if (!Text.Color.Equals(x)) MutableText().Color = x; return; }
             case CssPropertyId.TextAlign: { var x = (CssTextAlign)c.Keyword(value); if (Text.TextAlign != x) MutableText().TextAlign = x; return; }
             case CssPropertyId.WhiteSpace: { var x = (CssWhiteSpace)c.Keyword(value); if (Text.WhiteSpace != x) MutableText().WhiteSpace = x; return; }
@@ -1535,6 +2977,34 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.OverflowWrap: { var x = (CssOverflowWrap)c.Keyword(value); if (Text.OverflowWrap != x) MutableText().OverflowWrap = x; return; }
             case CssPropertyId.Visibility: { var x = (CssVisibility)c.Keyword(value); if (Text.Visibility != x) MutableText().Visibility = x; return; }
             case CssPropertyId.ImageRendering: { var x = (CssImageRendering)c.Keyword(value); if (Text.ImageRendering != x) MutableText().ImageRendering = x; return; }
+            case CssPropertyId.LetterSpacing: { var x = c.ComputeSignedLength(value); if (Text.LetterSpacing != x) MutableText().LetterSpacing = x; return; }
+            case CssPropertyId.WordSpacing: { var x = c.ComputeSignedLength(value); if (Text.WordSpacing != x) MutableText().WordSpacing = x; return; }
+            case CssPropertyId.TextIndent: { var x = c.ComputeTextIndent(value); if (!Text.TextIndent.Equals(x)) MutableText().TextIndent = x; return; }
+            case CssPropertyId.TabSize: { var x = c.ComputeTabSize(value); if (!Text.TabSize.Equals(x)) MutableText().TabSize = x; return; }
+            case CssPropertyId.TextWrapMode: { var x = (CssTextWrapMode)c.Keyword(value); if (Text.TextWrapMode != x) MutableText().TextWrapMode = x; return; }
+            case CssPropertyId.TextWrapStyle: { var x = (CssTextWrapStyle)c.Keyword(value); if (Text.TextWrapStyle != x) MutableText().TextWrapStyle = x; return; }
+            case CssPropertyId.TextTransform: { var x = (CssTextTransform)c.Keyword(value); if (Text.TextTransform != x) MutableText().TextTransform = x; return; }
+            case CssPropertyId.TextShadow: { var x = c.ComputeShadowList(value); if (!object.Equals(Text.TextShadow, x)) MutableText().TextShadow = x; return; }
+            case CssPropertyId.TextUnderlineOffset: { var x = c.ComputeSize(value); if (!Text.TextUnderlineOffset.Equals(x)) MutableText().TextUnderlineOffset = x; return; }
+            case CssPropertyId.TextUnderlinePosition: { var x = c.Pre<CssTextUnderlinePosition>(value); if (Text.TextUnderlinePosition != x) MutableText().TextUnderlinePosition = x; return; }
+            case CssPropertyId.Hyphens: { var x = (CssHyphens)c.Keyword(value); if (Text.Hyphens != x) MutableText().Hyphens = x; return; }
+            case CssPropertyId.WebkitTextFillColor: { var x = c.ComputeColor(value); if (!Text.WebkitTextFillColor.Equals(x)) MutableText().WebkitTextFillColor = x; return; }
+            case CssPropertyId.Quotes: { var x = c.Pre<CssQuotes>(value); if (!object.Equals(Text.Quotes, x)) MutableText().Quotes = x; return; }
+            case CssPropertyId.ListStyleType: { var x = c.Pre<CssListStyleType>(value); if (!Text.ListStyleType.Equals(x)) MutableText().ListStyleType = x; return; }
+            case CssPropertyId.ListStylePosition: { var x = (CssListStylePosition)c.Keyword(value); if (Text.ListStylePosition != x) MutableText().ListStylePosition = x; return; }
+            case CssPropertyId.ListStyleImage: { var x = c.ComputeImageList(value); if (!object.Equals(Text.ListStyleImage, x)) MutableText().ListStyleImage = x; return; }
+            case CssPropertyId.BorderCollapse: { var x = (CssBorderCollapse)c.Keyword(value); if (Text.BorderCollapse != x) MutableText().BorderCollapse = x; return; }
+            case CssPropertyId.BorderSpacing: { var x = c.ComputeBorderSpacing(value); if (!Text.BorderSpacing.Equals(x)) MutableText().BorderSpacing = x; return; }
+            case CssPropertyId.CaptionSide: { var x = (CssCaptionSide)c.Keyword(value); if (Text.CaptionSide != x) MutableText().CaptionSide = x; return; }
+            case CssPropertyId.EmptyCells: { var x = (CssEmptyCells)c.Keyword(value); if (Text.EmptyCells != x) MutableText().EmptyCells = x; return; }
+            case CssPropertyId.CaretColor: { var x = c.Pre<CssAutoColor>(value); if (!Text.CaretColor.Equals(x)) MutableText().CaretColor = x; return; }
+            case CssPropertyId.AccentColor: { var x = c.Pre<CssAutoColor>(value); if (!Text.AccentColor.Equals(x)) MutableText().AccentColor = x; return; }
+            case CssPropertyId.ScrollbarColor: { var x = c.Pre<CssScrollbarColor>(value); if (!Text.ScrollbarColor.Equals(x)) MutableText().ScrollbarColor = x; return; }
+            case CssPropertyId.ColorScheme: { var x = c.Pre<CssColorScheme>(value); if (Text.ColorScheme != x) MutableText().ColorScheme = x; return; }
+            case CssPropertyId.Fill: { var x = c.Pre<CssSvgPaint>(value); if (!Text.Fill.Equals(x)) MutableText().Fill = x; return; }
+            case CssPropertyId.Stroke: { var x = c.Pre<CssSvgPaint>(value); if (!Text.Stroke.Equals(x)) MutableText().Stroke = x; return; }
+            case CssPropertyId.StrokeWidth: { var x = c.ComputeLengthPercentage(value, nonNegative: true); if (!Text.StrokeWidth.Equals(x)) MutableText().StrokeWidth = x; return; }
+            case CssPropertyId.ForcedColorAdjust: { var x = (CssForcedColorAdjust)c.Keyword(value); if (Text.ForcedColorAdjust != x) MutableText().ForcedColorAdjust = x; return; }
             case CssPropertyId.Cursor: { var x = (CssCursor)c.Keyword(value); if (Interaction.Cursor != x) MutableInteraction().Cursor = x; return; }
             case CssPropertyId.PointerEvents: { var x = (CssPointerEvents)c.Keyword(value); if (Interaction.PointerEvents != x) MutableInteraction().PointerEvents = x; return; }
         }

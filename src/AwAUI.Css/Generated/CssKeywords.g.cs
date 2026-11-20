@@ -26,6 +26,32 @@ public enum CssDisplay : byte
     Contents,
     /// <summary><c>none</c></summary>
     None,
+    /// <summary><c>table</c></summary>
+    Table,
+    /// <summary><c>inline-table</c></summary>
+    InlineTable,
+    /// <summary><c>table-row-group</c></summary>
+    TableRowGroup,
+    /// <summary><c>table-header-group</c></summary>
+    TableHeaderGroup,
+    /// <summary><c>table-footer-group</c></summary>
+    TableFooterGroup,
+    /// <summary><c>table-row</c></summary>
+    TableRow,
+    /// <summary><c>table-cell</c></summary>
+    TableCell,
+    /// <summary><c>table-column-group</c></summary>
+    TableColumnGroup,
+    /// <summary><c>table-column</c></summary>
+    TableColumn,
+    /// <summary><c>table-caption</c></summary>
+    TableCaption,
+    /// <summary><c>list-item</c></summary>
+    ListItem,
+    /// <summary><c>-webkit-box</c></summary>
+    WebkitBox,
+    /// <summary><c>-webkit-inline-box</c></summary>
+    WebkitInlineBox,
 }
 
 /// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
@@ -491,10 +517,558 @@ public enum CssJustifySelf : byte
     Baseline,
 }
 
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssFieldSizing : byte
+{
+    /// <summary><c>fixed</c></summary>
+    Fixed,
+    /// <summary><c>content</c></summary>
+    Content,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssContainerType : byte
+{
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>size</c></summary>
+    Size,
+    /// <summary><c>inline-size</c></summary>
+    InlineSize,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssBoxOrient : byte
+{
+    /// <summary><c>horizontal</c></summary>
+    Horizontal,
+    /// <summary><c>vertical</c></summary>
+    Vertical,
+    /// <summary><c>inline-axis</c></summary>
+    InlineAxis,
+    /// <summary><c>block-axis</c></summary>
+    BlockAxis,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTableLayout : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>fixed</c></summary>
+    Fixed,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssAppearance : byte
+{
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>menulist-button</c></summary>
+    MenulistButton,
+    /// <summary><c>textfield</c></summary>
+    Textfield,
+    /// <summary><c>base-select</c></summary>
+    BaseSelect,
+    /// <summary><c>button</c></summary>
+    Button,
+    /// <summary><c>checkbox</c></summary>
+    Checkbox,
+    /// <summary><c>radio</c></summary>
+    Radio,
+    /// <summary><c>listbox</c></summary>
+    Listbox,
+    /// <summary><c>menulist</c></summary>
+    Menulist,
+    /// <summary><c>meter</c></summary>
+    Meter,
+    /// <summary><c>progress-bar</c></summary>
+    ProgressBar,
+    /// <summary><c>searchfield</c></summary>
+    Searchfield,
+    /// <summary><c>textarea</c></summary>
+    Textarea,
+    /// <summary><c>push-button</c></summary>
+    PushButton,
+    /// <summary><c>slider-horizontal</c></summary>
+    SliderHorizontal,
+    /// <summary><c>square-button</c></summary>
+    SquareButton,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssResize : byte
+{
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>both</c></summary>
+    Both,
+    /// <summary><c>horizontal</c></summary>
+    Horizontal,
+    /// <summary><c>vertical</c></summary>
+    Vertical,
+    /// <summary><c>block</c></summary>
+    Block,
+    /// <summary><c>inline</c></summary>
+    Inline,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssIsolation : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>isolate</c></summary>
+    Isolate,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssBlendMode : byte
+{
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>multiply</c></summary>
+    Multiply,
+    /// <summary><c>screen</c></summary>
+    Screen,
+    /// <summary><c>overlay</c></summary>
+    Overlay,
+    /// <summary><c>darken</c></summary>
+    Darken,
+    /// <summary><c>lighten</c></summary>
+    Lighten,
+    /// <summary><c>color-dodge</c></summary>
+    ColorDodge,
+    /// <summary><c>color-burn</c></summary>
+    ColorBurn,
+    /// <summary><c>hard-light</c></summary>
+    HardLight,
+    /// <summary><c>soft-light</c></summary>
+    SoftLight,
+    /// <summary><c>difference</c></summary>
+    Difference,
+    /// <summary><c>exclusion</c></summary>
+    Exclusion,
+    /// <summary><c>hue</c></summary>
+    Hue,
+    /// <summary><c>saturation</c></summary>
+    Saturation,
+    /// <summary><c>color</c></summary>
+    Color,
+    /// <summary><c>luminosity</c></summary>
+    Luminosity,
+    /// <summary><c>plus-darker</c></summary>
+    PlusDarker,
+    /// <summary><c>plus-lighter</c></summary>
+    PlusLighter,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTextDecorationStyle : byte
+{
+    /// <summary><c>solid</c></summary>
+    Solid,
+    /// <summary><c>double</c></summary>
+    Double,
+    /// <summary><c>dotted</c></summary>
+    Dotted,
+    /// <summary><c>dashed</c></summary>
+    Dashed,
+    /// <summary><c>wavy</c></summary>
+    Wavy,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTransformBox : byte
+{
+    /// <summary><c>view-box</c></summary>
+    ViewBox,
+    /// <summary><c>content-box</c></summary>
+    ContentBox,
+    /// <summary><c>border-box</c></summary>
+    BorderBox,
+    /// <summary><c>fill-box</c></summary>
+    FillBox,
+    /// <summary><c>stroke-box</c></summary>
+    StrokeBox,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssBackfaceVisibility : byte
+{
+    /// <summary><c>visible</c></summary>
+    Visible,
+    /// <summary><c>hidden</c></summary>
+    Hidden,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTransformStyle : byte
+{
+    /// <summary><c>flat</c></summary>
+    Flat,
+    /// <summary><c>preserve-3d</c></summary>
+    Preserve3d,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTransitionBehavior : byte
+{
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>allow-discrete</c></summary>
+    AllowDiscrete,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssAnimationDirection : byte
+{
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>reverse</c></summary>
+    Reverse,
+    /// <summary><c>alternate</c></summary>
+    Alternate,
+    /// <summary><c>alternate-reverse</c></summary>
+    AlternateReverse,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssAnimationFillMode : byte
+{
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>forwards</c></summary>
+    Forwards,
+    /// <summary><c>backwards</c></summary>
+    Backwards,
+    /// <summary><c>both</c></summary>
+    Both,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssAnimationPlayState : byte
+{
+    /// <summary><c>running</c></summary>
+    Running,
+    /// <summary><c>paused</c></summary>
+    Paused,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssAnimationComposition : byte
+{
+    /// <summary><c>replace</c></summary>
+    Replace,
+    /// <summary><c>add</c></summary>
+    Add,
+    /// <summary><c>accumulate</c></summary>
+    Accumulate,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssUserSelect : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>text</c></summary>
+    Text,
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>contain</c></summary>
+    Contain,
+    /// <summary><c>all</c></summary>
+    All,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssScrollBehavior : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>smooth</c></summary>
+    Smooth,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssOverscrollBehavior : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>contain</c></summary>
+    Contain,
+    /// <summary><c>none</c></summary>
+    None,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssScrollSnapStop : byte
+{
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>always</c></summary>
+    Always,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssScrollbarWidth : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>thin</c></summary>
+    Thin,
+    /// <summary><c>none</c></summary>
+    None,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssScrollbarGutter : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>stable</c></summary>
+    Stable,
+    /// <summary><c>stable-both-edges</c></summary>
+    StableBothEdges,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTextWrapMode : byte
+{
+    /// <summary><c>wrap</c></summary>
+    Wrap,
+    /// <summary><c>nowrap</c></summary>
+    Nowrap,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTextWrapStyle : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>balance</c></summary>
+    Balance,
+    /// <summary><c>stable</c></summary>
+    Stable,
+    /// <summary><c>pretty</c></summary>
+    Pretty,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssTextTransform : byte
+{
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>capitalize</c></summary>
+    Capitalize,
+    /// <summary><c>uppercase</c></summary>
+    Uppercase,
+    /// <summary><c>lowercase</c></summary>
+    Lowercase,
+    /// <summary><c>full-width</c></summary>
+    FullWidth,
+    /// <summary><c>full-size-kana</c></summary>
+    FullSizeKana,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssHyphens : byte
+{
+    /// <summary><c>manual</c></summary>
+    Manual,
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>auto</c></summary>
+    Auto,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssListStylePosition : byte
+{
+    /// <summary><c>outside</c></summary>
+    Outside,
+    /// <summary><c>inside</c></summary>
+    Inside,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssBorderCollapse : byte
+{
+    /// <summary><c>separate</c></summary>
+    Separate,
+    /// <summary><c>collapse</c></summary>
+    Collapse,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssCaptionSide : byte
+{
+    /// <summary><c>top</c></summary>
+    Top,
+    /// <summary><c>bottom</c></summary>
+    Bottom,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssEmptyCells : byte
+{
+    /// <summary><c>show</c></summary>
+    Show,
+    /// <summary><c>hide</c></summary>
+    Hide,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssForcedColorAdjust : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>preserve-parent-color</c></summary>
+    PreserveParentColor,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssFontVariantCaps : byte
+{
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>small-caps</c></summary>
+    SmallCaps,
+    /// <summary><c>all-small-caps</c></summary>
+    AllSmallCaps,
+    /// <summary><c>petite-caps</c></summary>
+    PetiteCaps,
+    /// <summary><c>all-petite-caps</c></summary>
+    AllPetiteCaps,
+    /// <summary><c>unicase</c></summary>
+    Unicase,
+    /// <summary><c>titling-caps</c></summary>
+    TitlingCaps,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssFontKerning : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>normal</c></summary>
+    Normal,
+    /// <summary><c>none</c></summary>
+    None,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssFontOpticalSizing : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>none</c></summary>
+    None,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssFontSmoothing : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>none</c></summary>
+    None,
+    /// <summary><c>antialiased</c></summary>
+    Antialiased,
+    /// <summary><c>subpixel-antialiased</c></summary>
+    SubpixelAntialiased,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssOsxFontSmoothing : byte
+{
+    /// <summary><c>auto</c></summary>
+    Auto,
+    /// <summary><c>grayscale</c></summary>
+    Grayscale,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssMaskType : byte
+{
+    /// <summary><c>luminance</c></summary>
+    Luminance,
+    /// <summary><c>alpha</c></summary>
+    Alpha,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssMaskMode : byte
+{
+    /// <summary><c>match-source</c></summary>
+    MatchSource,
+    /// <summary><c>alpha</c></summary>
+    Alpha,
+    /// <summary><c>luminance</c></summary>
+    Luminance,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssMaskComposite : byte
+{
+    /// <summary><c>add</c></summary>
+    Add,
+    /// <summary><c>subtract</c></summary>
+    Subtract,
+    /// <summary><c>intersect</c></summary>
+    Intersect,
+    /// <summary><c>exclude</c></summary>
+    Exclude,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssMaskClip : byte
+{
+    /// <summary><c>border-box</c></summary>
+    BorderBox,
+    /// <summary><c>padding-box</c></summary>
+    PaddingBox,
+    /// <summary><c>content-box</c></summary>
+    ContentBox,
+    /// <summary><c>margin-box</c></summary>
+    MarginBox,
+    /// <summary><c>fill-box</c></summary>
+    FillBox,
+    /// <summary><c>stroke-box</c></summary>
+    StrokeBox,
+    /// <summary><c>view-box</c></summary>
+    ViewBox,
+    /// <summary><c>no-clip</c></summary>
+    NoClip,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssMaskOrigin : byte
+{
+    /// <summary><c>border-box</c></summary>
+    BorderBox,
+    /// <summary><c>padding-box</c></summary>
+    PaddingBox,
+    /// <summary><c>content-box</c></summary>
+    ContentBox,
+    /// <summary><c>margin-box</c></summary>
+    MarginBox,
+    /// <summary><c>fill-box</c></summary>
+    FillBox,
+    /// <summary><c>stroke-box</c></summary>
+    StrokeBox,
+    /// <summary><c>view-box</c></summary>
+    ViewBox,
+}
+
 /// <summary>各关键字枚举的名称表（ASCII 小写），下标即枚举值。</summary>
 internal static class KeywordTables
 {
-    public static readonly KeywordTable CssDisplay = new(new[] { "inline", "block", "flex", "inline-flex", "grid", "inline-grid", "inline-block", "flow-root", "contents", "none" });
+    public static readonly KeywordTable CssDisplay = new(new[] { "inline", "block", "flex", "inline-flex", "grid", "inline-grid", "inline-block", "flow-root", "contents", "none", "table", "inline-table", "table-row-group", "table-header-group", "table-footer-group", "table-row", "table-cell", "table-column-group", "table-column", "table-caption", "list-item", "-webkit-box", "-webkit-inline-box" });
     public static readonly KeywordTable CssBoxSizing = new(new[] { "content-box", "border-box" });
     public static readonly KeywordTable CssOverflow = new(new[] { "visible", "hidden", "clip", "scroll", "auto" });
     public static readonly KeywordTable CssVisibility = new(new[] { "visible", "hidden", "collapse" });
@@ -518,4 +1092,46 @@ internal static class KeywordTables
     public static readonly KeywordTable CssImageRendering = new(new[] { "auto", "smooth", "high-quality", "pixelated", "crisp-edges" }, new[] { ("optimizequality", 1), ("optimizespeed", 4) });
     public static readonly KeywordTable CssJustifyItems = new(new[] { "legacy", "normal", "stretch", "start", "end", "center", "left", "right", "flex-start", "flex-end", "self-start", "self-end", "baseline" });
     public static readonly KeywordTable CssJustifySelf = new(new[] { "auto", "normal", "stretch", "start", "end", "center", "left", "right", "flex-start", "flex-end", "self-start", "self-end", "baseline" });
+    public static readonly KeywordTable CssFieldSizing = new(new[] { "fixed", "content" });
+    public static readonly KeywordTable CssContainerType = new(new[] { "normal", "size", "inline-size" });
+    public static readonly KeywordTable CssBoxOrient = new(new[] { "horizontal", "vertical", "inline-axis", "block-axis" });
+    public static readonly KeywordTable CssTableLayout = new(new[] { "auto", "fixed" });
+    public static readonly KeywordTable CssAppearance = new(new[] { "none", "auto", "menulist-button", "textfield", "base-select", "button", "checkbox", "radio", "listbox", "menulist", "meter", "progress-bar", "searchfield", "textarea", "push-button", "slider-horizontal", "square-button" });
+    public static readonly KeywordTable CssResize = new(new[] { "none", "both", "horizontal", "vertical", "block", "inline" });
+    public static readonly KeywordTable CssIsolation = new(new[] { "auto", "isolate" });
+    public static readonly KeywordTable CssBlendMode = new(new[] { "normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity", "plus-darker", "plus-lighter" });
+    public static readonly KeywordTable CssTextDecorationStyle = new(new[] { "solid", "double", "dotted", "dashed", "wavy" });
+    public static readonly KeywordTable CssTransformBox = new(new[] { "view-box", "content-box", "border-box", "fill-box", "stroke-box" });
+    public static readonly KeywordTable CssBackfaceVisibility = new(new[] { "visible", "hidden" });
+    public static readonly KeywordTable CssTransformStyle = new(new[] { "flat", "preserve-3d" });
+    public static readonly KeywordTable CssTransitionBehavior = new(new[] { "normal", "allow-discrete" });
+    public static readonly KeywordTable CssAnimationDirection = new(new[] { "normal", "reverse", "alternate", "alternate-reverse" });
+    public static readonly KeywordTable CssAnimationFillMode = new(new[] { "none", "forwards", "backwards", "both" });
+    public static readonly KeywordTable CssAnimationPlayState = new(new[] { "running", "paused" });
+    public static readonly KeywordTable CssAnimationComposition = new(new[] { "replace", "add", "accumulate" });
+    public static readonly KeywordTable CssUserSelect = new(new[] { "auto", "text", "none", "contain", "all" });
+    public static readonly KeywordTable CssScrollBehavior = new(new[] { "auto", "smooth" });
+    public static readonly KeywordTable CssOverscrollBehavior = new(new[] { "auto", "contain", "none" });
+    public static readonly KeywordTable CssScrollSnapStop = new(new[] { "normal", "always" });
+    public static readonly KeywordTable CssScrollbarWidth = new(new[] { "auto", "thin", "none" });
+    public static readonly KeywordTable CssScrollbarGutter = new(new[] { "auto", "stable", "stable-both-edges" });
+    public static readonly KeywordTable CssTextWrapMode = new(new[] { "wrap", "nowrap" });
+    public static readonly KeywordTable CssTextWrapStyle = new(new[] { "auto", "balance", "stable", "pretty" });
+    public static readonly KeywordTable CssTextTransform = new(new[] { "none", "capitalize", "uppercase", "lowercase", "full-width", "full-size-kana" });
+    public static readonly KeywordTable CssHyphens = new(new[] { "manual", "none", "auto" });
+    public static readonly KeywordTable CssListStylePosition = new(new[] { "outside", "inside" });
+    public static readonly KeywordTable CssBorderCollapse = new(new[] { "separate", "collapse" });
+    public static readonly KeywordTable CssCaptionSide = new(new[] { "top", "bottom" });
+    public static readonly KeywordTable CssEmptyCells = new(new[] { "show", "hide" });
+    public static readonly KeywordTable CssForcedColorAdjust = new(new[] { "auto", "none", "preserve-parent-color" });
+    public static readonly KeywordTable CssFontVariantCaps = new(new[] { "normal", "small-caps", "all-small-caps", "petite-caps", "all-petite-caps", "unicase", "titling-caps" });
+    public static readonly KeywordTable CssFontKerning = new(new[] { "auto", "normal", "none" });
+    public static readonly KeywordTable CssFontOpticalSizing = new(new[] { "auto", "none" });
+    public static readonly KeywordTable CssFontSmoothing = new(new[] { "auto", "none", "antialiased", "subpixel-antialiased" });
+    public static readonly KeywordTable CssOsxFontSmoothing = new(new[] { "auto", "grayscale" });
+    public static readonly KeywordTable CssMaskType = new(new[] { "luminance", "alpha" });
+    public static readonly KeywordTable CssMaskMode = new(new[] { "match-source", "alpha", "luminance" });
+    public static readonly KeywordTable CssMaskComposite = new(new[] { "add", "subtract", "intersect", "exclude" });
+    public static readonly KeywordTable CssMaskClip = new(new[] { "border-box", "padding-box", "content-box", "margin-box", "fill-box", "stroke-box", "view-box", "no-clip" });
+    public static readonly KeywordTable CssMaskOrigin = new(new[] { "border-box", "padding-box", "content-box", "margin-box", "fill-box", "stroke-box", "view-box" });
 }

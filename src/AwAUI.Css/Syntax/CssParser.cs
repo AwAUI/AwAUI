@@ -30,7 +30,7 @@ internal sealed class CssParser
         Declarations,
     }
 
-    enum AtRuleKind { Media, Layer, Keyframes, FontFace, Import, Charset, KnownUnsupported, Unknown }
+    enum AtRuleKind { Media, Layer, Keyframes, FontFace, Import, Charset, Supports, Container, StartingStyle, Property, KnownUnsupported, Unknown }
 
     readonly CssSourceText _src;
     readonly List<CssDiagnostic> _d;
@@ -638,8 +638,12 @@ internal sealed class CssParser
         "font-face" => AtRuleKind.FontFace,
         "import" => AtRuleKind.Import,
         "charset" => AtRuleKind.Charset,
-        "supports" or "container" or "namespace" or "page" or "property" or "scope" or "counter-style"
-            or "font-feature-values" or "font-palette-values" or "starting-style" or "view-transition"
+        "supports" => AtRuleKind.Supports,
+        "container" => AtRuleKind.Container,
+        "starting-style" => AtRuleKind.StartingStyle,
+        "property" => AtRuleKind.Property,
+        "namespace" or "page" or "scope" or "counter-style"
+            or "font-feature-values" or "font-palette-values" or "view-transition"
             or "position-try" or "document" => AtRuleKind.KnownUnsupported,
         _ => AtRuleKind.Unknown,
     };
@@ -647,8 +651,9 @@ internal sealed class CssParser
     static bool IsAllowed(AtRuleKind kind, BlockContext ctx) => kind switch
     {
         AtRuleKind.Import or AtRuleKind.Charset => ctx == BlockContext.TopLevel,
-        AtRuleKind.Media or AtRuleKind.Layer => ctx is BlockContext.TopLevel or BlockContext.GroupTopLevel or BlockContext.StyleRule,
-        AtRuleKind.Keyframes or AtRuleKind.FontFace => ctx is BlockContext.TopLevel or BlockContext.GroupTopLevel,
+        AtRuleKind.Media or AtRuleKind.Layer or AtRuleKind.Supports or AtRuleKind.Container or AtRuleKind.StartingStyle
+            => ctx is BlockContext.TopLevel or BlockContext.GroupTopLevel or BlockContext.StyleRule,
+        AtRuleKind.Keyframes or AtRuleKind.FontFace or AtRuleKind.Property => ctx is BlockContext.TopLevel or BlockContext.GroupTopLevel,
         _ => ctx is BlockContext.TopLevel or BlockContext.GroupTopLevel or BlockContext.StyleRule,
     };
 
@@ -690,6 +695,9 @@ internal sealed class CssParser
                     {
                         case AtRuleKind.Media:
                         case AtRuleKind.Layer:
+                        case AtRuleKind.Supports:
+                        case AtRuleKind.Container:
+                        case AtRuleKind.StartingStyle:
                             contents.End = ConsumeBlockContents(parentStyle is null ? BlockContext.GroupTopLevel : BlockContext.StyleRule,
                                 parentStyle, contents.Decls, contents.Rules, topLevelList: false);
                             break;
@@ -697,6 +705,7 @@ internal sealed class CssParser
                             contents.End = ConsumeBlockContents(BlockContext.Keyframes, null, contents.Decls, contents.Rules, topLevelList: false);
                             break;
                         case AtRuleKind.FontFace:
+                        case AtRuleKind.Property:
                             contents.End = ConsumeBlockContents(BlockContext.Declarations, null, contents.Decls, contents.Rules, topLevelList: false);
                             break;
                     }
@@ -728,6 +737,10 @@ internal sealed class CssParser
                 AtRuleKind.Keyframes => BuildKeyframes(prelude, contents, range),
                 AtRuleKind.FontFace => BuildFontFace(prelude, contents, range),
                 AtRuleKind.Import => BuildImport(prelude, rawBlock, range),
+                AtRuleKind.Supports => BuildSupports(prelude, contents, parentStyle, range),
+                AtRuleKind.Container => BuildContainer(prelude, contents, parentStyle, range),
+                AtRuleKind.StartingStyle => BuildStartingStyle(prelude, contents, parentStyle, range),
+                AtRuleKind.Property => BuildProperty(prelude, contents, range),
                 AtRuleKind.Charset => null, // 编码由加载方决定，@charset 在解析层面忽略
                 AtRuleKind.KnownUnsupported => Unknown(name, prelude, rawBlock, true, range),
                 _ => Unknown(name, prelude, rawBlock, false, range),
@@ -785,6 +798,142 @@ internal sealed class CssParser
         }
         var media = MediaQueryParser.Parse(prelude, _d);
         return new CssMediaRule(prelude, media, GroupRules(contents, parentStyle), range);
+    }
+
+    CssRule? BuildSupports(List<CssComponentValue> prelude, BlockResult? contents, CssStyleRule? parentStyle, SourceRange range)
+    {
+        if (contents is null)
+        {
+            InvalidAtRule("@supports 需要一个块，已丢弃。", range);
+            return null;
+        }
+        var result = SupportsCondition.Evaluate(prelude);
+        if (result is null)
+        {
+            InvalidAtRule("无效的 @supports 条件，规则按不成立处理。", range);
+        }
+        var text = CssComponentValue.ToCss(prelude).Trim();
+        return new CssSupportsRule(prelude, text, result ?? false, GroupRules(contents, parentStyle), range);
+    }
+
+    CssRule? BuildContainer(List<CssComponentValue> prelude, BlockResult? contents, CssStyleRule? parentStyle, SourceRange range)
+    {
+        if (contents is null)
+        {
+            InvalidAtRule("@container 需要一个块，已丢弃。", range);
+            return null;
+        }
+        // [ <container-name> ]? <container-condition>：第一个标识符若不是 not / and / or 即为名称
+        int i = 0;
+        SkipWs(prelude, ref i);
+        string? name = null;
+        if (i < prelude.Count && prelude[i] is CssToken { Type: CssTokenType.Ident } id && !id.IsIdent("not"))
+        {
+            if (!Values.BehaviorParsers.IsContainerName(id.Value))
+            {
+                InvalidAtRule($"无效的容器名 '{id.Value}'，@container 规则被丢弃。", range);
+                return null;
+            }
+            name = id.Value;
+            i++;
+        }
+        var condition = MediaQueryParser.ParseContainerCondition(prelude, i, _d);
+        if (condition is null)
+        {
+            InvalidAtRule("无效的 @container 条件（例：@container card (width > 400px)），规则被丢弃。", range);
+            return null;
+        }
+        return new CssContainerRule(prelude, name, condition, GroupRules(contents, parentStyle), range);
+    }
+
+    CssRule? BuildStartingStyle(List<CssComponentValue> prelude, BlockResult? contents, CssStyleRule? parentStyle, SourceRange range)
+    {
+        if (contents is null)
+        {
+            InvalidAtRule("@starting-style 需要一个块，已丢弃。", range);
+            return null;
+        }
+        foreach (var v in prelude)
+        {
+            if (v is not CssToken { Type: CssTokenType.Whitespace })
+            {
+                InvalidAtRule("@starting-style 不接受序言，规则被丢弃。", range);
+                return null;
+            }
+        }
+        return new CssStartingStyleRule(GroupRules(contents, parentStyle), range);
+    }
+
+    CssRule? BuildProperty(List<CssComponentValue> prelude, BlockResult? contents, SourceRange range)
+    {
+        if (contents is null)
+        {
+            InvalidAtRule("@property 需要一个块，已丢弃。", range);
+            return null;
+        }
+        int i = 0;
+        SkipWs(prelude, ref i);
+        if (i >= prelude.Count || prelude[i] is not CssToken { Type: CssTokenType.Ident } nameTok || !nameTok.Value.StartsWith("--", StringComparison.Ordinal)
+            || nameTok.Value.Length <= 2)
+        {
+            InvalidAtRule("@property 的名称必须是自定义属性名（--name），规则被丢弃。", range);
+            return null;
+        }
+        i++;
+        SkipWs(prelude, ref i);
+        if (i != prelude.Count)
+        {
+            InvalidAtRule("@property 的序言只能是一个自定义属性名，规则被丢弃。", range);
+            return null;
+        }
+        Values.CssPropertySyntax? syntax = null;
+        bool? inherits = null;
+        IReadOnlyList<CssComponentValue>? initial = null;
+        foreach (var d in contents.Decls)
+        {
+            switch (d.Name)
+            {
+                case "syntax":
+                    if (d.Value.Count == 1 && d.Value[0] is CssToken { Type: CssTokenType.String } st) syntax = Values.CssPropertySyntax.Parse(st.Value);
+                    else syntax = null;
+                    if (syntax is null)
+                    {
+                        InvalidAtRule($"@property {nameTok.Value} 的 syntax 无效（应为 \"*\" 或如 \"<length> | auto\" 的字符串），规则被丢弃。", d.Range);
+                        return null;
+                    }
+                    break;
+                case "inherits":
+                    if (d.Value.Count == 1 && d.Value[0] is CssToken it && (it.IsIdent("true") || it.IsIdent("false"))) inherits = it.IsIdent("true");
+                    else
+                    {
+                        InvalidAtRule($"@property {nameTok.Value} 的 inherits 必须是 true 或 false，规则被丢弃。", d.Range);
+                        return null;
+                    }
+                    break;
+                case "initial-value":
+                    initial = d.Value;
+                    break;
+                default:
+                    Report(CssDiagnosticCodes.InvalidAtRule, CssDiagnosticSeverity.Warning, $"@property 中未知的描述符 '{d.Name}'，已忽略。", d.NameRange);
+                    break;
+            }
+        }
+        if (syntax is null || inherits is null)
+        {
+            InvalidAtRule($"@property {nameTok.Value} 缺少必需的 syntax 或 inherits 描述符，规则被丢弃。", range);
+            return null;
+        }
+        if (initial is null && !syntax.IsUniversal)
+        {
+            InvalidAtRule($"@property {nameTok.Value} 的语法不是 \"*\" 时必须给出 initial-value，规则被丢弃。", range);
+            return null;
+        }
+        if (initial is not null && !syntax.IsValidInitialValue(initial))
+        {
+            InvalidAtRule($"@property {nameTok.Value} 的 initial-value 不符合语法 {syntax.Text} 或不是计算期独立的值（不能含 em、视口单位或 var()），规则被丢弃。", range);
+            return null;
+        }
+        return new CssPropertyRule(nameTok.Value, syntax, inherits.Value, initial, contents.Decls, range);
     }
 
     CssRule? BuildLayer(List<CssComponentValue> prelude, BlockResult? contents, CssStyleRule? parentStyle, SourceRange range)
@@ -968,18 +1117,19 @@ internal sealed class CssParser
         }
 
         string? supports = null;
+        bool supportsMatches = true;
         if (i < prelude.Count && prelude[i] is CssFunction sf && CssSerializer.EqualsIgnoreAsciiCase(sf.Name, "supports"))
         {
             supports = CssComponentValue.ToCss(sf.Arguments).Trim();
-            Report(CssDiagnosticCodes.UnsupportedAtRule, CssDiagnosticSeverity.Warning,
-                "@import 的 supports() 条件暂不支持（后置），按条件成立处理。", sf.Range);
+            // supports( <supports-condition> | <declaration> )
+            supportsMatches = SupportsCondition.Evaluate(sf.Arguments) ?? SupportsCondition.Evaluate(new[] { new CssSimpleBlock('(', sf.Arguments, sf.Range, true) }) ?? false;
             i++;
         }
 
         var rest = new List<CssComponentValue>(prelude.Count - Math.Min(i, prelude.Count));
         for (; i < prelude.Count; i++) rest.Add(prelude[i]);
         var media = MediaQueryParser.Parse(rest, _d);
-        return new CssImportRule(url, hasLayer, layerName, supports, media, range);
+        return new CssImportRule(url, hasLayer, layerName, supports, media, range) { SupportsMatches = supportsMatches };
     }
 
     // ================= 工具 =================

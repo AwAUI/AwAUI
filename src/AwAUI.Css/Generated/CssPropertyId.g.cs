@@ -44,6 +44,28 @@ public enum CssPropertyId : ushort
     OverflowY,
     /// <summary><c>aspect-ratio</c></summary>
     AspectRatio,
+    /// <summary><c>vertical-align</c></summary>
+    VerticalAlign,
+    /// <summary><c>field-sizing</c></summary>
+    FieldSizing,
+    /// <summary><c>container-type</c></summary>
+    ContainerType,
+    /// <summary><c>container-name</c></summary>
+    ContainerName,
+    /// <summary><c>-webkit-line-clamp</c></summary>
+    WebkitLineClamp,
+    /// <summary><c>-webkit-box-orient</c></summary>
+    WebkitBoxOrient,
+    /// <summary><c>content</c></summary>
+    Content,
+    /// <summary><c>table-layout</c></summary>
+    TableLayout,
+    /// <summary><c>appearance</c></summary>
+    Appearance,
+    /// <summary><c>resize</c></summary>
+    Resize,
+    /// <summary><c>contain</c></summary>
+    Contain,
     /// <summary><c>position</c></summary>
     Position,
     /// <summary><c>top</c></summary>
@@ -56,6 +78,8 @@ public enum CssPropertyId : ushort
     Left,
     /// <summary><c>z-index</c></summary>
     ZIndex,
+    /// <summary><c>isolation</c></summary>
+    Isolation,
     /// <summary><c>flex-direction</c></summary>
     FlexDirection,
     /// <summary><c>flex-wrap</c></summary>
@@ -140,6 +164,8 @@ public enum CssPropertyId : ushort
     BackgroundColor,
     /// <summary><c>background-image</c></summary>
     BackgroundImage,
+    /// <summary><c>background-blend-mode</c></summary>
+    BackgroundBlendMode,
     /// <summary><c>opacity</c></summary>
     Opacity,
     /// <summary><c>box-shadow</c></summary>
@@ -158,6 +184,126 @@ public enum CssPropertyId : ushort
     ObjectFit,
     /// <summary><c>object-position</c></summary>
     ObjectPosition,
+    /// <summary><c>filter</c></summary>
+    Filter,
+    /// <summary><c>backdrop-filter</c></summary>
+    BackdropFilter,
+    /// <summary><c>clip-path</c></summary>
+    ClipPath,
+    /// <summary><c>mix-blend-mode</c></summary>
+    MixBlendMode,
+    /// <summary><c>text-decoration-line</c></summary>
+    TextDecorationLine,
+    /// <summary><c>text-decoration-style</c></summary>
+    TextDecorationStyle,
+    /// <summary><c>text-decoration-color</c></summary>
+    TextDecorationColor,
+    /// <summary><c>text-decoration-thickness</c></summary>
+    TextDecorationThickness,
+    /// <summary><c>mask-image</c></summary>
+    MaskImage,
+    /// <summary><c>mask-mode</c></summary>
+    MaskMode,
+    /// <summary><c>mask-repeat</c></summary>
+    MaskRepeat,
+    /// <summary><c>mask-position</c></summary>
+    MaskPosition,
+    /// <summary><c>mask-clip</c></summary>
+    MaskClip,
+    /// <summary><c>mask-origin</c></summary>
+    MaskOrigin,
+    /// <summary><c>mask-size</c></summary>
+    MaskSize,
+    /// <summary><c>mask-composite</c></summary>
+    MaskComposite,
+    /// <summary><c>mask-type</c></summary>
+    MaskType,
+    /// <summary><c>transform</c></summary>
+    Transform,
+    /// <summary><c>transform-origin</c></summary>
+    TransformOrigin,
+    /// <summary><c>transform-box</c></summary>
+    TransformBox,
+    /// <summary><c>translate</c></summary>
+    Translate,
+    /// <summary><c>rotate</c></summary>
+    Rotate,
+    /// <summary><c>scale</c></summary>
+    Scale,
+    /// <summary><c>perspective</c></summary>
+    Perspective,
+    /// <summary><c>perspective-origin</c></summary>
+    PerspectiveOrigin,
+    /// <summary><c>backface-visibility</c></summary>
+    BackfaceVisibility,
+    /// <summary><c>transform-style</c></summary>
+    TransformStyle,
+    /// <summary><c>transition-property</c></summary>
+    TransitionProperty,
+    /// <summary><c>transition-duration</c></summary>
+    TransitionDuration,
+    /// <summary><c>transition-timing-function</c></summary>
+    TransitionTimingFunction,
+    /// <summary><c>transition-delay</c></summary>
+    TransitionDelay,
+    /// <summary><c>transition-behavior</c></summary>
+    TransitionBehavior,
+    /// <summary><c>animation-name</c></summary>
+    AnimationName,
+    /// <summary><c>animation-duration</c></summary>
+    AnimationDuration,
+    /// <summary><c>animation-timing-function</c></summary>
+    AnimationTimingFunction,
+    /// <summary><c>animation-delay</c></summary>
+    AnimationDelay,
+    /// <summary><c>animation-iteration-count</c></summary>
+    AnimationIterationCount,
+    /// <summary><c>animation-direction</c></summary>
+    AnimationDirection,
+    /// <summary><c>animation-fill-mode</c></summary>
+    AnimationFillMode,
+    /// <summary><c>animation-play-state</c></summary>
+    AnimationPlayState,
+    /// <summary><c>animation-composition</c></summary>
+    AnimationComposition,
+    /// <summary><c>user-select</c></summary>
+    UserSelect,
+    /// <summary><c>touch-action</c></summary>
+    TouchAction,
+    /// <summary><c>will-change</c></summary>
+    WillChange,
+    /// <summary><c>scroll-behavior</c></summary>
+    ScrollBehavior,
+    /// <summary><c>overscroll-behavior-x</c></summary>
+    OverscrollBehaviorX,
+    /// <summary><c>overscroll-behavior-y</c></summary>
+    OverscrollBehaviorY,
+    /// <summary><c>scroll-snap-type</c></summary>
+    ScrollSnapType,
+    /// <summary><c>scroll-snap-align</c></summary>
+    ScrollSnapAlign,
+    /// <summary><c>scroll-snap-stop</c></summary>
+    ScrollSnapStop,
+    /// <summary><c>scroll-margin-top</c></summary>
+    ScrollMarginTop,
+    /// <summary><c>scroll-margin-right</c></summary>
+    ScrollMarginRight,
+    /// <summary><c>scroll-margin-bottom</c></summary>
+    ScrollMarginBottom,
+    /// <summary><c>scroll-margin-left</c></summary>
+    ScrollMarginLeft,
+    /// <summary><c>scroll-padding-top</c></summary>
+    ScrollPaddingTop,
+    /// <summary><c>scroll-padding-right</c></summary>
+    ScrollPaddingRight,
+    /// <summary><c>scroll-padding-bottom</c></summary>
+    ScrollPaddingBottom,
+    /// <summary><c>scroll-padding-left</c></summary>
+    ScrollPaddingLeft,
+    /// <summary><c>scrollbar-width</c></summary>
+    ScrollbarWidth,
+    /// <summary><c>scrollbar-gutter</c></summary>
+    ScrollbarGutter,
     /// <summary><c>font-family</c></summary>
     FontFamily,
     /// <summary><c>font-size</c></summary>
@@ -170,6 +316,22 @@ public enum CssPropertyId : ushort
     FontStretch,
     /// <summary><c>line-height</c></summary>
     LineHeight,
+    /// <summary><c>font-feature-settings</c></summary>
+    FontFeatureSettings,
+    /// <summary><c>font-variation-settings</c></summary>
+    FontVariationSettings,
+    /// <summary><c>font-variant-numeric</c></summary>
+    FontVariantNumeric,
+    /// <summary><c>font-variant-caps</c></summary>
+    FontVariantCaps,
+    /// <summary><c>font-kerning</c></summary>
+    FontKerning,
+    /// <summary><c>font-optical-sizing</c></summary>
+    FontOpticalSizing,
+    /// <summary><c>-webkit-font-smoothing</c></summary>
+    WebkitFontSmoothing,
+    /// <summary><c>-moz-osx-font-smoothing</c></summary>
+    MozOsxFontSmoothing,
     /// <summary><c>color</c></summary>
     Color,
     /// <summary><c>text-align</c></summary>
@@ -184,6 +346,62 @@ public enum CssPropertyId : ushort
     Visibility,
     /// <summary><c>image-rendering</c></summary>
     ImageRendering,
+    /// <summary><c>letter-spacing</c></summary>
+    LetterSpacing,
+    /// <summary><c>word-spacing</c></summary>
+    WordSpacing,
+    /// <summary><c>text-indent</c></summary>
+    TextIndent,
+    /// <summary><c>tab-size</c></summary>
+    TabSize,
+    /// <summary><c>text-wrap-mode</c></summary>
+    TextWrapMode,
+    /// <summary><c>text-wrap-style</c></summary>
+    TextWrapStyle,
+    /// <summary><c>text-transform</c></summary>
+    TextTransform,
+    /// <summary><c>text-shadow</c></summary>
+    TextShadow,
+    /// <summary><c>text-underline-offset</c></summary>
+    TextUnderlineOffset,
+    /// <summary><c>text-underline-position</c></summary>
+    TextUnderlinePosition,
+    /// <summary><c>hyphens</c></summary>
+    Hyphens,
+    /// <summary><c>-webkit-text-fill-color</c></summary>
+    WebkitTextFillColor,
+    /// <summary><c>quotes</c></summary>
+    Quotes,
+    /// <summary><c>list-style-type</c></summary>
+    ListStyleType,
+    /// <summary><c>list-style-position</c></summary>
+    ListStylePosition,
+    /// <summary><c>list-style-image</c></summary>
+    ListStyleImage,
+    /// <summary><c>border-collapse</c></summary>
+    BorderCollapse,
+    /// <summary><c>border-spacing</c></summary>
+    BorderSpacing,
+    /// <summary><c>caption-side</c></summary>
+    CaptionSide,
+    /// <summary><c>empty-cells</c></summary>
+    EmptyCells,
+    /// <summary><c>caret-color</c></summary>
+    CaretColor,
+    /// <summary><c>accent-color</c></summary>
+    AccentColor,
+    /// <summary><c>scrollbar-color</c></summary>
+    ScrollbarColor,
+    /// <summary><c>color-scheme</c></summary>
+    ColorScheme,
+    /// <summary><c>fill</c></summary>
+    Fill,
+    /// <summary><c>stroke</c></summary>
+    Stroke,
+    /// <summary><c>stroke-width</c></summary>
+    StrokeWidth,
+    /// <summary><c>forced-color-adjust</c></summary>
+    ForcedColorAdjust,
     /// <summary><c>cursor</c></summary>
     Cursor,
     /// <summary><c>pointer-events</c></summary>
@@ -326,6 +544,88 @@ public enum CssPropertyId : ushort
     Background,
     /// <summary><c>font</c>（简写）</summary>
     Font,
+    /// <summary><c>transition</c>（简写）</summary>
+    Transition,
+    /// <summary><c>animation</c>（简写）</summary>
+    Animation,
+    /// <summary><c>text-decoration</c>（简写）</summary>
+    TextDecoration,
+    /// <summary><c>text-wrap</c>（简写）</summary>
+    TextWrap,
+    /// <summary><c>list-style</c>（简写）</summary>
+    ListStyle,
+    /// <summary><c>container</c>（简写）</summary>
+    Container,
+    /// <summary><c>scroll-margin</c>（简写）</summary>
+    ScrollMargin,
+    /// <summary><c>scroll-padding</c>（简写）</summary>
+    ScrollPadding,
+    /// <summary><c>scroll-margin-inline</c>（简写）</summary>
+    ScrollMarginInline,
+    /// <summary><c>scroll-margin-block</c>（简写）</summary>
+    ScrollMarginBlock,
+    /// <summary><c>scroll-margin-inline-start</c>（简写）</summary>
+    ScrollMarginInlineStart,
+    /// <summary><c>scroll-margin-inline-end</c>（简写）</summary>
+    ScrollMarginInlineEnd,
+    /// <summary><c>scroll-margin-block-start</c>（简写）</summary>
+    ScrollMarginBlockStart,
+    /// <summary><c>scroll-margin-block-end</c>（简写）</summary>
+    ScrollMarginBlockEnd,
+    /// <summary><c>scroll-padding-inline</c>（简写）</summary>
+    ScrollPaddingInline,
+    /// <summary><c>scroll-padding-block</c>（简写）</summary>
+    ScrollPaddingBlock,
+    /// <summary><c>scroll-padding-inline-start</c>（简写）</summary>
+    ScrollPaddingInlineStart,
+    /// <summary><c>scroll-padding-inline-end</c>（简写）</summary>
+    ScrollPaddingInlineEnd,
+    /// <summary><c>scroll-padding-block-start</c>（简写）</summary>
+    ScrollPaddingBlockStart,
+    /// <summary><c>scroll-padding-block-end</c>（简写）</summary>
+    ScrollPaddingBlockEnd,
+    /// <summary><c>overscroll-behavior</c>（简写）</summary>
+    OverscrollBehavior,
+    /// <summary><c>overscroll-behavior-inline</c>（简写）</summary>
+    OverscrollBehaviorInline,
+    /// <summary><c>overscroll-behavior-block</c>（简写）</summary>
+    OverscrollBehaviorBlock,
+    /// <summary><c>block-size</c>（简写）</summary>
+    BlockSize,
+    /// <summary><c>inline-size</c>（简写）</summary>
+    InlineSize,
+    /// <summary><c>min-block-size</c>（简写）</summary>
+    MinBlockSize,
+    /// <summary><c>min-inline-size</c>（简写）</summary>
+    MinInlineSize,
+    /// <summary><c>max-block-size</c>（简写）</summary>
+    MaxBlockSize,
+    /// <summary><c>max-inline-size</c>（简写）</summary>
+    MaxInlineSize,
+    /// <summary><c>border-start-start-radius</c>（简写）</summary>
+    BorderStartStartRadius,
+    /// <summary><c>border-start-end-radius</c>（简写）</summary>
+    BorderStartEndRadius,
+    /// <summary><c>border-end-start-radius</c>（简写）</summary>
+    BorderEndStartRadius,
+    /// <summary><c>border-end-end-radius</c>（简写）</summary>
+    BorderEndEndRadius,
+    /// <summary><c>line-clamp</c>（简写）</summary>
+    LineClamp,
+    /// <summary><c>-webkit-user-select</c>（简写）</summary>
+    WebkitUserSelect,
+    /// <summary><c>-webkit-appearance</c>（简写）</summary>
+    WebkitAppearance,
+    /// <summary><c>-webkit-backdrop-filter</c>（简写）</summary>
+    WebkitBackdropFilter,
+    /// <summary><c>-webkit-hyphens</c>（简写）</summary>
+    WebkitHyphens,
+    /// <summary><c>-webkit-mask-image</c>（简写）</summary>
+    WebkitMaskImage,
+    /// <summary><c>-webkit-transform</c>（简写）</summary>
+    WebkitTransform,
+    /// <summary><c>word-wrap</c>（简写）</summary>
+    WordWrap,
     /// <summary><c>all</c>（简写）</summary>
     All,
 }
@@ -345,6 +645,12 @@ public enum CssPropertyGroup : byte
     Background,
     /// <summary>不透明度、阴影与其他视觉效果</summary>
     Effects,
+    /// <summary>变换与 3D 渲染</summary>
+    Transform,
+    /// <summary>过渡与动画</summary>
+    Animation,
+    /// <summary>交互、滚动与手势（不继承）</summary>
+    Behavior,
     /// <summary>字体（继承）</summary>
     Font,
     /// <summary>文本与颜色（继承）</summary>
@@ -356,8 +662,8 @@ public enum CssPropertyGroup : byte
 public static partial class CssProperties
 {
     /// <summary>长属性个数（ID 0 .. LonghandCount-1）。</summary>
-    public const int LonghandCount = 91;
+    public const int LonghandCount = 200;
 
     /// <summary>属性总数（含简写）。</summary>
-    public const int Count = 161;
+    public const int Count = 311;
 }

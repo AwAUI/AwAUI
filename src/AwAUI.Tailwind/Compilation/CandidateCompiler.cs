@@ -117,6 +117,7 @@ internal static class CandidateCompiler
             foreach (var variant in candidate.Variants)
             {
                 if (!ApplyVariant(node, variant, ds.Variants, 0)) return new List<CompiledNode>();
+                if (ExceedsSelectorBudget(node)) return new List<CompiledNode>();
             }
             results.Add(new CompiledNode { Node = node, Sort = sort });
         }
@@ -140,6 +141,7 @@ internal static class CandidateCompiler
         {
             var isolated = AstNode.AtRule("@slot");
             if (!ApplyVariant(isolated, variant.Inner!, variants, depth + 1)) return false;
+            if (ExceedsSelectorBudget(isolated)) return false;
             if (variant.Root == "not" && isolated.Nodes.Count > 1) return false;
             foreach (var child in isolated.Nodes)
             {
@@ -160,6 +162,76 @@ internal static class CandidateCompiler
             return true;
         }
         return entry.ApplyFn(node, variant);
+    }
+
+    /// <summary>
+    /// 估算规则树展开嵌套（<see cref="Optimizer.Flatten"/>）后的选择器与 at 规则参数总长度，超过
+    /// <see cref="Limits.MaxCandidateSelectorLength"/> 时返回 true。只做算术（不真正展开），代价与节点数成正比；
+    /// 估算偏大（每个 <c>&amp;</c> 都按 <c>:is(父选择器)</c> 计），只影响远超正常大小的病态候选。
+    /// </summary>
+    internal static bool ExceedsSelectorBudget(AstNode root)
+    {
+        const double budget = Limits.MaxCandidateSelectorLength;
+        double total = 0;
+        var stack = new Stack<KeyValuePair<AstNode, double>>();
+        stack.Push(new KeyValuePair<AstNode, double>(root, 0));
+        while (stack.Count > 0)
+        {
+            var item = stack.Pop();
+            var node = item.Key;
+            double parentLength = item.Value;
+            double length = parentLength;
+            if (node.Kind == AstKind.Rule)
+            {
+                length = ResolvedSelectorLength(node.Selector, parentLength);
+                total += length;
+            }
+            else if (node.Kind == AstKind.AtRule)
+            {
+                total += node.Name.Length + node.Params.Length;
+            }
+            if (total > budget || length > budget) return true;
+            if (!node.HasChildren) continue;
+            foreach (var child in node.Nodes)
+            {
+                if (child.HasChildren) stack.Push(new KeyValuePair<AstNode, double>(child, length));
+            }
+        }
+        return false;
+    }
+
+    /// <summary>嵌套选择器相对长度为 <paramref name="parentLength"/> 的父选择器展开后的长度上界。</summary>
+    static double ResolvedSelectorLength(string selector, double parentLength)
+    {
+        if (parentLength == 0) return selector.Length;
+        // 没有 & 的选择器展开为「父选择器 + 空格 + 自身」（父为列表时再包一层 :is()），有 & 时每个 & 换成 :is(父选择器)
+        static double Expansion(int ampersands, double parent) => ampersands == 0 ? parent + 6 : ampersands * (parent + 5);
+        double length = selector.Length;
+        int ampersands = 0;
+        int depth = 0;
+        char quote = '\0';
+        for (int i = 0; i < selector.Length; i++)
+        {
+            char c = selector[i];
+            if (c == '\\')
+            {
+                i++;
+            }
+            else if (quote != '\0')
+            {
+                if (c == quote) quote = '\0';
+            }
+            else if (c == '"' || c == '\'') quote = c;
+            else if (c == '(' || c == '[') depth++;
+            else if ((c == ')' || c == ']') && depth > 0) depth--;
+            else if (c == '&') ampersands++;
+            else if (c == ',' && depth == 0)
+            {
+                length += Expansion(ampersands, parentLength) + 2;
+                ampersands = 0;
+            }
+        }
+        return length + Expansion(ampersands, parentLength);
     }
 
     /// <summary>调用工具注册表生成声明（Tailwind <c>compileBaseUtility</c>）。</summary>

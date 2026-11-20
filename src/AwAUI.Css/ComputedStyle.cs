@@ -19,6 +19,13 @@ public enum ComputedStyleFlags
     /// （只比较继承分组的增量重算会漏掉它）。
     /// </summary>
     InheritsNonInherited = 1 << 2,
+    /// <summary>
+    /// 用到了容器查询（<c>@container</c> 规则的条件被求值）或容器长度单位（cqw 等）：任何查询容器的尺寸或
+    /// <c>container-type / container-name</c> 变化后需要重算该元素（布局之后的第二遍样式计算，见 design/08）。
+    /// </summary>
+    DependsOnContainer = 1 << 3,
+    /// <summary>匹配时求值了 <c>:has()</c>：后代或兄弟的变化可能改变该元素的样式（见 <see cref="Cascade.HasInvalidationSet"/>）。</summary>
+    DependsOnHas = 1 << 4,
 }
 
 /// <summary>
@@ -37,6 +44,9 @@ public sealed partial class ComputedStyle
 
     /// <summary>根元素的字体大小（rem 的基准，px）。</summary>
     public float RootFontSize { get; }
+
+    /// <summary>根元素的行高（rlh 的基准，px；normal 按 1.2 倍字体大小）。</summary>
+    public float RootLineHeight { get; }
 
     public ComputedStyleFlags Flags { get; }
 
@@ -86,6 +96,7 @@ public sealed partial class ComputedStyle
         StyleEngine.FixUpBorderWidths(b, explicitMask: 0);
         b.CustomProperties = CustomPropertyMap.Empty;
         b.RootFontSize = (float)computer.Environment.DefaultFontSize;
+        b.RootLineHeight = b.RootFontSize * 1.2f;
         b.Flags = ComputedStyleFlags.None;
         return new ComputedStyle(b);
     }
@@ -98,5 +109,6 @@ internal sealed partial class StyleBuilder
 {
     public CustomPropertyMap CustomProperties = CustomPropertyMap.Empty;
     public float RootFontSize;
+    public float RootLineHeight;
     public ComputedStyleFlags Flags;
 }

@@ -34,7 +34,7 @@ internal static class StylesheetCompiler
     {
         var parsed = CssParser.Parse(css);
         var ast = new List<AstNode> { AstNode.CreateContext(new AstContext { Base = options.BaseDirectory ?? "" }, parsed) };
-        ResolveImports(ast, options.BaseDirectory, options, 0);
+        ResolveImports(ast, options.BaseDirectory, options, 0, new int[1]);
 
         var result = new CompiledStylesheet();
         bool important = false;
@@ -401,7 +401,8 @@ internal static class StylesheetCompiler
     // @import
     // ------------------------------------------------------------------
 
-    static void ResolveImports(List<AstNode> ast, string? baseDir, TailwindOptions options, int depth)
+    /// <param name="importCount">本次编译已加载的样式表数（单元素数组，跨递归共享）。</param>
+    static void ResolveImports(List<AstNode> ast, string? baseDir, TailwindOptions options, int depth, int[] importCount)
     {
         AstNode.Walk(ast, (node, _) =>
         {
@@ -412,9 +413,10 @@ internal static class StylesheetCompiler
             if (node.Name == "@reference") media = "reference";
             if (uri.StartsWith("data:", StringComparison.Ordinal) || uri.StartsWith("http://", StringComparison.Ordinal) || uri.StartsWith("https://", StringComparison.Ordinal)) return WalkAction<AstNode>.Continue;
             if (depth > Limits.MaxImportDepth) throw new TailwindException($"Exceeded maximum recursion depth while resolving `{uri}` in `{baseDir}`)");
+            if (++importCount[0] > Limits.MaxImports) throw new TailwindException($"Too many `@import`s (more than {Limits.MaxImports}) while resolving `{uri}` in `{baseDir}`.");
             var (content, childBase) = LoadStylesheet(uri, baseDir, options);
             var parsed = CssParser.Parse(content);
-            ResolveImports(parsed, childBase, options, depth + 1);
+            ResolveImports(parsed, childBase, options, depth + 1, importCount);
             List<AstNode> nodes = new() { AstNode.CreateContext(new AstContext { Base = childBase ?? "" }, parsed) };
             if (layer != null) nodes = new List<AstNode> { AstNode.AtRule("@layer", layer, nodes) };
             if (media != null) nodes = new List<AstNode> { AstNode.AtRule("@media", media, nodes) };

@@ -152,6 +152,12 @@ public abstract class MediaCondition
 
     internal abstract MediaTri Evaluate(MediaEnvironment environment);
 
+    /// <summary>作为容器查询条件求值（<see cref="ContainerQueryInput"/> 给出查询容器的尺寸）。</summary>
+    internal virtual MediaTri EvaluateContainer(in ContainerQueryInput input) => MediaTri.Unknown;
+
+    /// <summary>容器查询条件需要的轴（宽度类特性 → 行内轴，高度类 → 块轴，比例与方向 → 两轴）。</summary>
+    internal virtual ContainerAxes RequiredAxes => ContainerAxes.None;
+
     internal static MediaTri Not(MediaTri v) => v switch
     {
         MediaTri.True => MediaTri.False,
@@ -170,6 +176,10 @@ public sealed class MediaNotCondition : MediaCondition
     public MediaCondition Operand { get; }
 
     internal override MediaTri Evaluate(MediaEnvironment environment) => Not(Operand.Evaluate(environment));
+
+    internal override MediaTri EvaluateContainer(in ContainerQueryInput input) => Not(Operand.EvaluateContainer(input));
+
+    internal override ContainerAxes RequiredAxes => Operand.RequiredAxes;
 
     public override string ToString() => "not " + Paren(Operand);
 
@@ -204,6 +214,30 @@ public sealed class MediaCombinedCondition : MediaCondition
         }
         if (unknown) return MediaTri.Unknown;
         return IsAnd ? MediaTri.True : MediaTri.False;
+    }
+
+    internal override MediaTri EvaluateContainer(in ContainerQueryInput input)
+    {
+        bool unknown = false;
+        foreach (var op in Operands)
+        {
+            var v = op.EvaluateContainer(input);
+            if (IsAnd && v == MediaTri.False) return MediaTri.False;
+            if (!IsAnd && v == MediaTri.True) return MediaTri.True;
+            if (v == MediaTri.Unknown) unknown = true;
+        }
+        if (unknown) return MediaTri.Unknown;
+        return IsAnd ? MediaTri.True : MediaTri.False;
+    }
+
+    internal override ContainerAxes RequiredAxes
+    {
+        get
+        {
+            var a = ContainerAxes.None;
+            foreach (var op in Operands) a |= op.RequiredAxes;
+            return a;
+        }
     }
 
     public override string ToString()
@@ -339,6 +373,39 @@ public sealed class MediaFeature : MediaCondition
             case "any-hover": return Discrete(env.AnyHover == MediaHoverCapability.Hover ? "hover" : "none", env.AnyHover != MediaHoverCapability.None);
             case "pointer": return Discrete(PointerName(env.Pointer), env.Pointer != MediaPointerCapability.None);
             case "any-pointer": return Discrete(PointerName(env.AnyPointer), env.AnyPointer != MediaPointerCapability.None);
+            case "forced-colors": return Discrete(env.ForcedColors ? "active" : "none", env.ForcedColors);
+            case "prefers-contrast":
+                return Discrete(env.PrefersContrast switch
+                {
+                    MediaContrastPreference.More => "more",
+                    MediaContrastPreference.Less => "less",
+                    MediaContrastPreference.Custom => "custom",
+                    _ => "no-preference",
+                }, env.PrefersContrast != MediaContrastPreference.NoPreference);
+            case "inverted-colors": return Discrete(env.InvertedColors ? "inverted" : "none", env.InvertedColors);
+            case "scripting":
+                return Discrete(env.Scripting switch { MediaScripting.None => "none", MediaScripting.InitialOnly => "initial-only", _ => "enabled" },
+                    env.Scripting != MediaScripting.None);
+            case "prefers-reduced-transparency":
+                return Discrete(env.PrefersReducedTransparency ? "reduce" : "no-preference", env.PrefersReducedTransparency);
+            case "prefers-reduced-data": return Discrete("no-preference", false);
+            case "color-gamut":
+                // 范围语义：设备色域覆盖查询的色域即成立
+                if (Constraints.Count == 0) return MediaTri.True;
+                foreach (var c in Constraints)
+                {
+                    int want = c.Value.Ident switch { "p3" => 1, "rec2020" => 2, _ => 0 };
+                    if (want > (int)env.ColorGamut) return MediaTri.False;
+                }
+                return MediaTri.True;
+            case "dynamic-range":
+            case "video-dynamic-range":
+                if (Constraints.Count == 0) return MediaTri.True;
+                foreach (var c in Constraints)
+                    if (c.Value.Ident == "high" && !env.HighDynamicRange) return MediaTri.False;
+                return MediaTri.True;
+            case "update": return Discrete("fast", true);
+            case "display-mode": return Discrete(env.DisplayMode, true);
             default: return MediaTri.Unknown;
         }
 
@@ -369,6 +436,88 @@ public sealed class MediaFeature : MediaCondition
                 if (c.Value.Ident != actual) return MediaTri.False;
             return MediaTri.True;
         }
+    }
+
+    internal override ContainerAxes RequiredAxes => Name switch
+    {
+        "width" or "inline-size" => ContainerAxes.Inline,
+        "height" or "block-size" => ContainerAxes.Block,
+        "aspect-ratio" or "orientation" => ContainerAxes.Both,
+        _ => ContainerAxes.None,
+    };
+
+    internal override MediaTri EvaluateContainer(in ContainerQueryInput input)
+    {
+        var q = input;
+        switch (Name)
+        {
+            case "width":
+            case "inline-size":
+                return q.HasWidth ? Range(q.Width, q) : MediaTri.Unknown;
+            case "height":
+            case "block-size":
+                return q.HasHeight ? Range(q.Height, q) : MediaTri.Unknown;
+            case "aspect-ratio":
+                if (!q.HasWidth || !q.HasHeight || q.Height <= 0) return MediaTri.Unknown;
+                return RangeRatio(q.Width / q.Height);
+            case "orientation":
+                if (!q.HasWidth || !q.HasHeight) return MediaTri.Unknown;
+                if (Constraints.Count == 0) return MediaTri.True;
+                foreach (var c in Constraints)
+                    if (c.Value.Ident != (q.Height >= q.Width ? "portrait" : "landscape")) return MediaTri.False;
+                return MediaTri.True;
+            default:
+                return MediaTri.Unknown;
+        }
+
+        MediaTri Range(double actual, in ContainerQueryInput ctx)
+        {
+            if (Constraints.Count == 0) return actual != 0 ? MediaTri.True : MediaTri.False;
+            foreach (var c in Constraints)
+            {
+                double v = ContainerPx(c.Value, ctx);
+                if (double.IsNaN(v)) return MediaTri.Unknown;
+                if (!Compare(actual, c.Comparison, v)) return MediaTri.False;
+            }
+            return MediaTri.True;
+        }
+
+        MediaTri RangeRatio(double actual)
+        {
+            if (Constraints.Count == 0) return actual != 0 ? MediaTri.True : MediaTri.False;
+            foreach (var c in Constraints)
+            {
+                double v = ToRatio(c.Value, null!);
+                if (double.IsNaN(v)) return MediaTri.Unknown;
+                if (!Compare(actual, c.Comparison, v)) return MediaTri.False;
+            }
+            return MediaTri.True;
+        }
+    }
+
+    static bool Compare(double actual, MediaComparison op, double v) => op switch
+    {
+        MediaComparison.Equal => actual == v,
+        MediaComparison.Less => actual < v,
+        MediaComparison.LessOrEqual => actual <= v,
+        MediaComparison.Greater => actual > v,
+        _ => actual >= v,
+    };
+
+    /// <summary>容器查询中的长度：em 相对查询容器的字体大小，rem 相对根元素，视口单位相对视口。</summary>
+    static double ContainerPx(MediaValue v, in ContainerQueryInput q)
+    {
+        if (v.Kind == MediaValueKind.Number) return v.Number == 0 ? 0 : double.NaN;
+        if (v.Kind != MediaValueKind.Dimension) return double.NaN;
+        switch (v.Unit)
+        {
+            case "em": return v.Number * q.FontSize;
+            case "rem": return v.Number * q.RootFontSize;
+            case "ex":
+            case "ch": return v.Number * q.FontSize / 2;
+        }
+        double f = LengthFactor(v.Unit, q.Media);
+        return double.IsNaN(f) ? f : v.Number * f;
     }
 
     static string PointerName(MediaPointerCapability p) => p switch
@@ -435,6 +584,62 @@ public sealed class MediaFeature : MediaCondition
     internal static string Format(double d) => d.ToString(CultureInfo.InvariantCulture);
 }
 
+/// <summary>容器查询需要的轴。</summary>
+[Flags]
+internal enum ContainerAxes : byte
+{
+    None = 0,
+    Inline = 1,
+    Block = 2,
+    Both = 3,
+}
+
+/// <summary>容器查询求值的输入：查询容器的内容盒尺寸（未知的轴为 NaN）与字体大小。</summary>
+internal readonly struct ContainerQueryInput
+{
+    public ContainerQueryInput(double width, double height, double fontSize, double rootFontSize, MediaEnvironment media)
+    {
+        Width = width;
+        Height = height;
+        FontSize = fontSize;
+        RootFontSize = rootFontSize;
+        Media = media;
+    }
+
+    public double Width { get; }
+    public double Height { get; }
+    public bool HasWidth => !double.IsNaN(Width);
+    public bool HasHeight => !double.IsNaN(Height);
+    public double FontSize { get; }
+    public double RootFontSize { get; }
+    public MediaEnvironment Media { get; }
+}
+
+/// <summary>prefers-contrast 的取值。</summary>
+public enum MediaContrastPreference
+{
+    NoPreference,
+    More,
+    Less,
+    Custom,
+}
+
+/// <summary>scripting 的取值。</summary>
+public enum MediaScripting
+{
+    None,
+    InitialOnly,
+    Enabled,
+}
+
+/// <summary>color-gamut：设备大致覆盖的色域。</summary>
+public enum MediaColorGamut
+{
+    Srgb,
+    P3,
+    Rec2020,
+}
+
 /// <summary>prefers-color-scheme 的取值。</summary>
 public enum MediaColorScheme
 {
@@ -486,4 +691,28 @@ public sealed class MediaEnvironment
     public MediaPointerCapability Pointer { get; set; } = MediaPointerCapability.Fine;
 
     public MediaPointerCapability AnyPointer { get; set; } = MediaPointerCapability.Fine;
+
+    /// <summary><c>forced-colors: active</c>（Windows 高对比度等强制颜色模式）。</summary>
+    public bool ForcedColors { get; set; }
+
+    /// <summary><c>prefers-contrast</c>。</summary>
+    public MediaContrastPreference PrefersContrast { get; set; }
+
+    /// <summary><c>inverted-colors: inverted</c>。</summary>
+    public bool InvertedColors { get; set; }
+
+    /// <summary><c>scripting</c>：应用中脚本（C# 代码）总是可用，默认 enabled。</summary>
+    public MediaScripting Scripting { get; set; } = MediaScripting.Enabled;
+
+    /// <summary><c>prefers-reduced-transparency: reduce</c>。</summary>
+    public bool PrefersReducedTransparency { get; set; }
+
+    /// <summary><c>color-gamut</c>：显示器色域，默认 sRGB。</summary>
+    public MediaColorGamut ColorGamut { get; set; }
+
+    /// <summary><c>dynamic-range: high</c>。</summary>
+    public bool HighDynamicRange { get; set; }
+
+    /// <summary><c>display-mode</c> 的值（ASCII 小写），桌面应用默认 <c>standalone</c>。</summary>
+    public string DisplayMode { get; set; } = "standalone";
 }

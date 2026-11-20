@@ -32,17 +32,20 @@ public sealed class Cva
     readonly KeyValuePair<string, IReadOnlyDictionary<string, string>>[] _variants;
     readonly IReadOnlyList<CompoundVariant> _compounds;
     readonly IReadOnlyDictionary<string, string> _defaults;
+    // cva：variants 为 null 时只输出 base 与调用方的类（复合变体与默认值都不生效）
+    readonly bool _hasVariants;
     readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
     readonly object _gate = new();
 
     /// <summary>创建变体表。</summary>
     /// <param name="base">总是包含的类。</param>
-    /// <param name="variants">变体名 → (取值 → 类)。</param>
+    /// <param name="variants">变体名 → (取值 → 类)。为 null 时与 cva 相同：只输出 <paramref name="base"/>，<paramref name="compoundVariants"/> 不生效。</param>
     /// <param name="compoundVariants">复合变体。</param>
     /// <param name="defaultVariants">未指定时使用的取值。</param>
     public Cva(string? @base, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? variants = null, IReadOnlyList<CompoundVariant>? compoundVariants = null, IReadOnlyDictionary<string, string>? defaultVariants = null)
     {
         _base = @base;
+        _hasVariants = variants != null;
         var list = new List<KeyValuePair<string, IReadOnlyDictionary<string, string>>>();
         if (variants != null)
         {
@@ -78,7 +81,7 @@ public sealed class Cva
 
     string CacheKey(IReadOnlyDictionary<string, string?>? props)
     {
-        if (props == null || props.Count == 0) return "";
+        if (props == null || props.Count == 0 || !_hasVariants) return "";
         var sb = new StringBuilder();
         foreach (var kv in _variants)
         {
@@ -105,6 +108,7 @@ public sealed class Cva
             sb.Append(s);
         }
         Add(_base);
+        if (!_hasVariants) return sb.ToString();
         foreach (var kv in _variants)
         {
             string? selected;

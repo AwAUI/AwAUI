@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AwAUI.Css.Animation;
 using AwAUI.Css.Media;
 using AwAUI.Css.Selectors;
 using AwAUI.Css.Syntax;
@@ -10,30 +11,48 @@ namespace AwAUI.Css.Cascade;
 /// <summary>
 /// 级联引擎（design/08「级联」）：配置一组有序的样式表（各带来源）与环境，为元素解析计算样式。
 /// <para>
-/// 排序（CSS Cascade 5，从低到高）：普通 UA → 普通作者（层按声明顺序，未分层最后）→ 普通内联 → 动画（空槽）→
+/// 排序（CSS Cascade 5，从低到高）：普通 UA → 表现提示（<see cref="StyleElement.PresentationalHints"/>，特异性 0）→
+/// 普通作者（层按声明顺序，未分层最后）→ 普通内联 → 动画（空槽）→
 /// <c>!important</c> 作者（层逆序，未分层最先）→ <c>!important</c> 内联 → <c>!important</c> UA → 过渡（空槽）→
 /// DevTools 覆盖（普通、<c>!important</c>）。同一层级内依次比较特异性与出现顺序。
+/// </para>
+/// <para>
+/// 条件规则：<c>@media</c> 按环境求值（<see cref="EnvironmentChanged"/>）；<c>@supports</c> 在解析时按本引擎的支持情况求值；
+/// <c>@container</c> 按元素求值（查询容器的尺寸来自 <see cref="StyleElement.TryGetContainerSize"/>）；<c>@starting-style</c> 中的规则
+/// 只在 <see cref="ResolveStartingStyle"/> 中生效。<c>@property</c> 注册的自定义属性见 <see cref="Registry"/>。
 /// </para>
 /// <para>
 /// 规则按最右侧复合选择器分桶（<see cref="SelectorIndex{T}"/>），声明在加入样式表时解析一次并缓存。
 /// 解析过程复用内部缓冲，实例不是线程安全的。
 /// </para>
 /// </summary>
-public sealed class StyleEngine
+public sealed partial class StyleEngine
 {
-    // 级联层级（数值越大优先级越高）。3 = 动画、7 = 过渡：第 2 期由动画引擎以独立的声明块填入这两个槽位
-    const int LevelUserAgent = 0, LevelAuthor = 1, LevelInline = 2, LevelAuthorImportant = 4, LevelInlineImportant = 5,
-        LevelUserAgentImportant = 6, LevelDevTools = 8, LevelDevToolsImportant = 9;
-#pragma warning disable IDE0051 // 预留的槽位
-    const int LevelAnimation = 3, LevelTransition = 7;
-#pragma warning restore IDE0051
+    // 级联层级（数值越大优先级越高）。4 = 动画、8 = 过渡：动画引擎（AwAUI.Css.Animation.CssAnimator）把动画值叠加在
+    // 胜出层级低于它们的属性上（见 CascadeLevelSink）
+    const int LevelUserAgent = 0, LevelPresentationalHint = 1, LevelAuthor = 2, LevelInline = 3, LevelAuthorImportant = 5, LevelInlineImportant = 6,
+        LevelUserAgentImportant = 7, LevelDevTools = 9, LevelDevToolsImportant = 10;
+    internal const int LevelAnimation = 4, LevelTransition = 8;
 
     readonly List<CascadeStyleSheet> _sheets = new();
     readonly List<MediaGate> _gates = new();
     readonly LayerNode[] _layerRoots = new LayerNode[3];
     SelectorIndex<CompiledRule> _index = new();
+    SelectorIndex<CompiledRule> _startingIndex = new();
+    readonly Dictionary<string, List<KeyframesCandidate>> _keyframes = new(StringComparer.Ordinal);
+    CustomPropertyRegistry _registry = CustomPropertyRegistry.Empty;
+    HasInvalidationSet _hasInvalidation = HasInvalidationSet.Empty;
+    bool _hasContainerRules;
     bool _dirty = true;
     int _mediaGeneration;
+
+    // :has() 的结果缓存：批次内共享，批次外每次解析前清空
+    readonly HasMatchCache _hasCache = new();
+    int _batchDepth;
+    // 容器查询：一次解析内按门控缓存结果
+    readonly Dictionary<ContainerGate, bool> _containerResults = new();
+    readonly EngineContainerSource _containerSource;
+    bool _usedContainer;
 
     // 每次解析复用的缓冲
     readonly List<SelectorIndex<CompiledRule>.Entry> _entries = new();
@@ -55,6 +74,63 @@ public sealed class StyleEngine
     {
         Environment = environment ?? new CssEnvironment();
         _computer = new StyleComputer(Environment);
+        _containerSource = new EngineContainerSource();
+    }
+
+    /// <summary>由 <c>@property</c> 注册的自定义属性（编译后有效）。</summary>
+    public CustomPropertyRegistry Registry
+    {
+        get
+        {
+            EnsureCompiled();
+            return _registry;
+        }
+    }
+
+    /// <summary><c>:has()</c> 的失效特征（编译后有效），供宿主决定元素变化时哪些祖先 / 兄弟需要重算样式。</summary>
+    public HasInvalidationSet HasInvalidation
+    {
+        get
+        {
+            EnsureCompiled();
+            return _hasInvalidation;
+        }
+    }
+
+    /// <summary>样式表中是否有 <c>@container</c> 规则（宿主据此决定布局后是否需要第二遍样式计算）。</summary>
+    public bool HasContainerQueries
+    {
+        get
+        {
+            EnsureCompiled();
+            return _hasContainerRules;
+        }
+    }
+
+    /// <summary>
+    /// 开始一次样式重算批次：批次内 <c>:has()</c> 的结果按 (选择器, 元素) 缓存，宿主保证批次期间元素树与状态不变。
+    /// 可嵌套；返回的对象 Dispose 时结束批次（最外层结束时清空缓存）。不调用时每次 <see cref="Resolve(StyleElement, ComputedStyle?)"/> 各自缓存，
+    /// 结果同样正确，只是 <c>:has()</c> 可能被重复求值。
+    /// </summary>
+    public IDisposable BeginRecalcBatch()
+    {
+        if (_batchDepth++ == 0) _hasCache.Clear();
+        return new BatchScope(this);
+    }
+
+    sealed class BatchScope : IDisposable
+    {
+        StyleEngine? _engine;
+
+        public BatchScope(StyleEngine engine) => _engine = engine;
+
+        public void Dispose()
+        {
+            var e = _engine;
+            if (e is null) return;
+            _engine = null;
+            if (--e._batchDepth == 0) e._hasCache.Clear();
+        }
     }
 
     /// <summary>媒体查询、视口单位与 env() 所用的环境。修改后调用 <see cref="EnvironmentChanged"/>。</summary>
@@ -154,39 +230,71 @@ public sealed class StyleEngine
         if (!_dirty) return;
         _dirty = false;
         _index = new SelectorIndex<CompiledRule>();
+        _startingIndex = new SelectorIndex<CompiledRule>();
         _gates.Clear();
+        _keyframes.Clear();
+        _compileGeneration++;
+        _hasContainerRules = false;
+        _hasCache.Clear();
         for (int i = 0; i < _layerRoots.Length; i++) _layerRoots[i] = new LayerNode(null, null);
         // 编译时就要知道 @media 是否成立：不成立的条件中的 @layer 不参与层排序（CSS Cascade 5 §6.4.3）
         _mediaGeneration++;
+        var registry = new CustomPropertyRegistry();
+        var has = new HasInvalidationSet.Builder();
         int order = 0;
         foreach (var sheet in _sheets)
         {
             var root = _layerRoots[(int)sheet.Origin];
-            CompileRules(sheet.Sheet.Rules, sheet, root, null, ref order);
+            CompileRules(sheet.Sheet.Rules, sheet, root, null, null, starting: false, registry, has, ref order);
         }
         foreach (var root in _layerRoots) root.AssignRanks();
+        registry.Seal();
+        _registry = registry;
+        _hasInvalidation = has.Build();
     }
 
-    void CompileRules(IReadOnlyList<CssRule> rules, CascadeStyleSheet sheet, LayerNode layer, MediaGate? media, ref int order)
+    void CompileRules(IReadOnlyList<CssRule> rules, CascadeStyleSheet sheet, LayerNode layer, MediaGate? media, ContainerGate? container, bool starting,
+        CustomPropertyRegistry registry, HasInvalidationSet.Builder has, ref int order)
     {
         foreach (var rule in rules)
         {
             switch (rule)
             {
                 case CssStyleRule s:
-                    AddRule(s, s.Selectors, sheet, layer, media, ref order);
-                    if (s.ChildRules.Count > 0) CompileRules(s.ChildRules, sheet, layer, media, ref order);
+                    AddRule(s, s.Selectors, sheet, layer, media, container, starting, has, ref order);
+                    if (s.ChildRules.Count > 0) CompileRules(s.ChildRules, sheet, layer, media, container, starting, registry, has, ref order);
                     break;
                 case CssNestedDeclarationsRule n:
-                    AddRule(n, n.Selectors, sheet, layer, media, ref order);
+                    AddRule(n, n.Selectors, sheet, layer, media, container, starting, has, ref order);
                     break;
                 case CssMediaRule m:
                 {
                     var gate = new MediaGate(m.Media, media);
                     _gates.Add(gate);
-                    CompileRules(m.Rules, sheet, layer, gate, ref order);
+                    CompileRules(m.Rules, sheet, layer, gate, container, starting, registry, has, ref order);
                     break;
                 }
+                case CssSupportsRule sup:
+                    // 条件在解析时已按本引擎的支持情况求值，运行期不变
+                    if (sup.Matches) CompileRules(sup.Rules, sheet, layer, media, container, starting, registry, has, ref order);
+                    break;
+                case CssContainerRule cr:
+                    _hasContainerRules = true;
+                    CompileRules(cr.Rules, sheet, layer, media, new ContainerGate(cr, container), starting, registry, has, ref order);
+                    break;
+                case CssStartingStyleRule ss:
+                    CompileRules(ss.Rules, sheet, layer, media, container, starting: true, registry, has, ref order);
+                    break;
+                case CssKeyframesRule kf:
+                {
+                    if (!_keyframes.TryGetValue(kf.Name, out var list)) _keyframes[kf.Name] = list = new List<KeyframesCandidate>(1);
+                    list.Add(new KeyframesCandidate(kf, sheet, layer, media, order++));
+                    break;
+                }
+                case CssPropertyRule pr:
+                    registry.Register(new RegisteredCustomProperty(pr.Name, pr.Syntax, pr.Inherits,
+                        pr.InitialValue is null ? null : new CustomPropertyValue(pr.InitialValue, hasReferences: false)));
+                    break;
                 case CssLayerBlockRule l:
                 {
                     // 条件不成立时层不被声明：其中的规则挂在不参与排序的游离节点上（反正不会命中），
@@ -194,13 +302,13 @@ public sealed class StyleEngine
                     bool active = IsActive(media);
                     var node = !active ? layer.CreateDetached(l.Name)
                         : l.Name is null ? layer.CreateAnonymous() : layer.GetOrCreate(l.Name);
-                    CompileRules(l.Rules, sheet, node, media, ref order);
+                    CompileRules(l.Rules, sheet, node, media, container, starting, registry, has, ref order);
                     break;
                 }
                 case CssLayerStatementRule ls:
                     if (IsActive(media)) foreach (var name in ls.Names) layer.GetOrCreate(name);
                     break;
-                case CssImportRule imp when imp.HasLayer:
+                case CssImportRule imp when imp.HasLayer && imp.SupportsMatches:
                     // 导入的样式表由上层加载；这里只按规范在此处登记层的顺序
                     if (!IsActive(media)) break;
                     if (imp.LayerName is null) layer.CreateAnonymous();
@@ -218,15 +326,17 @@ public sealed class StyleEngine
         return media.Evaluate(_mediaGeneration, Environment.Media);
     }
 
-    void AddRule(CssRule rule, SelectorList selectors, CascadeStyleSheet sheet, LayerNode layer, MediaGate? media, ref int order)
+    void AddRule(CssRule rule, SelectorList selectors, CascadeStyleSheet sheet, LayerNode layer, MediaGate? media, ContainerGate? container,
+        bool starting, HasInvalidationSet.Builder has, ref int order)
     {
         if (!sheet.Blocks.TryGetValue(rule, out var block) || block.IsEmpty)
         {
             // 只有无效声明的规则不参与级联，但 DevTools 仍需要看到它们：保留空块规则
             if (block is null || block.RejectedDeclarations.Count == 0) return;
         }
-        var compiled = new CompiledRule(rule, selectors, block, sheet, layer, media) { Order = order++ };
-        _index.Add(selectors, compiled);
+        var compiled = new CompiledRule(rule, selectors, block, sheet, layer, media) { Order = order++, Container = container };
+        (starting ? _startingIndex : _index).Add(selectors, compiled);
+        has.Add(selectors);
     }
 
     // ================= 解析 =================
@@ -266,6 +376,8 @@ public sealed class StyleEngine
     {
         public CssValue? Value;
         public SlotState State;
+        /// <summary>胜出声明的级联层级（State 为 Decided 时有效）。</summary>
+        public byte Level;
         public byte RevertOrigin;
         public int RevertLevel;
         public LayerNode? RevertLayer;
@@ -285,6 +397,37 @@ public sealed class StyleEngine
     /// 应为原始元素的计算样式，内联样式不参与。<paramref name="record"/> 非空时收集匹配记录（较慢）。
     /// </summary>
     public ComputedStyle Resolve(StyleElement element, ComputedStyle? parentStyle, PseudoElementKind pseudoElement, StyleMatchRecord? record)
+        => ResolveCore(element, parentStyle, pseudoElement, record, startingStyle: false, null, null);
+
+    /// <summary>
+    /// 计算元素的起始样式（CSS Transitions 2 §3）：与 <see cref="Resolve(StyleElement, ComputedStyle?, PseudoElementKind, StyleMatchRecord?)"/>
+    /// 相同，但 <c>@starting-style</c> 中的规则也按其原有的级联位置参与。用于元素首次得到样式、或从 <c>display: none</c> 变为显示时
+    /// 作为过渡的起点（由动画引擎调用；<paramref name="parentStyle"/> 应为父元素的起始样式或计算样式）。
+    /// </summary>
+    public ComputedStyle ResolveStartingStyle(StyleElement element, ComputedStyle? parentStyle, PseudoElementKind pseudoElement = PseudoElementKind.None)
+        => ResolveCore(element, parentStyle, pseudoElement, null, startingStyle: true, null, null);
+
+    /// <summary>是否有 <c>@starting-style</c> 规则可能匹配该元素（没有时起始样式等于计算样式）。</summary>
+    public bool HasStartingStyle(StyleElement element, PseudoElementKind pseudoElement = PseudoElementKind.None)
+    {
+        if (element is null) throw new ArgumentNullException(nameof(element));
+        EnsureCompiled();
+        if (_startingIndex.Count == 0) return false;
+        var list = new List<SelectorIndex<CompiledRule>.Entry>();
+        _startingIndex.CollectMatches(element, list, pseudoElement, _batchDepth > 0 ? _hasCache : null, out _);
+        return list.Count > 0;
+    }
+
+    /// <summary>
+    /// 动画引擎用：解析基础样式（不含动画），并在 <paramref name="levels"/> 中报告胜出声明层级高于动画 / 过渡槽的属性；
+    /// <paramref name="early"/> 非空时把其中的动画值（font-size、line-height、自定义属性）在级联中替换，使依赖它们的值（em、lh、var()）随之变化。
+    /// </summary>
+    internal ComputedStyle ResolveForAnimation(StyleElement element, ComputedStyle? parentStyle, PseudoElementKind pseudoElement, bool startingStyle,
+        CascadeLevelSink? levels, EarlyAnimatedValues? early)
+        => ResolveCore(element, parentStyle, pseudoElement, null, startingStyle, levels, early);
+
+    ComputedStyle ResolveCore(StyleElement element, ComputedStyle? parentStyle, PseudoElementKind pseudoElement, StyleMatchRecord? record, bool startingStyle,
+        CascadeLevelSink? levels, EarlyAnimatedValues? early)
     {
         if (element is null) throw new ArgumentNullException(nameof(element));
         EnsureCompiled();
@@ -294,9 +437,11 @@ public sealed class StyleEngine
 
         try
         {
-            CollectBlocks(element, pseudoElement, record);
+            CollectBlocks(element, pseudoElement, record, startingStyle);
             RunCascade(record);
-            return Compute(parent, isRoot, record);
+            if (levels is not null) ReportLevels(levels);
+            _early = early;
+            return Compute(element, pseudoElement, parent, isRoot, record);
         }
         finally
         {
@@ -305,17 +450,32 @@ public sealed class StyleEngine
         }
     }
 
-    void CollectBlocks(StyleElement element, PseudoElementKind pseudo, StyleMatchRecord? record)
+    bool _evaluatedHas;
+
+    void CollectBlocks(StyleElement element, PseudoElementKind pseudo, StyleMatchRecord? record, bool startingStyle)
     {
         _entries.Clear();
         _blocks.Clear();
-        _index.CollectMatches(element, _entries, pseudo);
+        _containerResults.Clear();
+        _usedContainer = false;
+        if (_batchDepth == 0) _hasCache.Clear();
+        else _hasCache.ResetBudget();
+        _index.CollectMatches(element, _entries, pseudo, _hasCache, out _evaluatedHas);
+        if (startingStyle && _startingIndex.Count > 0)
+        {
+            int before = _entries.Count;
+            _startingIndex.CollectMatches(element, _entries, pseudo, _hasCache, out bool h2);
+            _evaluatedHas |= h2;
+            // 两个索引的出现顺序是同一个全局计数：合并后按出现顺序排序（同一规则的项保持相邻）
+            if (_entries.Count > before) _entries.Sort(static (a, b) => a.Value.Order != b.Value.Order ? a.Value.Order.CompareTo(b.Value.Order) : a.Order.CompareTo(b.Order));
+        }
         CompiledRule? last = null;
         int lastFirstBlock = -1;
         foreach (var e in _entries)
         {
             var rule = e.Value;
             if (rule.Media is { } gate && !gate.Evaluate(_mediaGeneration, Environment.Media)) continue;
+            if (rule.Container is { } cg && !EvaluateContainer(cg, element, pseudo)) continue;
             if (ReferenceEquals(rule, last))
             {
                 // 同一规则的多个选择器都命中：取特异性最高的那个（同一规则的项在索引中相邻）
@@ -337,6 +497,18 @@ public sealed class StyleEngine
             last = rule;
             lastFirstBlock = _blocks.Count;
             AddRuleBlocks(rule, e.Specificity, e.Selector, record is not null);
+        }
+
+        // 表现提示：作者来源、特异性 0、出现在所有作者规则之前；其中的 !important 被忽略
+        if (pseudo == PseudoElementKind.None && element.PresentationalHints is { } hints)
+        {
+            var block = hints.Block;
+            if (block.Normal.Length > 0)
+            {
+                MatchedRule? rec = record is null ? null
+                    : new MatchedRule(null, "presentational hints", null, default, CascadeOrigin.Author, isInline: false, null, Array.Empty<MediaQueryList>(), null, -1);
+                AddBlock(block.Normal, Array.Empty<RejectedDeclaration>(), LevelPresentationalHint, 0, default, -1, null, null, (byte)CascadeOrigin.Author, null, rec);
+            }
         }
 
         if (pseudo == PseudoElementKind.None && element.InlineStyle is { } inline)
@@ -506,11 +678,27 @@ public sealed class StyleEngine
         }
         slot.State = SlotState.Decided;
         slot.Value = value;
+        slot.Level = (byte)b.Level;
         return DeclarationStatus.Active;
+    }
+
+    EarlyAnimatedValues? _early;
+
+    void ReportLevels(CascadeLevelSink sink)
+    {
+        sink.Clear();
+        foreach (int id in _touched)
+        {
+            ref var slot = ref _slots[id];
+            if (slot.State != SlotState.Decided) continue;
+            if (slot.Level > LevelAnimation) sink.AboveAnimation.Add((CssPropertyId)id);
+            if (slot.Level > LevelTransition) sink.AboveTransition.Add((CssPropertyId)id);
+        }
     }
 
     void ResetSlots()
     {
+        _early = null;
         foreach (int id in _touched) _slots[id] = default;
         _touched.Clear();
         _customSlots.Clear();
@@ -520,17 +708,43 @@ public sealed class StyleEngine
 
     // ================= 计算值 =================
 
-    ComputedStyle Compute(ComputedStyle parent, bool isRoot, StyleMatchRecord? record)
+    ComputedStyle Compute(StyleElement element, PseudoElementKind pseudo, ComputedStyle parent, bool isRoot, StyleMatchRecord? record)
     {
-        // 自定义属性
-        _vars.Begin(parent.CustomProperties, Environment);
+        var c = _computer;
+        c.Begin(isRoot ? null : parent, isRoot);
+        c.Element = element;
+        _containerSource.Begin(element, pseudo);
+        c.Containers = _containerSource;
+
+        // 自定义属性：先登记声明，按需惰性解析（font-size 中的 var() 用父元素的字体大小换算已注册的长度）
+        var parentMap = isRoot && _registry.Count > 0 ? _registry.InitialMap : parent.CustomProperties;
+        _vars.Begin(parentMap, Environment, _registry, c);
         foreach (var kv in _customSlots)
         {
             var s = kv.Value;
             if (s.State == SlotState.Decided && s.Value is not null) _vars.Declare(kv.Key, s.Value);
             // revert 到底：等同 unset（自定义属性可继承 → 取父值，无需记录）
         }
-        var customMap = _vars.HasDeclarations
+        // 动画中的自定义属性（动画 / 过渡槽高于普通作者声明）
+        if (_early?.Custom is { } earlyCustom)
+            foreach (var kv in earlyCustom) _vars.Declare(kv.Key, kv.Value);
+
+        _explicitBorderWidths = 0;
+        _inheritsNonInherited = false;
+        var b = _builder;
+        b.ResetGroups(parent, ComputedStyle.Initial);
+
+        // font-size 先于其他属性（em 的基准），line-height 其次（lh 的基准）
+        ApplySlot(CssPropertyId.FontSize, ref _slots[(int)CssPropertyId.FontSize], parent);
+        if (_early is { FontSize: { } animatedFontSize }) Animation.AnimationDispatch.SetValue(b, CssPropertyId.FontSize, animatedFontSize);
+        c.FontSize = b.Font.FontSize;
+        if (isRoot) c.RootFontSize = b.Font.FontSize;
+        ApplySlot(CssPropertyId.LineHeight, ref _slots[(int)CssPropertyId.LineHeight], parent);
+        if (_early is { LineHeight: { } animatedLineHeight }) Animation.AnimationDispatch.SetValue(b, CssPropertyId.LineHeight, animatedLineHeight);
+        c.LineHeight = b.Font.LineHeight.Resolve(b.Font.FontSize);
+        if (isRoot) c.RootLineHeight = c.LineHeight;
+
+        var customMap = _vars.NeedsMap
             ? _vars.BuildMap(record is null ? null : name =>
             {
                 var w = record.GetWinner(name);
@@ -540,23 +754,11 @@ public sealed class StyleEngine
                     w.Reason = "var() 引用无效或存在循环，计算值时无效";
                 }
             })
-            : parent.CustomProperties;
-
-        var c = _computer;
-        c.Begin(isRoot ? null : parent, isRoot);
-        _explicitBorderWidths = 0;
-        _inheritsNonInherited = false;
-        var b = _builder;
-        b.ResetGroups(parent, ComputedStyle.Initial);
-
-        // font-size 先于其他属性（em 的基准）
-        ApplySlot(CssPropertyId.FontSize, ref _slots[(int)CssPropertyId.FontSize], parent);
-        c.FontSize = b.Font.FontSize;
-        if (isRoot) c.RootFontSize = b.Font.FontSize;
+            : parentMap;
 
         foreach (int i in _touched)
         {
-            if (i == (int)CssPropertyId.FontSize) continue;
+            if (i is (int)CssPropertyId.FontSize or (int)CssPropertyId.LineHeight) continue;
             ApplySlot((CssPropertyId)i, ref _slots[i], parent);
         }
 
@@ -564,9 +766,76 @@ public sealed class StyleEngine
 
         b.CustomProperties = customMap;
         b.RootFontSize = isRoot ? b.Font.FontSize : parent.RootFontSize;
+        b.RootLineHeight = isRoot ? (float)c.LineHeight : parent.RootLineHeight;
         b.Flags = c.Flags | (_vars.UsedEnvironment ? ComputedStyleFlags.DependsOnEnvironment : ComputedStyleFlags.None)
-                  | (_inheritsNonInherited ? ComputedStyleFlags.InheritsNonInherited : ComputedStyleFlags.None);
+                  | (_inheritsNonInherited ? ComputedStyleFlags.InheritsNonInherited : ComputedStyleFlags.None)
+                  | (_usedContainer || _containerSource.Used ? ComputedStyleFlags.DependsOnContainer : ComputedStyleFlags.None)
+                  | (_evaluatedHas ? ComputedStyleFlags.DependsOnHas : ComputedStyleFlags.None);
+        c.Element = null;
+        c.Containers = null;
         return new ComputedStyle(b);
+    }
+
+    // ================= 容器查询 =================
+
+    bool EvaluateContainer(ContainerGate gate, StyleElement element, PseudoElementKind pseudo)
+    {
+        _usedContainer = true;
+        for (var g = gate; g is not null; g = g.Parent)
+        {
+            if (!_containerResults.TryGetValue(g, out bool ok))
+            {
+                ok = g.Evaluate(element, pseudo != PseudoElementKind.None, Environment);
+                _containerResults[g] = ok;
+            }
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    /// <summary>容器长度单位的来源：按元素惰性查找最近的、支持相应轴的查询容器。</summary>
+    sealed class EngineContainerSource : ContainerLengthSource
+    {
+        StyleElement? _element;
+        bool _includeSelf;
+        bool _hasWidth, _hasHeight, _searchedWidth, _searchedHeight;
+        double _width, _height;
+
+        public bool Used { get; private set; }
+
+        public void Begin(StyleElement element, PseudoElementKind pseudo)
+        {
+            _element = element;
+            _includeSelf = pseudo != PseudoElementKind.None;
+            _searchedWidth = _searchedHeight = false;
+            Used = false;
+        }
+
+        public override bool TryGetWidth(out double width)
+        {
+            Used = true;
+            if (!_searchedWidth)
+            {
+                _searchedWidth = true;
+                _hasWidth = ContainerGate.TryFindContainer(_element, _includeSelf, null, needWidth: true, needHeight: false, out _, out var w, out _);
+                _width = w;
+            }
+            width = _width;
+            return _hasWidth;
+        }
+
+        public override bool TryGetHeight(out double height)
+        {
+            Used = true;
+            if (!_searchedHeight)
+            {
+                _searchedHeight = true;
+                _hasHeight = ContainerGate.TryFindContainer(_element, _includeSelf, null, needWidth: false, needHeight: true, out _, out _, out var h);
+                _height = h;
+            }
+            height = _height;
+            return _hasHeight;
+        }
     }
 
     void ApplySlot(CssPropertyId id, ref Slot slot, ComputedStyle parent)
@@ -596,10 +865,11 @@ public sealed class StyleEngine
             }
         }
         _explicitBorderWidths |= BorderWidthBit(id);
-        // color: currentColor 等同 inherit
-        if (id == CssPropertyId.Color && value is ColorValue { Color.IsCurrentColor: true })
+        // color: currentColor 等同 inherit；含 currentColor 的 color-mix() 按父元素的 color 求值（CSS Color 4 §4.4）
+        if (id == CssPropertyId.Color && value is ColorValue { Color.DependsOnCurrentColor: true } colorValue)
         {
-            b.CopyFrom(id, parent);
+            if (colorValue.Color.IsCurrentColor) b.CopyFrom(id, parent);
+            else b.Apply(id, new ColorValue(new CssColor(colorValue.Color.Resolve(parent.Color.Value))), _computer);
             return;
         }
         b.Apply(id, value, _computer);
@@ -708,19 +978,23 @@ public sealed class StyleEngine
             else b.MutableBox().OverflowY = oy == CssOverflow.Visible ? CssOverflow.Auto : CssOverflow.Hidden;
         }
 
-        // 块级化（CSS Display 3 §2.7）：根元素、绝对/固定定位元素与 flex/grid 容器的子元素
+        // 块级化（CSS Display 3 §2.7）：根元素、绝对/固定定位元素与 flex/grid（及 -webkit-box）容器的子元素
         var display = b.Box.Display;
-        if (display is not (CssDisplay.None or CssDisplay.Block or CssDisplay.Flex or CssDisplay.Grid or CssDisplay.FlowRoot))
+        if (display is not (CssDisplay.None or CssDisplay.Block or CssDisplay.Flex or CssDisplay.Grid or CssDisplay.FlowRoot
+            or CssDisplay.Table or CssDisplay.ListItem or CssDisplay.WebkitBox))
         {
             bool blockify = isRoot
                 || b.Position.Position is CssPosition.Absolute or CssPosition.Fixed
-                || parent.Display is CssDisplay.Flex or CssDisplay.InlineFlex or CssDisplay.Grid or CssDisplay.InlineGrid;
+                || parent.Display is CssDisplay.Flex or CssDisplay.InlineFlex or CssDisplay.Grid or CssDisplay.InlineGrid
+                    or CssDisplay.WebkitBox or CssDisplay.WebkitInlineBox;
             if (blockify && !(display == CssDisplay.Contents && !isRoot))
             {
                 b.MutableBox().Display = display switch
                 {
                     CssDisplay.InlineFlex => CssDisplay.Flex,
                     CssDisplay.InlineGrid => CssDisplay.Grid,
+                    CssDisplay.InlineTable => CssDisplay.Table,
+                    CssDisplay.WebkitInlineBox => CssDisplay.WebkitBox,
                     _ => CssDisplay.Block,
                 };
             }

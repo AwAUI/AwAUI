@@ -172,4 +172,7 @@ public static class ValueText
     public static string Percent(float v) => Number(v) + "%";
 
     public static string Integer(int v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>时间（毫秒）按秒序列化（Chrome 的 getComputedStyle 写法，如 <c>0.15s</c>）；-1 为 <c>auto</c>。</summary>
+    public static string Time(float ms) => ms == -1 ? "auto" : Number(ms / 1000) + "s";
 }

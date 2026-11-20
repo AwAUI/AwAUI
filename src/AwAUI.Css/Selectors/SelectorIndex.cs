@@ -142,14 +142,27 @@ public sealed class SelectorIndex<T>
 
     /// <summary>收集与元素（或其伪元素）匹配的项，按出现顺序排列。</summary>
     public void CollectMatches(StyleElement element, List<Entry> result, PseudoElementKind pseudoElement = PseudoElementKind.None)
+        => CollectMatches(element, result, pseudoElement, null, out _);
+
+    /// <summary>
+    /// 收集匹配项，<c>:has()</c> 的结果经 <paramref name="hasCache"/> 缓存；<paramref name="evaluatedHas"/> 报告是否有含 <c>:has()</c> 的候选被求值
+    /// （元素的样式因此依赖其后代或兄弟）。
+    /// </summary>
+    public void CollectMatches(StyleElement element, List<Entry> result, PseudoElementKind pseudoElement, HasMatchCache? hasCache, out bool evaluatedHas)
     {
         int start = result.Count;
         CollectCandidates(element, result);
         int write = start;
+        evaluatedHas = false;
         for (int i = start; i < result.Count; i++)
         {
             var e = result[i];
-            if (SelectorMatcher.Matches(e.Selector, element, pseudoElement)) result[write++] = e;
+            if (e.Selector.ContainsHas)
+            {
+                evaluatedHas = true;
+                hasCache ??= new HasMatchCache(); // 这次收集内的候选共享一个访问预算
+            }
+            if (SelectorMatcher.Matches(e.Selector, element, pseudoElement, hasCache)) result[write++] = e;
         }
         result.RemoveRange(write, result.Count - write);
     }

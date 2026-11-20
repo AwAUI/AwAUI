@@ -67,12 +67,18 @@ internal sealed class VariantRegistry
             else if (n.Kind == AstKind.AtRule && n.Name != "@slot") selectors.Add(n.Name + " " + n.Params);
             return WalkAction<AstNode>.Continue;
         });
-        Static(name, r =>
+        StaticChecked(name, (r, _) =>
         {
             var body = AstNode.CloneList(ast);
-            if (usesAtVariant) AtRules.SubstituteAtVariant(body, ds);
+            if (usesAtVariant)
+            {
+                AtRules.SubstituteAtVariant(body, ds);
+                // 主体里的 @variant 可以引用其它自定义变体，多次嵌套时按层数指数增长
+                if (CandidateCompiler.ExceedsSelectorBudget(AstNode.Rule("&", body))) return false;
+            }
             AtRules.SubstituteAtSlot(body, r.Nodes);
             r.Nodes = body;
+            return true;
         }, GetCompounds(selectors));
     }
 

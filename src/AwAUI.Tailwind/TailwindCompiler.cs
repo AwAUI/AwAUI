@@ -44,7 +44,12 @@ public sealed class TailwindGeneratedRule
     /// <summary>规则的 CSS 文本（已展开嵌套；不含 <c>@layer utilities</c> 包裹）。</summary>
     public string Css { get; }
 
-    /// <summary>在当前全部工具规则（按 v4 顺序排序）中的位置，运行时据此插入以保持层叠顺序。</summary>
+    /// <summary>
+    /// 在当前全部工具规则（每个候选的每条规则各占一项，按 v4 顺序排序）中的位置，运行时据此插入以保持层叠顺序。
+    /// 注意：<see cref="TailwindCompiler.Build"/> 的输出会合并相邻的同条件 at 规则（如多个 <c>hover:</c> 规则共用一个
+    /// <c>@media (hover: hover)</c>），其中的规则数与这里的下标不对应；运行时应维护由增量结果组成的规则列表
+    /// （先 <c>Build([])</c> 输出主题与基础样式，再用 <see cref="TailwindCompiler.AddCandidates"/> 加入构建期候选得到基线规则）。
+    /// </summary>
     public int Index { get; }
 }
 
@@ -77,8 +82,9 @@ public sealed class TailwindDelta
 /// </summary>
 /// <remarks>
 /// <para>线程安全：所有公开成员内部加锁，可以从多个线程调用；同一实例上的调用串行执行。</para>
-/// <para>构建期用 <see cref="Build"/> 生成完整样式表；运行时 JIT 先用构建期的候选调用一次 <see cref="Build"/> 建立基线，
-/// 之后对新类名调用 <see cref="AddCandidates"/>，只得到增量规则。</para>
+/// <para>构建期用 <see cref="Build"/> 生成完整样式表。运行时 JIT 先调用一次 <c>Build([])</c>（主题、preflight 与不依赖候选的样式），
+/// 再用 <see cref="AddCandidates"/> 加入构建期的候选得到逐条的基线规则，之后对新类名调用 <see cref="AddCandidates"/> 只得到增量规则
+/// （<see cref="TailwindGeneratedRule.Index"/> 指向逐条规则列表中的位置，与 <see cref="Build"/> 合并后的输出不对应）。</para>
 /// </remarks>
 public sealed class TailwindCompiler
 {
@@ -111,6 +117,15 @@ public sealed class TailwindCompiler
 
     /// <summary><c>@source</c> 声明的扫描路径。</summary>
     public IReadOnlyList<TailwindSource> Sources => _sheet.Sources;
+
+    /// <summary>
+    /// 主题与工具 / 变体注册表（只供以源码链接方式编入本引擎的构建集成使用，例如判断未知类名是否「像」工具类）。
+    /// 不加锁：只应读取创建后不再变化的部分（工具与变体注册表）。
+    /// </summary>
+    internal DesignSystem Design => _sheet.DesignSystem;
+
+    /// <summary><c>@tailwind utilities</c> 的参数（含 <c>@import "tailwindcss" source(...)</c> 带来的 <c>source(...)</c>）；没有该指令时为 null。</summary>
+    internal string? UtilitiesParams => _sheet.UtilitiesNode?.Params;
 
     /// <summary>当前已加入的候选类名（含 <c>@source inline(...)</c>）。</summary>
     public IReadOnlyList<string> Candidates
@@ -186,6 +201,8 @@ public sealed class TailwindCompiler
             var all = CandidateCompiler.CompileCandidates(_candidates, ds);
             var rules = new List<TailwindGeneratedRule>();
             var globals = new List<AstNode>();
+            // animation 声明里直接写出的 keyframes 名（@theme inline 的 --animate-* 被内联时不会标记主题变量为已用）
+            var animationNames = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < all.AstNodes.Count; i++)
             {
                 var node = all.AstNodes[i];
@@ -193,6 +210,14 @@ public sealed class TailwindCompiler
                 if (!freshSet.Contains(candidate)) continue;
                 var optimized = Optimizer.Optimize(new List<AstNode> { node }, ds, Polyfills.None);
                 var ruleNodes = new List<AstNode>();
+                AstNode.Walk(optimized, (n, _) =>
+                {
+                    if (n.Kind == AstKind.Declaration && n.Property == "animation" && n.Value != null)
+                    {
+                        foreach (var name in n.Value.Split(s_keyframeSeparators, StringSplitOptions.RemoveEmptyEntries)) animationNames.Add(name);
+                    }
+                    return WalkAction<AstNode>.Continue;
+                });
                 foreach (var n in optimized)
                 {
                     if (n.Kind == AstKind.AtRule && n.Name == "@property")
@@ -207,7 +232,7 @@ public sealed class TailwindCompiler
             foreach (var kf in ds.Theme.GetKeyframes())
             {
                 if (_emittedKeyframes.Contains(kf.Params)) continue;
-                if (!IsKeyframesUsed(kf.Params, ds)) continue;
+                if (!animationNames.Contains(kf.Params) && !IsKeyframesUsed(kf.Params, ds)) continue;
                 _emittedKeyframes.Add(kf.Params);
                 globals.Add(kf);
             }
@@ -279,6 +304,8 @@ public sealed class TailwindCompiler
             if ((e.Options & (ThemeOptions.Used | ThemeOptions.Static)) != 0 && (e.Options & ThemeOptions.Reference) == 0) _emittedThemeVariables.Add(e.Key);
         }
     }
+
+    static readonly char[] s_keyframeSeparators = { ' ', '\t', '\n', '\r', '\f', ',' };
 
     bool IsKeyframesUsed(string name, DesignSystem ds)
     {

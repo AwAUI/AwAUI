@@ -175,7 +175,28 @@ public sealed class CssToken : CssComponentValue
 
     /// <summary>构造一个不对应源文本的 dimension 记号（<c>env()</c> 替换等）。</summary>
     internal static CssToken CreateDimension(double value, string unit)
-        => new(CssTokenType.Dimension, default) { Number = value, Unit = unit, NumberType = CssNumberType.Number };
+        => new(CssTokenType.Dimension, default)
+        {
+            Number = value, Unit = unit,
+            NumberType = value == Math.Floor(value) && Math.Abs(value) < 1e15 ? CssNumberType.Integer : CssNumberType.Number,
+        };
+
+    /// <summary>构造一个不对应源文本的 number 记号（相对颜色语法的通道值、注册属性的计算值等）。</summary>
+    internal static CssToken CreateNumber(double value)
+        => new(CssTokenType.Number, default) { Number = value, NumberType = value == Math.Floor(value) && Math.Abs(value) < 1e15 ? CssNumberType.Integer : CssNumberType.Number };
+
+    /// <summary>构造一个不对应源文本的 percentage 记号。</summary>
+    internal static CssToken CreatePercentage(double value)
+        => new(CssTokenType.Percentage, default) { Number = value, NumberType = CssNumberType.Number };
+
+    /// <summary>构造一个不对应源文本的 ident 记号。</summary>
+    internal static CssToken CreateIdent(string value) => new(CssTokenType.Ident, default) { Value = value };
+
+    /// <summary>构造一个不对应源文本的 string 记号。</summary>
+    internal static CssToken CreateString(string value) => new(CssTokenType.String, default) { Value = value };
+
+    /// <summary>构造一个不对应源文本的空白记号。</summary>
+    internal static CssToken CreateWhitespace() => new(CssTokenType.Whitespace, default);
 
     public CssTokenType Type { get; }
 

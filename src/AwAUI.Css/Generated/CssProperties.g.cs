@@ -448,6 +448,241 @@ public static partial class CssProperties
         CssPropertyId.FontFamily,
     };
 
+    static readonly CssPropertyId[] s_longhandsTransition =
+    {
+        CssPropertyId.TransitionProperty,
+        CssPropertyId.TransitionDuration,
+        CssPropertyId.TransitionTimingFunction,
+        CssPropertyId.TransitionDelay,
+        CssPropertyId.TransitionBehavior,
+    };
+
+    static readonly CssPropertyId[] s_longhandsAnimation =
+    {
+        CssPropertyId.AnimationName,
+        CssPropertyId.AnimationDuration,
+        CssPropertyId.AnimationTimingFunction,
+        CssPropertyId.AnimationDelay,
+        CssPropertyId.AnimationIterationCount,
+        CssPropertyId.AnimationDirection,
+        CssPropertyId.AnimationFillMode,
+        CssPropertyId.AnimationPlayState,
+        CssPropertyId.AnimationComposition,
+    };
+
+    static readonly CssPropertyId[] s_longhandsTextDecoration =
+    {
+        CssPropertyId.TextDecorationLine,
+        CssPropertyId.TextDecorationStyle,
+        CssPropertyId.TextDecorationColor,
+        CssPropertyId.TextDecorationThickness,
+    };
+
+    static readonly CssPropertyId[] s_longhandsTextWrap =
+    {
+        CssPropertyId.TextWrapMode,
+        CssPropertyId.TextWrapStyle,
+    };
+
+    static readonly CssPropertyId[] s_longhandsListStyle =
+    {
+        CssPropertyId.ListStyleType,
+        CssPropertyId.ListStylePosition,
+        CssPropertyId.ListStyleImage,
+    };
+
+    static readonly CssPropertyId[] s_longhandsContainer =
+    {
+        CssPropertyId.ContainerName,
+        CssPropertyId.ContainerType,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMargin =
+    {
+        CssPropertyId.ScrollMarginTop,
+        CssPropertyId.ScrollMarginRight,
+        CssPropertyId.ScrollMarginBottom,
+        CssPropertyId.ScrollMarginLeft,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPadding =
+    {
+        CssPropertyId.ScrollPaddingTop,
+        CssPropertyId.ScrollPaddingRight,
+        CssPropertyId.ScrollPaddingBottom,
+        CssPropertyId.ScrollPaddingLeft,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMarginInline =
+    {
+        CssPropertyId.ScrollMarginLeft,
+        CssPropertyId.ScrollMarginRight,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMarginBlock =
+    {
+        CssPropertyId.ScrollMarginTop,
+        CssPropertyId.ScrollMarginBottom,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMarginInlineStart =
+    {
+        CssPropertyId.ScrollMarginLeft,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMarginInlineEnd =
+    {
+        CssPropertyId.ScrollMarginRight,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMarginBlockStart =
+    {
+        CssPropertyId.ScrollMarginTop,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollMarginBlockEnd =
+    {
+        CssPropertyId.ScrollMarginBottom,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPaddingInline =
+    {
+        CssPropertyId.ScrollPaddingLeft,
+        CssPropertyId.ScrollPaddingRight,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPaddingBlock =
+    {
+        CssPropertyId.ScrollPaddingTop,
+        CssPropertyId.ScrollPaddingBottom,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPaddingInlineStart =
+    {
+        CssPropertyId.ScrollPaddingLeft,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPaddingInlineEnd =
+    {
+        CssPropertyId.ScrollPaddingRight,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPaddingBlockStart =
+    {
+        CssPropertyId.ScrollPaddingTop,
+    };
+
+    static readonly CssPropertyId[] s_longhandsScrollPaddingBlockEnd =
+    {
+        CssPropertyId.ScrollPaddingBottom,
+    };
+
+    static readonly CssPropertyId[] s_longhandsOverscrollBehavior =
+    {
+        CssPropertyId.OverscrollBehaviorX,
+        CssPropertyId.OverscrollBehaviorY,
+    };
+
+    static readonly CssPropertyId[] s_longhandsOverscrollBehaviorInline =
+    {
+        CssPropertyId.OverscrollBehaviorX,
+    };
+
+    static readonly CssPropertyId[] s_longhandsOverscrollBehaviorBlock =
+    {
+        CssPropertyId.OverscrollBehaviorY,
+    };
+
+    static readonly CssPropertyId[] s_longhandsBlockSize =
+    {
+        CssPropertyId.Height,
+    };
+
+    static readonly CssPropertyId[] s_longhandsInlineSize =
+    {
+        CssPropertyId.Width,
+    };
+
+    static readonly CssPropertyId[] s_longhandsMinBlockSize =
+    {
+        CssPropertyId.MinHeight,
+    };
+
+    static readonly CssPropertyId[] s_longhandsMinInlineSize =
+    {
+        CssPropertyId.MinWidth,
+    };
+
+    static readonly CssPropertyId[] s_longhandsMaxBlockSize =
+    {
+        CssPropertyId.MaxHeight,
+    };
+
+    static readonly CssPropertyId[] s_longhandsMaxInlineSize =
+    {
+        CssPropertyId.MaxWidth,
+    };
+
+    static readonly CssPropertyId[] s_longhandsBorderStartStartRadius =
+    {
+        CssPropertyId.BorderTopLeftRadius,
+    };
+
+    static readonly CssPropertyId[] s_longhandsBorderStartEndRadius =
+    {
+        CssPropertyId.BorderTopRightRadius,
+    };
+
+    static readonly CssPropertyId[] s_longhandsBorderEndStartRadius =
+    {
+        CssPropertyId.BorderBottomLeftRadius,
+    };
+
+    static readonly CssPropertyId[] s_longhandsBorderEndEndRadius =
+    {
+        CssPropertyId.BorderBottomRightRadius,
+    };
+
+    static readonly CssPropertyId[] s_longhandsLineClamp =
+    {
+        CssPropertyId.WebkitLineClamp,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWebkitUserSelect =
+    {
+        CssPropertyId.UserSelect,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWebkitAppearance =
+    {
+        CssPropertyId.Appearance,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWebkitBackdropFilter =
+    {
+        CssPropertyId.BackdropFilter,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWebkitHyphens =
+    {
+        CssPropertyId.Hyphens,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWebkitMaskImage =
+    {
+        CssPropertyId.MaskImage,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWebkitTransform =
+    {
+        CssPropertyId.Transform,
+    };
+
+    static readonly CssPropertyId[] s_longhandsWordWrap =
+    {
+        CssPropertyId.OverflowWrap,
+    };
+
     static readonly CssPropertyId[] s_longhandsAll =
     {
         CssPropertyId.Display,
@@ -469,12 +704,24 @@ public static partial class CssProperties
         CssPropertyId.OverflowX,
         CssPropertyId.OverflowY,
         CssPropertyId.AspectRatio,
+        CssPropertyId.VerticalAlign,
+        CssPropertyId.FieldSizing,
+        CssPropertyId.ContainerType,
+        CssPropertyId.ContainerName,
+        CssPropertyId.WebkitLineClamp,
+        CssPropertyId.WebkitBoxOrient,
+        CssPropertyId.Content,
+        CssPropertyId.TableLayout,
+        CssPropertyId.Appearance,
+        CssPropertyId.Resize,
+        CssPropertyId.Contain,
         CssPropertyId.Position,
         CssPropertyId.Top,
         CssPropertyId.Right,
         CssPropertyId.Bottom,
         CssPropertyId.Left,
         CssPropertyId.ZIndex,
+        CssPropertyId.Isolation,
         CssPropertyId.FlexDirection,
         CssPropertyId.FlexWrap,
         CssPropertyId.FlexGrow,
@@ -517,6 +764,7 @@ public static partial class CssProperties
         CssPropertyId.BorderBottomLeftRadius,
         CssPropertyId.BackgroundColor,
         CssPropertyId.BackgroundImage,
+        CssPropertyId.BackgroundBlendMode,
         CssPropertyId.Opacity,
         CssPropertyId.BoxShadow,
         CssPropertyId.TextOverflow,
@@ -526,12 +774,80 @@ public static partial class CssProperties
         CssPropertyId.OutlineOffset,
         CssPropertyId.ObjectFit,
         CssPropertyId.ObjectPosition,
+        CssPropertyId.Filter,
+        CssPropertyId.BackdropFilter,
+        CssPropertyId.ClipPath,
+        CssPropertyId.MixBlendMode,
+        CssPropertyId.TextDecorationLine,
+        CssPropertyId.TextDecorationStyle,
+        CssPropertyId.TextDecorationColor,
+        CssPropertyId.TextDecorationThickness,
+        CssPropertyId.MaskImage,
+        CssPropertyId.MaskMode,
+        CssPropertyId.MaskRepeat,
+        CssPropertyId.MaskPosition,
+        CssPropertyId.MaskClip,
+        CssPropertyId.MaskOrigin,
+        CssPropertyId.MaskSize,
+        CssPropertyId.MaskComposite,
+        CssPropertyId.MaskType,
+        CssPropertyId.Transform,
+        CssPropertyId.TransformOrigin,
+        CssPropertyId.TransformBox,
+        CssPropertyId.Translate,
+        CssPropertyId.Rotate,
+        CssPropertyId.Scale,
+        CssPropertyId.Perspective,
+        CssPropertyId.PerspectiveOrigin,
+        CssPropertyId.BackfaceVisibility,
+        CssPropertyId.TransformStyle,
+        CssPropertyId.TransitionProperty,
+        CssPropertyId.TransitionDuration,
+        CssPropertyId.TransitionTimingFunction,
+        CssPropertyId.TransitionDelay,
+        CssPropertyId.TransitionBehavior,
+        CssPropertyId.AnimationName,
+        CssPropertyId.AnimationDuration,
+        CssPropertyId.AnimationTimingFunction,
+        CssPropertyId.AnimationDelay,
+        CssPropertyId.AnimationIterationCount,
+        CssPropertyId.AnimationDirection,
+        CssPropertyId.AnimationFillMode,
+        CssPropertyId.AnimationPlayState,
+        CssPropertyId.AnimationComposition,
+        CssPropertyId.UserSelect,
+        CssPropertyId.TouchAction,
+        CssPropertyId.WillChange,
+        CssPropertyId.ScrollBehavior,
+        CssPropertyId.OverscrollBehaviorX,
+        CssPropertyId.OverscrollBehaviorY,
+        CssPropertyId.ScrollSnapType,
+        CssPropertyId.ScrollSnapAlign,
+        CssPropertyId.ScrollSnapStop,
+        CssPropertyId.ScrollMarginTop,
+        CssPropertyId.ScrollMarginRight,
+        CssPropertyId.ScrollMarginBottom,
+        CssPropertyId.ScrollMarginLeft,
+        CssPropertyId.ScrollPaddingTop,
+        CssPropertyId.ScrollPaddingRight,
+        CssPropertyId.ScrollPaddingBottom,
+        CssPropertyId.ScrollPaddingLeft,
+        CssPropertyId.ScrollbarWidth,
+        CssPropertyId.ScrollbarGutter,
         CssPropertyId.FontFamily,
         CssPropertyId.FontSize,
         CssPropertyId.FontWeight,
         CssPropertyId.FontStyle,
         CssPropertyId.FontStretch,
         CssPropertyId.LineHeight,
+        CssPropertyId.FontFeatureSettings,
+        CssPropertyId.FontVariationSettings,
+        CssPropertyId.FontVariantNumeric,
+        CssPropertyId.FontVariantCaps,
+        CssPropertyId.FontKerning,
+        CssPropertyId.FontOpticalSizing,
+        CssPropertyId.WebkitFontSmoothing,
+        CssPropertyId.MozOsxFontSmoothing,
         CssPropertyId.Color,
         CssPropertyId.TextAlign,
         CssPropertyId.WhiteSpace,
@@ -539,6 +855,34 @@ public static partial class CssProperties
         CssPropertyId.OverflowWrap,
         CssPropertyId.Visibility,
         CssPropertyId.ImageRendering,
+        CssPropertyId.LetterSpacing,
+        CssPropertyId.WordSpacing,
+        CssPropertyId.TextIndent,
+        CssPropertyId.TabSize,
+        CssPropertyId.TextWrapMode,
+        CssPropertyId.TextWrapStyle,
+        CssPropertyId.TextTransform,
+        CssPropertyId.TextShadow,
+        CssPropertyId.TextUnderlineOffset,
+        CssPropertyId.TextUnderlinePosition,
+        CssPropertyId.Hyphens,
+        CssPropertyId.WebkitTextFillColor,
+        CssPropertyId.Quotes,
+        CssPropertyId.ListStyleType,
+        CssPropertyId.ListStylePosition,
+        CssPropertyId.ListStyleImage,
+        CssPropertyId.BorderCollapse,
+        CssPropertyId.BorderSpacing,
+        CssPropertyId.CaptionSide,
+        CssPropertyId.EmptyCells,
+        CssPropertyId.CaretColor,
+        CssPropertyId.AccentColor,
+        CssPropertyId.ScrollbarColor,
+        CssPropertyId.ColorScheme,
+        CssPropertyId.Fill,
+        CssPropertyId.Stroke,
+        CssPropertyId.StrokeWidth,
+        CssPropertyId.ForcedColorAdjust,
         CssPropertyId.Cursor,
         CssPropertyId.PointerEvents,
     };
@@ -546,7 +890,7 @@ public static partial class CssProperties
     static readonly CssProperty[] s_all =
     {
         new(CssPropertyId.Display, "display", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "inline", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.BoxSizing, "box-sizing", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "content-box", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BoxSizing, "box-sizing", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "content-box", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Width, "width", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Height, "height", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.MinWidth, "min-width", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
@@ -561,29 +905,41 @@ public static partial class CssProperties
         new(CssPropertyId.PaddingRight, "padding-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.PaddingBottom, "padding-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.PaddingLeft, "padding-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.OverflowX, "overflow-x", inherited: false, CssAnimatable.No, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.OverflowY, "overflow-y", inherited: false, CssAnimatable.No, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.OverflowX, "overflow-x", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.OverflowY, "overflow-y", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.AspectRatio, "aspect-ratio", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.Position, "position", inherited: false, CssAnimatable.No, StyleDifference.Structure, CssPropertyGroup.Position, phase: 1, initial: "static", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.VerticalAlign, "vertical-align", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "baseline", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FieldSizing, "field-sizing", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "fixed", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ContainerType, "container-type", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ContainerName, "container-name", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WebkitLineClamp, "-webkit-line-clamp", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WebkitBoxOrient, "-webkit-box-orient", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "horizontal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Content, "content", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TableLayout, "table-layout", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Appearance, "appearance", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Box, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Resize, "resize", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Box, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Contain, "contain", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Position, "position", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Position, phase: 1, initial: "static", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Top, "top", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Right, "right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Bottom, "bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Left, "left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ZIndex, "z-index", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Structure, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.FlexDirection, "flex-direction", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "row", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.FlexWrap, "flex-wrap", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "nowrap", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Isolation, "isolation", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FlexDirection, "flex-direction", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "row", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FlexWrap, "flex-wrap", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "nowrap", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FlexGrow, "flex-grow", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FlexShrink, "flex-shrink", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "1", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FlexBasis, "flex-basis", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.JustifyContent, "justify-content", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.AlignItems, "align-items", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.AlignSelf, "align-self", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.AlignContent, "align-content", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.JustifyContent, "justify-content", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AlignItems, "align-items", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AlignSelf, "align-self", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AlignContent, "align-content", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.RowGap, "row-gap", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ColumnGap, "column-gap", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Order, "order", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.JustifyItems, "justify-items", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "legacy", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.JustifySelf, "justify-self", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.JustifyItems, "justify-items", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "legacy", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.JustifySelf, "justify-self", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.GridTemplateColumns, "grid-template-columns", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.GridTemplateRows, "grid-template-rows", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.GridTemplateAreas, "grid-template-areas", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
@@ -612,30 +968,127 @@ public static partial class CssProperties
         new(CssPropertyId.BorderBottomLeftRadius, "border-bottom-left-radius", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BackgroundColor, "background-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Background, phase: 1, initial: "transparent", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BackgroundImage, "background-image", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Background, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BackgroundBlendMode, "background-blend-mode", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Background, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Opacity, "opacity", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Effects, phase: 1, initial: "1", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BoxShadow, "box-shadow", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.TextOverflow, "text-overflow", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "clip", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextOverflow, "text-overflow", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "clip", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OutlineWidth, "outline-width", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "medium", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OutlineStyle, "outline-style", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OutlineColor, "outline-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OutlineOffset, "outline-offset", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ObjectFit, "object-fit", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "fill", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ObjectPosition, "object-position", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "50% 50%", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.FontFamily, "font-family", inherited: true, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "sans-serif", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Filter, "filter", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BackdropFilter, "backdrop-filter", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ClipPath, "clip-path", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MixBlendMode, "mix-blend-mode", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Effects, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextDecorationLine, "text-decoration-line", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextDecorationStyle, "text-decoration-style", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "solid", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextDecorationColor, "text-decoration-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextDecorationThickness, "text-decoration-thickness", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskImage, "mask-image", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskMode, "mask-mode", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "match-source", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskRepeat, "mask-repeat", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "repeat", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskPosition, "mask-position", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "0% 0%", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskClip, "mask-clip", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "border-box", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskOrigin, "mask-origin", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "border-box", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskSize, "mask-size", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskComposite, "mask-composite", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "add", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MaskType, "mask-type", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Effects, phase: 1, initial: "luminance", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Transform, "transform", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransformOrigin, "transform-origin", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "50% 50%", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransformBox, "transform-box", inherited: false, CssAnimatable.Discrete, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "view-box", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Translate, "translate", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Rotate, "rotate", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Scale, "scale", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Perspective, "perspective", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.PerspectiveOrigin, "perspective-origin", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "50% 50%", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BackfaceVisibility, "backface-visibility", inherited: false, CssAnimatable.Discrete, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransformStyle, "transform-style", inherited: false, CssAnimatable.Discrete, StyleDifference.Composite, CssPropertyGroup.Transform, phase: 1, initial: "flat", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransitionProperty, "transition-property", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "all", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransitionDuration, "transition-duration", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "0s", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransitionTimingFunction, "transition-timing-function", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "ease", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransitionDelay, "transition-delay", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "0s", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TransitionBehavior, "transition-behavior", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationName, "animation-name", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationDuration, "animation-duration", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "0s", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationTimingFunction, "animation-timing-function", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "ease", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationDelay, "animation-delay", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "0s", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationIterationCount, "animation-iteration-count", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "1", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationDirection, "animation-direction", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationFillMode, "animation-fill-mode", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationPlayState, "animation-play-state", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "running", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AnimationComposition, "animation-composition", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Animation, phase: 1, initial: "replace", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.UserSelect, "user-select", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TouchAction, "touch-action", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WillChange, "will-change", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollBehavior, "scroll-behavior", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.OverscrollBehaviorX, "overscroll-behavior-x", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.OverscrollBehaviorY, "overscroll-behavior-y", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollSnapType, "scroll-snap-type", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollSnapAlign, "scroll-snap-align", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollSnapStop, "scroll-snap-stop", inherited: false, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollMarginTop, "scroll-margin-top", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollMarginRight, "scroll-margin-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollMarginBottom, "scroll-margin-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollMarginLeft, "scroll-margin-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollPaddingTop, "scroll-padding-top", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollPaddingRight, "scroll-padding-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollPaddingBottom, "scroll-padding-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollPaddingLeft, "scroll-padding-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollbarWidth, "scrollbar-width", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollbarGutter, "scrollbar-gutter", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontFamily, "font-family", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "sans-serif", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FontSize, "font-size", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "medium", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FontWeight, "font-weight", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FontStyle, "font-style", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FontStretch, "font-stretch", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.LineHeight, "line-height", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontFeatureSettings, "font-feature-settings", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontVariationSettings, "font-variation-settings", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontVariantNumeric, "font-variant-numeric", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontVariantCaps, "font-variant-caps", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontKerning, "font-kerning", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.FontOpticalSizing, "font-optical-sizing", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WebkitFontSmoothing, "-webkit-font-smoothing", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Font, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MozOsxFontSmoothing, "-moz-osx-font-smoothing", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Font, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Color, "color", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "black", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.TextAlign, "text-align", inherited: true, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "start", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.WhiteSpace, "white-space", inherited: true, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.WordBreak, "word-break", inherited: true, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.OverflowWrap, "overflow-wrap", inherited: true, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.Visibility, "visibility", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextAlign, "text-align", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "start", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WhiteSpace, "white-space", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WordBreak, "word-break", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.OverflowWrap, "overflow-wrap", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Visibility, "visibility", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ImageRendering, "image-rendering", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.Cursor, "cursor", inherited: true, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Interaction, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
-        new(CssPropertyId.PointerEvents, "pointer-events", inherited: true, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Interaction, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.LetterSpacing, "letter-spacing", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WordSpacing, "word-spacing", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextIndent, "text-indent", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TabSize, "tab-size", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "8", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextWrapMode, "text-wrap-mode", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "wrap", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextWrapStyle, "text-wrap-style", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextTransform, "text-transform", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextShadow, "text-shadow", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextUnderlineOffset, "text-underline-offset", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.TextUnderlinePosition, "text-underline-position", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Hyphens, "hyphens", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "manual", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.WebkitTextFillColor, "-webkit-text-fill-color", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Quotes, "quotes", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ListStyleType, "list-style-type", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "disc", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ListStylePosition, "list-style-position", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "outside", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ListStyleImage, "list-style-image", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderCollapse, "border-collapse", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "separate", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderSpacing, "border-spacing", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.CaptionSide, "caption-side", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "top", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.EmptyCells, "empty-cells", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "show", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.CaretColor, "caret-color", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.AccentColor, "accent-color", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollbarColor, "scrollbar-color", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ColorScheme, "color-scheme", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Fill, "fill", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "black", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Stroke, "stroke", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.StrokeWidth, "stroke-width", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "1px", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ForcedColorAdjust, "forced-color-adjust", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Cursor, "cursor", inherited: true, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Interaction, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.PointerEvents, "pointer-events", inherited: true, CssAnimatable.Discrete, StyleDifference.Behavior, CssPropertyGroup.Interaction, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Margin, "margin", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMargin),
         new(CssPropertyId.Padding, "padding", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPadding),
         new(CssPropertyId.Inset, "inset", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInset),
@@ -705,13 +1158,53 @@ public static partial class CssProperties
         new(CssPropertyId.Outline, "outline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsOutline),
         new(CssPropertyId.Background, "background", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBackground),
         new(CssPropertyId.Font, "font", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsFont),
+        new(CssPropertyId.Transition, "transition", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsTransition),
+        new(CssPropertyId.Animation, "animation", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsAnimation),
+        new(CssPropertyId.TextDecoration, "text-decoration", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsTextDecoration),
+        new(CssPropertyId.TextWrap, "text-wrap", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsTextWrap),
+        new(CssPropertyId.ListStyle, "list-style", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsListStyle),
+        new(CssPropertyId.Container, "container", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsContainer),
+        new(CssPropertyId.ScrollMargin, "scroll-margin", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMargin),
+        new(CssPropertyId.ScrollPadding, "scroll-padding", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPadding),
+        new(CssPropertyId.ScrollMarginInline, "scroll-margin-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginInline),
+        new(CssPropertyId.ScrollMarginBlock, "scroll-margin-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginBlock),
+        new(CssPropertyId.ScrollMarginInlineStart, "scroll-margin-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginInlineStart),
+        new(CssPropertyId.ScrollMarginInlineEnd, "scroll-margin-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginInlineEnd),
+        new(CssPropertyId.ScrollMarginBlockStart, "scroll-margin-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginBlockStart),
+        new(CssPropertyId.ScrollMarginBlockEnd, "scroll-margin-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginBlockEnd),
+        new(CssPropertyId.ScrollPaddingInline, "scroll-padding-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingInline),
+        new(CssPropertyId.ScrollPaddingBlock, "scroll-padding-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingBlock),
+        new(CssPropertyId.ScrollPaddingInlineStart, "scroll-padding-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingInlineStart),
+        new(CssPropertyId.ScrollPaddingInlineEnd, "scroll-padding-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingInlineEnd),
+        new(CssPropertyId.ScrollPaddingBlockStart, "scroll-padding-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingBlockStart),
+        new(CssPropertyId.ScrollPaddingBlockEnd, "scroll-padding-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingBlockEnd),
+        new(CssPropertyId.OverscrollBehavior, "overscroll-behavior", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsOverscrollBehavior),
+        new(CssPropertyId.OverscrollBehaviorInline, "overscroll-behavior-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsOverscrollBehaviorInline),
+        new(CssPropertyId.OverscrollBehaviorBlock, "overscroll-behavior-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsOverscrollBehaviorBlock),
+        new(CssPropertyId.BlockSize, "block-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBlockSize),
+        new(CssPropertyId.InlineSize, "inline-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInlineSize),
+        new(CssPropertyId.MinBlockSize, "min-block-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMinBlockSize),
+        new(CssPropertyId.MinInlineSize, "min-inline-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMinInlineSize),
+        new(CssPropertyId.MaxBlockSize, "max-block-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMaxBlockSize),
+        new(CssPropertyId.MaxInlineSize, "max-inline-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMaxInlineSize),
+        new(CssPropertyId.BorderStartStartRadius, "border-start-start-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderStartStartRadius),
+        new(CssPropertyId.BorderStartEndRadius, "border-start-end-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderStartEndRadius),
+        new(CssPropertyId.BorderEndStartRadius, "border-end-start-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderEndStartRadius),
+        new(CssPropertyId.BorderEndEndRadius, "border-end-end-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderEndEndRadius),
+        new(CssPropertyId.LineClamp, "line-clamp", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsLineClamp),
+        new(CssPropertyId.WebkitUserSelect, "-webkit-user-select", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitUserSelect),
+        new(CssPropertyId.WebkitAppearance, "-webkit-appearance", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitAppearance),
+        new(CssPropertyId.WebkitBackdropFilter, "-webkit-backdrop-filter", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitBackdropFilter),
+        new(CssPropertyId.WebkitHyphens, "-webkit-hyphens", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitHyphens),
+        new(CssPropertyId.WebkitMaskImage, "-webkit-mask-image", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitMaskImage),
+        new(CssPropertyId.WebkitTransform, "-webkit-transform", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitTransform),
+        new(CssPropertyId.WordWrap, "word-wrap", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWordWrap),
         new(CssPropertyId.All, "all", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsAll),
     };
 
     /// <summary>清单中计划在后续阶段支持的属性：名称 → 期。</summary>
     static readonly (string Name, int Phase)[] s_planned =
     {
-        ("isolation", 2),
         ("background-size", 2),
         ("background-position", 2),
         ("background-position-x", 2),
@@ -720,78 +1213,17 @@ public static partial class CssProperties
         ("background-clip", 2),
         ("background-origin", 2),
         ("background-attachment", 2),
-        ("transform", 2),
-        ("transform-origin", 2),
-        ("translate", 2),
-        ("rotate", 2),
-        ("scale", 2),
-        ("filter", 2),
-        ("will-change", 2),
-        ("backdrop-filter", 3),
-        ("mix-blend-mode", 3),
-        ("clip-path", 3),
         ("mask", 4),
-        ("mask-image", 4),
         ("border-image", 4),
         ("border-image-source", 4),
         ("border-image-slice", 4),
         ("border-image-width", 4),
         ("border-image-outset", 4),
         ("border-image-repeat", 4),
-        ("line-clamp", 2),
-        ("-webkit-line-clamp", 2),
-        ("letter-spacing", 2),
-        ("word-spacing", 2),
-        ("text-decoration", 2),
-        ("text-decoration-line", 2),
-        ("text-decoration-color", 2),
-        ("text-decoration-style", 2),
-        ("text-decoration-thickness", 2),
-        ("text-transform", 2),
-        ("text-shadow", 2),
-        ("font-feature-settings", 4),
-        ("font-variation-settings", 4),
-        ("font-kerning", 4),
         ("direction", 4),
         ("unicode-bidi", 4),
         ("writing-mode", 4),
         ("text-orientation", 4),
-        ("tab-size", 4),
-        ("text-indent", 4),
-        ("hyphens", 4),
-        ("user-select", 2),
-        ("touch-action", 3),
-        ("overscroll-behavior", 3),
-        ("overscroll-behavior-x", 3),
-        ("overscroll-behavior-y", 3),
-        ("scroll-behavior", 2),
-        ("scroll-snap-type", 3),
-        ("scroll-snap-align", 3),
-        ("scroll-snap-stop", 3),
-        ("scroll-padding", 3),
-        ("scroll-margin", 3),
-        ("scrollbar-width", 3),
-        ("scrollbar-color", 3),
-        ("scrollbar-gutter", 3),
-        ("caret-color", 2),
-        ("accent-color", 2),
-        ("content", 3),
-        ("transition", 2),
-        ("transition-property", 2),
-        ("transition-duration", 2),
-        ("transition-timing-function", 2),
-        ("transition-delay", 2),
-        ("transition-behavior", 2),
-        ("animation", 2),
-        ("animation-name", 2),
-        ("animation-duration", 2),
-        ("animation-timing-function", 2),
-        ("animation-delay", 2),
-        ("animation-iteration-count", 2),
-        ("animation-direction", 2),
-        ("animation-fill-mode", 2),
-        ("animation-play-state", 2),
-        ("animation-composition", 2),
         ("-aw-hit-slop", 2),
         ("-aw-scroll-physics", 3),
         ("-aw-font-smoothing", 2),
@@ -806,9 +1238,9 @@ public static partial class CssProperties
         ("columns", "不支持多栏布局，请使用 display: flex（flex-wrap: wrap）或 grid"),
         ("column-count", "不支持多栏布局，请使用 display: flex（flex-wrap: wrap）或 grid"),
         ("column-width", "不支持多栏布局，请使用 display: flex（flex-wrap: wrap）或 grid"),
-        ("table-layout", "不支持表格布局，请使用 grid"),
-        ("border-collapse", "不支持表格布局，请使用 grid"),
-        ("border-spacing", "不支持表格布局，请使用 gap"),
-        ("vertical-align", "不支持行内格式化上下文，请使用 align-items / align-self"),
+        ("break-before", "不支持分页与多栏断开"),
+        ("break-after", "不支持分页与多栏断开"),
+        ("break-inside", "不支持分页与多栏断开"),
+        ("zoom", "不支持非标准的 zoom，请使用 transform: scale() 或调整尺寸"),
     };
 }

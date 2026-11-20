@@ -51,6 +51,12 @@ public abstract class StyleElement
     /// <summary>前一个元素兄弟。</summary>
     public abstract StyleElement? PreviousSibling { get; }
 
+    /// <summary>
+    /// 第一个子元素（只计元素）。<c>:has()</c> 经它与 <see cref="NextSibling"/> 遍历后代；默认 null（适配器不提供时 <c>:has()</c>
+    /// 的后代形式永不匹配，兄弟形式不受影响）。
+    /// </summary>
+    public virtual StyleElement? FirstChild => null;
+
     /// <summary>后一个元素兄弟。</summary>
     public abstract StyleElement? NextSibling { get; }
 
@@ -74,6 +80,44 @@ public abstract class StyleElement
 
     /// <summary>元素的内联样式（style 属性）；没有则为 null。级联把它排在所有作者规则之上。</summary>
     public virtual CssInlineStyle? InlineStyle => null;
+
+    /// <summary>
+    /// HTML 表现提示（如 <c>&lt;img width=100 height=50&gt;</c> 映射的 <c>width: 100px; height: 50px; aspect-ratio: auto 100 / 50</c>）。
+    /// 级联中位于 UA 普通声明与作者普通声明之间、特异性为 0（CSS Cascade 5 §6.1、HTML §15.3），任何作者规则都能覆盖它；
+    /// 按作者来源参与 <c>revert</c>。<c>!important</c> 在表现提示中被忽略。默认 null。
+    /// </summary>
+    public virtual CssInlineStyle? PresentationalHints => null;
+
+    /// <summary>
+    /// 表单与文档状态伪类（<c>:required :optional :valid :invalid :user-valid :user-invalid :read-only :read-write :indeterminate
+    /// :default :in-range :out-of-range :autofill :open :closed :popover-open :modal :fullscreen :target :target-within :visited
+    /// :link :any-link :local-link :defined :playing :paused</c>）是否匹配。
+    /// 默认：<c>:read-only</c> 与 <c>:defined</c> 匹配（规范中「不可编辑」与「已定义」是默认状态），其余都不匹配。
+    /// 状态变化时宿主负责使样式失效（与 <see cref="States"/> 相同）。
+    /// </summary>
+    public virtual bool MatchesStatePseudoClass(PseudoClass pseudoClass) => pseudoClass is PseudoClass.ReadOnly or PseudoClass.Defined;
+
+    /// <summary>元素的方向性（<c>:dir()</c>），默认 ltr。</summary>
+    public virtual StyleDirection Direction => StyleDirection.Ltr;
+
+    /// <summary>元素自身声明的语言（如 HTML 的 lang 属性）；没有则为 null，<c>:lang()</c> 继续向上查找。</summary>
+    public virtual string? Language => null;
+
+    /// <summary>
+    /// 元素当前的计算样式（上一次样式计算的结果）。容器查询与容器长度单位从祖先读取 <c>container-type</c>、<c>container-name</c>
+    /// 与字体大小；默认 null（该元素不能作为查询容器）。
+    /// </summary>
+    public virtual ComputedStyle? CurrentStyle => null;
+
+    /// <summary>
+    /// 元素作为查询容器时的内容盒尺寸（上一次布局的结果，CSS px）。尚未布局时返回 false，此时依赖它的容器查询不成立、
+    /// 容器单位按小视口换算；布局后宿主应重新计算带 <see cref="ComputedStyleFlags.DependsOnContainer"/> 的元素（见 design/08）。
+    /// </summary>
+    public virtual bool TryGetContainerSize(out float width, out float height)
+    {
+        width = height = 0;
+        return false;
+    }
 
     /// <summary>在元素兄弟中的 1 基位置。默认沿兄弟链计数，可重写为 O(1)。</summary>
     public virtual int GetChildIndex()

@@ -382,6 +382,18 @@ internal abstract class SpecifiedGradient : SpecifiedImage
 
     protected virtual bool ExtraContextDependent => false;
 
+    /// <summary>书写的颜色插值方法（<c>in oklab</c>）。</summary>
+    public CssColorSpace? Interpolation { get; set; }
+
+    public CssHueInterpolation Hue { get; set; }
+
+    protected T WithInterpolation<T>(T g) where T : Gradient
+    {
+        g.Interpolation = Interpolation;
+        g.HueInterpolation = Hue;
+        return g;
+    }
+
     protected ColorStop[] ComputeStops(in LengthContext context)
     {
         var result = new ColorStop[Stops.Length];
@@ -408,7 +420,7 @@ internal sealed class SpecifiedLinearGradient : SpecifiedGradient
     public GradientCorner Corner { get; }
 
     public override CssImage Compute(in LengthContext context)
-        => new LinearGradient(Angle, Corner, Repeating, ComputeStops(context));
+        => WithInterpolation(new LinearGradient(Angle, Corner, Repeating, ComputeStops(context)));
 }
 
 internal sealed class SpecifiedRadialGradient : SpecifiedGradient
@@ -438,9 +450,28 @@ internal sealed class SpecifiedRadialGradient : SpecifiedGradient
     {
         var rx = RadiusX?.Compute(context).ToLengthPercentage() ?? default;
         var ry = RadiusY?.Compute(context).ToLengthPercentage() ?? rx;
-        return new RadialGradient(Shape, Size, rx, ry, CenterX.Compute(context).ToLengthPercentage(),
-            CenterY.Compute(context).ToLengthPercentage(), Repeating, ComputeStops(context));
+        return WithInterpolation(new RadialGradient(Shape, Size, rx, ry, CenterX.Compute(context).ToLengthPercentage(),
+            CenterY.Compute(context).ToLengthPercentage(), Repeating, ComputeStops(context)));
     }
+}
+
+internal sealed class SpecifiedConicGradient : SpecifiedGradient
+{
+    public SpecifiedConicGradient(double from, CalcNode cx, CalcNode cy, bool repeating, SpecifiedStop[] stops) : base(repeating, stops)
+    {
+        From = from;
+        CenterX = cx;
+        CenterY = cy;
+    }
+
+    public double From { get; }
+    public CalcNode CenterX { get; }
+    public CalcNode CenterY { get; }
+
+    protected override bool ExtraContextDependent => CenterX.IsContextDependent || CenterY.IsContextDependent;
+
+    public override CssImage Compute(in LengthContext context)
+        => WithInterpolation(new ConicGradient(From, CenterX.Compute(context).ToLengthPercentage(), CenterY.Compute(context).ToLengthPercentage(), Repeating, ComputeStops(context)));
 }
 
 internal readonly struct SpecifiedShadow

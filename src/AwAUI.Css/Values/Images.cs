@@ -89,9 +89,18 @@ public abstract class Gradient : CssImage
     /// <summary>色标与插值提示，按书写顺序（双位置色标已展开为两个色标）。</summary>
     public IReadOnlyList<ColorStop> Stops { get; }
 
+    /// <summary>
+    /// 书写的颜色插值空间（<c>linear-gradient(in oklab, …)</c>）；省略为 null —— 按 CSS Images 4，此时全部色标为旧式颜色语法
+    /// 则在 sRGB 中插值，否则在 OkLab 中插值（由绘制一侧决定）。
+    /// </summary>
+    public CssColorSpace? Interpolation { get; internal set; }
+
+    /// <summary>极坐标插值空间的色相插值方法。</summary>
+    public CssHueInterpolation HueInterpolation { get; internal set; }
+
     private protected bool StopsEqual(Gradient other)
     {
-        if (Repeating != other.Repeating || Stops.Count != other.Stops.Count) return false;
+        if (Repeating != other.Repeating || Stops.Count != other.Stops.Count || Interpolation != other.Interpolation || HueInterpolation != other.HueInterpolation) return false;
         for (int i = 0; i < Stops.Count; i++)
             if (!Stops[i].Equals(other.Stops[i])) return false;
         return true;
@@ -219,6 +228,40 @@ public sealed class RadialGradient : Gradient
             case RadialSizeKeyword.FarthestSide: sb.Append(" farthest-side"); break;
         }
         sb.Append(" at ").Append(CenterX.ToString()).Append(' ').Append(CenterY.ToString());
+        WriteStops(sb);
+        sb.Append(')');
+        return sb.ToString();
+    }
+}
+
+/// <summary>
+/// <c>conic-gradient()</c> / <c>repeating-conic-gradient()</c>。色标位置是相对整圈的百分比（角度已换算：90deg = 25%）。
+/// </summary>
+public sealed class ConicGradient : Gradient
+{
+    public ConicGradient(double fromDegrees, LengthPercentage centerX, LengthPercentage centerY, bool repeating, IReadOnlyList<ColorStop> stops) : base(repeating, stops)
+    {
+        FromDegrees = fromDegrees;
+        CenterX = centerX;
+        CenterY = centerY;
+    }
+
+    /// <summary>起始角（度，0 = 向上，顺时针）。</summary>
+    public double FromDegrees { get; }
+
+    public LengthPercentage CenterX { get; }
+
+    public LengthPercentage CenterY { get; }
+
+    public override bool Equals(CssImage? other)
+        => other is ConicGradient g && g.FromDegrees.Equals(FromDegrees) && g.CenterX.Equals(CenterX) && g.CenterY.Equals(CenterY) && StopsEqual(g);
+
+    public override int GetHashCode() => HashCodeCompat.Combine(FromDegrees.GetHashCode(), CenterX.GetHashCode(), CenterY.GetHashCode(), StopsHash());
+
+    public override string ToString()
+    {
+        var sb = new StringBuilder(Repeating ? "repeating-conic-gradient(" : "conic-gradient(");
+        sb.Append("from ").Append(CssSerializer.FormatNumber(FromDegrees)).Append("deg at ").Append(CenterX.ToString()).Append(' ').Append(CenterY.ToString());
         WriteStops(sb);
         sb.Append(')');
         return sb.ToString();

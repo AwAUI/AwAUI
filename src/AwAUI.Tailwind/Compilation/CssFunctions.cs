@@ -40,10 +40,14 @@ internal static class CssFunctions
     public static string SubstituteValue(string value, AstNode source, DesignSystem ds)
     {
         var ast = ValueParser.Parse(value);
+        int substitutions = 0;
         ValueParser.Walk(ast, (node, _) =>
         {
             if (node.Kind == ValueKind.Function && (node.Value == "--alpha" || node.Value == "--spacing" || node.Value == "--theme" || node.Value == "theme"))
             {
+                // 展开结果会被继续展开（与 Tailwind 相同）；主题变量互相引用时 Tailwind 会死循环，这里限制次数
+                if (++substitutions > Limits.MaxFunctionSubstitutions)
+                    throw new TailwindException($"Too many nested CSS function calls while resolving `{(value.Length > 200 ? value.Substring(0, 200) + "…" : value)}`. Check for theme variables whose `theme(…)` / `--theme(…)` values refer to each other.");
                 var args = Js.Segment(ValueParser.ToCss(node.Nodes!).Trim(), ',');
                 for (int i = 0; i < args.Count; i++) args[i] = args[i].Trim();
                 string replacement = node.Value switch

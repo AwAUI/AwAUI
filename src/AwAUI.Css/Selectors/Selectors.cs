@@ -122,6 +122,18 @@ public sealed class ComplexSelector
     /// <summary>匹配递归深度的上界，见 <see cref="SelectorList.MatchDepth"/>。</summary>
     internal int MatchDepth { get; }
 
+    int _containsHas = -1;
+
+    /// <summary>选择器中（任意嵌套深度，含 <c>&amp;</c> 引用的父选择器）是否含 <c>:has()</c>。</summary>
+    public bool ContainsHas
+    {
+        get
+        {
+            if (_containsHas < 0) _containsHas = SelectorFeatures.ContainsHas(this, 0) ? 1 : 0;
+            return _containsHas == 1;
+        }
+    }
+
     public IReadOnlyList<CompoundSelector> Compounds { get; }
 
     public IReadOnlyList<Combinator> Combinators { get; }
@@ -478,6 +490,36 @@ public enum PseudoClass : byte
     Empty,
     Root,
     Scope,
+    /// <summary><c>:host</c>：AwAUI 没有 Shadow DOM，永不匹配（但不使所在的选择器列表无效）。</summary>
+    Host,
+    // ---- 表单与文档状态：由 StyleElement.MatchesStatePseudoClass 提供 ----
+    Required,
+    Optional,
+    Valid,
+    Invalid,
+    UserValid,
+    UserInvalid,
+    ReadOnly,
+    ReadWrite,
+    Indeterminate,
+    Default,
+    InRange,
+    OutOfRange,
+    Autofill,
+    Open,
+    Closed,
+    PopoverOpen,
+    Modal,
+    Fullscreen,
+    Target,
+    TargetWithin,
+    Visited,
+    Link,
+    AnyLink,
+    LocalLink,
+    Defined,
+    Playing,
+    Paused,
 }
 
 /// <summary>关键字伪类，如 <c>:hover</c>、<c>:first-child</c>。</summary>
@@ -491,8 +533,13 @@ public sealed class PseudoClassSelector : SimpleSelector
 
     public override Specificity Specificity => new(0, 1, 0);
 
-    /// <summary>是否为用户交互/元素状态类伪类（可出现在 <c>::part()</c> 之后）。</summary>
-    public bool IsStatePseudoClass => PseudoClass <= PseudoClass.PlaceholderShown;
+    /// <summary>
+    /// 是否为用户交互/元素状态类伪类：可出现在伪元素之后（<c>::part(x):hover</c>、<c>::file-selector-button:hover</c>）。
+    /// </summary>
+    public bool IsStatePseudoClass => PseudoClass <= PseudoClass.PlaceholderShown || PseudoClass >= PseudoClass.Required;
+
+    /// <summary>是否由 <see cref="StyleElement.MatchesStatePseudoClass"/> 判定（表单与文档状态）。</summary>
+    public bool IsHookedState => PseudoClass >= PseudoClass.Required;
 
     internal static string NameOf(PseudoClass pc) => pc switch
     {
@@ -513,7 +560,35 @@ public sealed class PseudoClassSelector : SimpleSelector
         PseudoClass.OnlyOfType => "only-of-type",
         PseudoClass.Empty => "empty",
         PseudoClass.Root => "root",
-        _ => "scope",
+        PseudoClass.Scope => "scope",
+        PseudoClass.Host => "host",
+        PseudoClass.Required => "required",
+        PseudoClass.Optional => "optional",
+        PseudoClass.Valid => "valid",
+        PseudoClass.Invalid => "invalid",
+        PseudoClass.UserValid => "user-valid",
+        PseudoClass.UserInvalid => "user-invalid",
+        PseudoClass.ReadOnly => "read-only",
+        PseudoClass.ReadWrite => "read-write",
+        PseudoClass.Indeterminate => "indeterminate",
+        PseudoClass.Default => "default",
+        PseudoClass.InRange => "in-range",
+        PseudoClass.OutOfRange => "out-of-range",
+        PseudoClass.Autofill => "autofill",
+        PseudoClass.Open => "open",
+        PseudoClass.Closed => "closed",
+        PseudoClass.PopoverOpen => "popover-open",
+        PseudoClass.Modal => "modal",
+        PseudoClass.Fullscreen => "fullscreen",
+        PseudoClass.Target => "target",
+        PseudoClass.TargetWithin => "target-within",
+        PseudoClass.Visited => "visited",
+        PseudoClass.Link => "link",
+        PseudoClass.AnyLink => "any-link",
+        PseudoClass.LocalLink => "local-link",
+        PseudoClass.Defined => "defined",
+        PseudoClass.Playing => "playing",
+        _ => "paused",
     };
 
     public override void WriteCss(StringBuilder sb)
@@ -538,11 +613,15 @@ public sealed class PseudoClassSelector : SimpleSelector
             case PseudoClass.FirstChild: return e.PreviousSibling is null;
             case PseudoClass.LastChild: return e.NextSibling is null;
             case PseudoClass.OnlyChild: return e.PreviousSibling is null && e.NextSibling is null;
-            case PseudoClass.FirstOfType: return NthSelector.SameTypeSibling(e, forward: false) is null;
-            case PseudoClass.LastOfType: return NthSelector.SameTypeSibling(e, forward: true) is null;
-            case PseudoClass.OnlyOfType: return NthSelector.SameTypeSibling(e, false) is null && NthSelector.SameTypeSibling(e, true) is null;
+            case PseudoClass.FirstOfType: return NthSelector.HasNoSameTypeSibling(e, false, ref context);
+            case PseudoClass.LastOfType: return NthSelector.HasNoSameTypeSibling(e, true, ref context);
+            case PseudoClass.OnlyOfType:
+                return NthSelector.HasNoSameTypeSibling(e, false, ref context) && NthSelector.HasNoSameTypeSibling(e, true, ref context);
             case PseudoClass.Empty: return e.IsEmpty;
-            default: return e.IsRoot; // :root、:scope（样式表上下文中 :scope 即根）
+            case PseudoClass.Root:
+            case PseudoClass.Scope: return e.IsRoot; // 样式表上下文中 :scope 即根
+            case PseudoClass.Host: return false;
+            default: return e.MatchesStatePseudoClass(PseudoClass);
         }
     }
 }
@@ -621,41 +700,27 @@ public sealed class NthSelector : SimpleSelector
 
     internal override bool Matches(StyleElement e, ref MatchContext context)
     {
+        bool forward = NthKind is NthKind.LastChild or NthKind.LastOfType;
+        bool ofType = NthKind is NthKind.OfType or NthKind.LastOfType;
+        // 无过滤条件时保留宿主的索引接口（UI 中为 O(1)）；匹配器自身的兄弟遍历纳入 :has() 预算。
+        if (!ofType && Of is null)
+            return MatchesIndex(A, B, forward ? e.GetChildIndexFromEnd() : e.GetChildIndex());
         if (Of is not null && !SelectorMatcher.MatchesAny(Of, e, ref context)) return false;
-        int index;
-        switch (NthKind)
+        int index = 1;
+        for (var s = forward ? e.NextSibling : e.PreviousSibling; s is not null; s = forward ? s.NextSibling : s.PreviousSibling)
         {
-            case NthKind.Child:
-                if (Of is null) { index = e.GetChildIndex(); break; }
-                index = 1;
-                for (var s = e.PreviousSibling; s is not null; s = s.PreviousSibling)
-                    if (SelectorMatcher.MatchesAny(Of, s, ref context)) index++;
-                break;
-            case NthKind.LastChild:
-                if (Of is null) { index = e.GetChildIndexFromEnd(); break; }
-                index = 1;
-                for (var s = e.NextSibling; s is not null; s = s.NextSibling)
-                    if (SelectorMatcher.MatchesAny(Of, s, ref context)) index++;
-                break;
-            case NthKind.OfType:
-                index = 1;
-                for (var s = e.PreviousSibling; s is not null; s = s.PreviousSibling)
-                    if (AsciiCase.EqualsIgnoreCase(s.Tag, e.Tag)) index++;
-                break;
-            default:
-                index = 1;
-                for (var s = e.NextSibling; s is not null; s = s.NextSibling)
-                    if (AsciiCase.EqualsIgnoreCase(s.Tag, e.Tag)) index++;
-                break;
+            if (!context.VisitSelectorWalkStep()) return false;
+            if (ofType ? AsciiCase.EqualsIgnoreCase(s.Tag, e.Tag) : SelectorMatcher.MatchesAny(Of!, s, ref context)) index++;
+            if (context.HasBudgetExceeded) return false;
         }
         return MatchesIndex(A, B, index);
     }
 
-    internal static StyleElement? SameTypeSibling(StyleElement e, bool forward)
+    internal static bool HasNoSameTypeSibling(StyleElement e, bool forward, ref MatchContext context)
     {
         for (var s = forward ? e.NextSibling : e.PreviousSibling; s is not null; s = forward ? s.NextSibling : s.PreviousSibling)
-            if (AsciiCase.EqualsIgnoreCase(s.Tag, e.Tag)) return s;
-        return null;
+            if (!context.VisitSelectorWalkStep() || AsciiCase.EqualsIgnoreCase(s.Tag, e.Tag)) return false;
+        return true;
     }
 }
 
@@ -697,7 +762,7 @@ public sealed class LogicalSelector : SimpleSelector
     internal override bool Matches(StyleElement element, ref MatchContext context)
     {
         bool any = SelectorMatcher.MatchesAny(Arguments, element, ref context);
-        return LogicalKind == LogicalKind.Not ? !any : any;
+        return !context.HasBudgetExceeded && (LogicalKind == LogicalKind.Not ? !any : any);
     }
 }
 
@@ -735,6 +800,22 @@ public enum PseudoElementKind : byte
     Selection,
     /// <summary><c>::part(name …)</c>：匹配组件内部暴露为 part 的元素本身。</summary>
     Part,
+    /// <summary><c>::marker</c>（列表项标记）。</summary>
+    Marker,
+    /// <summary><c>::backdrop</c>（模态与全屏元素下的背景层）。</summary>
+    Backdrop,
+    /// <summary><c>::file-selector-button</c>：只有请求该伪元素的元素（如文件输入）才会用到。</summary>
+    FileSelectorButton,
+    /// <summary><c>::first-letter</c>。</summary>
+    FirstLetter,
+    /// <summary><c>::first-line</c>。</summary>
+    FirstLine,
+    /// <summary><c>::details-content</c>。</summary>
+    DetailsContent,
+    /// <summary>
+    /// 浏览器私有的 <c>::-webkit-*</c> 伪元素（Chromium 把未知的 <c>-webkit-</c> 伪元素视为有效）：解析通过、永不匹配。
+    /// </summary>
+    Vendor,
 }
 
 /// <summary>伪元素选择器。</summary>
@@ -742,11 +823,12 @@ public sealed class PseudoElementSelector : SimpleSelector
 {
     internal static readonly IReadOnlyList<string> NoParts = Array.Empty<string>();
 
-    internal PseudoElementSelector(PseudoElementKind pseudoElement, IReadOnlyList<string> partNames, bool legacySyntax)
+    internal PseudoElementSelector(PseudoElementKind pseudoElement, IReadOnlyList<string> partNames, bool legacySyntax, string? vendorName = null)
     {
         PseudoElement = pseudoElement;
         PartNames = partNames;
         IsLegacySyntax = legacySyntax;
+        VendorName = vendorName;
     }
 
     public override SimpleSelectorKind Kind => SimpleSelectorKind.PseudoElement;
@@ -759,6 +841,9 @@ public sealed class PseudoElementSelector : SimpleSelector
     /// <summary>是否以 CSS2 的单冒号形式书写（<c>:before</c>）。</summary>
     public bool IsLegacySyntax { get; }
 
+    /// <summary><see cref="PseudoElementKind.Vendor"/> 的原名（如 <c>-webkit-scrollbar</c>）。</summary>
+    public string? VendorName { get; }
+
     public override Specificity Specificity => new(0, 0, 1);
 
     public override void WriteCss(StringBuilder sb)
@@ -769,6 +854,13 @@ public sealed class PseudoElementSelector : SimpleSelector
             case PseudoElementKind.After: sb.Append("::after"); break;
             case PseudoElementKind.Placeholder: sb.Append("::placeholder"); break;
             case PseudoElementKind.Selection: sb.Append("::selection"); break;
+            case PseudoElementKind.Marker: sb.Append("::marker"); break;
+            case PseudoElementKind.Backdrop: sb.Append("::backdrop"); break;
+            case PseudoElementKind.FileSelectorButton: sb.Append("::file-selector-button"); break;
+            case PseudoElementKind.FirstLetter: sb.Append("::first-letter"); break;
+            case PseudoElementKind.FirstLine: sb.Append("::first-line"); break;
+            case PseudoElementKind.DetailsContent: sb.Append("::details-content"); break;
+            case PseudoElementKind.Vendor: sb.Append("::"); CssSerializer.WriteIdent(sb, VendorName ?? string.Empty); break;
             default:
                 sb.Append("::part(");
                 for (int i = 0; i < PartNames.Count; i++)
@@ -794,5 +886,294 @@ public sealed class PseudoElementSelector : SimpleSelector
             if (!found) return false;
         }
         return true;
+    }
+}
+
+/// <summary>
+/// <c>:has(&lt;relative-selector-list&gt;)</c>（Selectors 4 §14.2）：锚点元素的后代（<c>&gt;</c> / 后代组合器）或后续兄弟
+/// （<c>+</c> / <c>~</c>）中存在匹配相对选择器的元素。
+/// <para>
+/// 实现：每个相对选择器的第一个复合选择器是隐式的锚点（只匹配当前锚点元素），按组合器决定候选范围（子树、受深度限制的子树、
+/// 后续兄弟或兄弟的子树），对每个候选自右向左匹配。结果在一次样式重算批次内按 (选择器, 锚点) 缓存
+/// （<see cref="Cascade.StyleEngine.BeginRecalcBatch"/>），批次外只在一次元素解析内缓存。
+/// 复杂度：一次求值 O(候选数 × 选择器匹配开销)。嵌套的 <c>:has()</c> 与 <c>:has()</c> 中的伪元素按规范无效；
+/// 每次元素解析与每个重算批次都有遍历上限（<see cref="HasMatchCache"/>）。预算耗尽时，当前顶层选择器不匹配。
+/// </para>
+/// </summary>
+public sealed class HasSelector : SimpleSelector
+{
+    internal HasSelector(SelectorList arguments)
+    {
+        Arguments = arguments;
+        var max = Specificity.Zero;
+        foreach (var s in arguments.Selectors) max = Specificity.Max(max, s.Specificity);
+        _specificity = max;
+    }
+
+    readonly Specificity _specificity;
+
+    public override SimpleSelectorKind Kind => SimpleSelectorKind.Logical;
+
+    /// <summary>相对选择器列表；每项的第一个复合选择器是隐式的锚点（<see cref="ComplexSelector.HasImplicitNesting"/> 为真）。</summary>
+    public SelectorList Arguments { get; }
+
+    public override Specificity Specificity => _specificity;
+
+    internal override int InnerMatchDepth => Arguments.MatchDepth + 1;
+
+    public override void WriteCss(StringBuilder sb)
+    {
+        sb.Append(":has(");
+        Arguments.WriteCss(sb);
+        sb.Append(')');
+    }
+
+    internal override bool Matches(StyleElement element, ref MatchContext context)
+    {
+        // 没有缓存（公共 Matches 等）时为这次顶层匹配创建一个：结果缓存与访问预算同样生效
+        var cache = context.HasCache ??= new HasMatchCache();
+        if (cache.TryGet(this, element, out bool cached)) return cached;
+        bool result = Evaluate(element, ref context);
+        cache.Set(this, element, result);
+        return result;
+    }
+
+    bool Evaluate(StyleElement anchor, ref MatchContext context)
+    {
+        var savedAnchor = context.HasAnchor;
+        var savedParent = context.HasAnchorParent;
+        var savedRelative = context.HasRelative;
+        context.HasAnchor = anchor;
+        context.HasAnchorParent = anchor.Parent;
+        try
+        {
+            foreach (var rel in Arguments.Selectors)
+            {
+                context.HasRelative = rel;
+                if (MatchRelative(rel, anchor, ref context)) return true;
+                if (context.HasBudgetExceeded) break;
+            }
+            return false;
+        }
+        finally
+        {
+            context.HasAnchor = savedAnchor;
+            context.HasAnchorParent = savedParent;
+            context.HasRelative = savedRelative;
+        }
+    }
+
+    static bool MatchRelative(ComplexSelector rel, StyleElement anchor, ref MatchContext context)
+    {
+        var combinators = rel.Combinators;
+        bool leadingSibling = combinators[0] is Combinator.NextSibling or Combinator.SubsequentSibling;
+        bool anyDescendant = false, anyChild = false, allNext = true;
+        int childDepth = 0;
+        foreach (var c in combinators)
+        {
+            if (c == Combinator.Descendant) anyDescendant = true;
+            else if (c == Combinator.Child) { anyChild = true; childDepth++; }
+            if (c != Combinator.NextSibling) allNext = false;
+        }
+        int last = rel.Compounds.Count - 1;
+        if (!leadingSibling)
+        {
+            // 子树：只有子组合器时深度不超过子组合器个数
+            int maxDepth = anyDescendant ? int.MaxValue : childDepth;
+            return ScanSubtree(rel, last, anchor, maxDepth, ref context);
+        }
+        int siblingLimit = allNext ? combinators.Count : int.MaxValue;
+        int n = 0;
+        for (var s = anchor.NextSibling; s is not null && n < siblingLimit; s = s.NextSibling, n++)
+        {
+            if (!Visit(ref context)) return false;
+            if (SelectorMatcher.MatchRelativeCandidate(rel, last, s, ref context)) return true;
+            if (context.HasBudgetExceeded) return false;
+            if ((anyDescendant || anyChild) && ScanSubtree(rel, last, s, anyDescendant ? int.MaxValue : childDepth, ref context)) return true;
+            if (context.HasBudgetExceeded) return false;
+        }
+        return false;
+    }
+
+    /// <summary>非递归地遍历 <paramref name="root"/> 的后代（不含自身），深度不超过 <paramref name="maxDepth"/>。</summary>
+    static bool ScanSubtree(ComplexSelector rel, int last, StyleElement root, int maxDepth, ref MatchContext context)
+    {
+        if (maxDepth <= 0) return false;
+        var node = root.FirstChild;
+        int depth = 1;
+        while (node is not null)
+        {
+            if (!Visit(ref context)) return false;
+            if (SelectorMatcher.MatchRelativeCandidate(rel, last, node, ref context)) return true;
+            if (context.HasBudgetExceeded) return false;
+            var child = depth < maxDepth ? node.FirstChild : null;
+            if (child is not null)
+            {
+                node = child;
+                depth++;
+                continue;
+            }
+            while (node is not null && node.NextSibling is null)
+            {
+                node = node.Parent;
+                depth--;
+                if (node is null || ReferenceEquals(node, root) || depth <= 0) return false;
+            }
+            node = node?.NextSibling;
+        }
+        return false;
+    }
+
+    static bool Visit(ref MatchContext context) => context.VisitHasStep();
+}
+
+/// <summary><c>:has()</c> 相对选择器中隐式的锚点：只匹配当前正在求值的 <c>:has()</c> 的锚点元素。</summary>
+public sealed class HasAnchorSelector : SimpleSelector
+{
+    internal static readonly HasAnchorSelector Instance = new();
+
+    HasAnchorSelector()
+    {
+    }
+
+    public override SimpleSelectorKind Kind => SimpleSelectorKind.Nesting;
+
+    public override Specificity Specificity => Specificity.Zero;
+
+    public override void WriteCss(StringBuilder sb) => sb.Append(":scope");
+
+    internal override bool Matches(StyleElement element, ref MatchContext context) => ReferenceEquals(element, context.HasAnchor);
+}
+
+/// <summary>元素的书写方向性（<c>:dir()</c>）。</summary>
+public enum StyleDirection : byte
+{
+    Ltr,
+    Rtl,
+}
+
+/// <summary><c>:dir(ltr | rtl)</c>：按 <see cref="StyleElement.Direction"/> 匹配。</summary>
+public sealed class DirSelector : SimpleSelector
+{
+    internal DirSelector(StyleDirection direction) => Direction = direction;
+
+    public StyleDirection Direction { get; }
+
+    public override SimpleSelectorKind Kind => SimpleSelectorKind.PseudoClass;
+
+    public override Specificity Specificity => new(0, 1, 0);
+
+    public override void WriteCss(StringBuilder sb) => sb.Append(Direction == StyleDirection.Rtl ? ":dir(rtl)" : ":dir(ltr)");
+
+    internal override bool Matches(StyleElement element, ref MatchContext context) => element.Direction == Direction;
+}
+
+/// <summary><c>:lang(…)</c>：按 <see cref="StyleElement.Language"/> 做语言范围匹配（前缀以 <c>-</c> 分段，<c>*</c> 通配首段）。</summary>
+public sealed class LangSelector : SimpleSelector
+{
+    internal LangSelector(IReadOnlyList<string> ranges) => Ranges = ranges;
+
+    public IReadOnlyList<string> Ranges { get; }
+
+    public override SimpleSelectorKind Kind => SimpleSelectorKind.PseudoClass;
+
+    public override Specificity Specificity => new(0, 1, 0);
+
+    public override void WriteCss(StringBuilder sb)
+    {
+        sb.Append(":lang(");
+        for (int i = 0; i < Ranges.Count; i++)
+        {
+            if (i > 0) sb.Append(", ");
+            CssSerializer.WriteIdent(sb, Ranges[i]);
+        }
+        sb.Append(')');
+    }
+
+    internal override bool Matches(StyleElement element, ref MatchContext context)
+    {
+        string? lang = null;
+        int guard = 0;
+        for (var e = element; e is not null && guard++ < 4096; e = e.Parent)
+        {
+            if (!context.VisitSelectorWalkStep()) return false;
+            lang = e.Language;
+            if (lang is not null) break;
+        }
+        if (lang is null) return false;
+        foreach (var range in Ranges)
+        {
+            if (range.Length == 0) continue;
+            if (range == "*") return lang.Length > 0;
+            if (range.StartsWith("*-", StringComparison.Ordinal))
+            {
+                int dash = lang.IndexOf('-');
+                if (dash >= 0 && AsciiCase.StartsWith(lang.Substring(dash), range.Substring(1), ignoreCase: true)
+                    && (lang.Length == dash + range.Length - 1 || lang[dash + range.Length - 1] == '-')) return true;
+                continue;
+            }
+            if (AsciiCase.StartsWith(lang, range, ignoreCase: true) && (lang.Length == range.Length || lang[range.Length] == '-')) return true;
+        }
+        return false;
+    }
+}
+
+/// <summary><c>:host(&lt;compound&gt;)</c> 与 <c>:host-context(&lt;compound&gt;)</c>：没有 Shadow DOM，永不匹配。</summary>
+public sealed class HostFunctionSelector : SimpleSelector
+{
+    internal HostFunctionSelector(bool context, SelectorList argument)
+    {
+        IsContext = context;
+        Argument = argument;
+    }
+
+    /// <summary>是否为 <c>:host-context()</c>。</summary>
+    public bool IsContext { get; }
+
+    public SelectorList Argument { get; }
+
+    public override SimpleSelectorKind Kind => SimpleSelectorKind.PseudoClass;
+
+    public override Specificity Specificity => new Specificity(0, 1, 0) + Argument.MaxSpecificity;
+
+    internal override int InnerMatchDepth => Argument.MatchDepth + 1;
+
+    public override void WriteCss(StringBuilder sb)
+    {
+        sb.Append(IsContext ? ":host-context(" : ":host(");
+        Argument.WriteCss(sb);
+        sb.Append(')');
+    }
+
+    internal override bool Matches(StyleElement element, ref MatchContext context) => false;
+}
+
+/// <summary>选择器结构的查询（深度有界：解析器已把嵌套限制在 <see cref="SelectorParser.MaxMatchDepth"/> 以内）。</summary>
+internal static class SelectorFeatures
+{
+    public static bool ContainsHas(ComplexSelector s, int depth)
+    {
+        if (depth > 64) return true;
+        foreach (var c in s.Compounds)
+        {
+            foreach (var x in c.Selectors) if (ContainsHas(x, depth)) return true;
+            foreach (var x in c.PseudoElementStates) if (ContainsHas(x, depth)) return true;
+        }
+        return false;
+    }
+
+    static bool ContainsHas(SimpleSelector x, int depth) => x switch
+    {
+        HasSelector => true,
+        LogicalSelector l => ContainsHas(l.Arguments, depth + 1),
+        NthSelector { Of: { } of } => ContainsHas(of, depth + 1),
+        NestingSelector { Parent: { } p } => ContainsHas(p, depth + 1),
+        _ => false,
+    };
+
+    static bool ContainsHas(SelectorList list, int depth)
+    {
+        foreach (var s in list.Selectors) if (ContainsHas(s, depth)) return true;
+        return false;
     }
 }

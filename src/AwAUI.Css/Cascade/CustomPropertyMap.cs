@@ -28,6 +28,26 @@ public sealed class CustomPropertyMap
         _depth = depth;
     }
 
+    /// <summary>
+    /// 本元素上取了非初始值的「不继承」已注册属性（<c>@property … inherits: false</c>）：子元素的映射要把它们重置为初始值。
+    /// 大多数元素为 null。
+    /// </summary>
+    internal string[]? NonInheritedNames { get; private set; }
+
+    /// <summary>不带父链的映射（已注册属性的初始值等）。</summary>
+    internal static CustomPropertyMap CreateFlat(Dictionary<string, CustomPropertyValue?> values)
+        => values.Count == 0 ? Empty : new CustomPropertyMap(null, new Dictionary<string, CustomPropertyValue?>(values, StringComparer.Ordinal), 0);
+
+    /// <summary>与 <see cref="Create"/> 相同，并记录本元素设置的不继承已注册属性。</summary>
+    internal static CustomPropertyMap Create(CustomPropertyMap parent, Dictionary<string, CustomPropertyValue?> changes, string[]? nonInherited)
+    {
+        if (changes.Count == 0 && nonInherited is null) return parent;
+        var m = changes.Count == 0 ? new CustomPropertyMap(parent, new Dictionary<string, CustomPropertyValue?>(StringComparer.Ordinal), parent._depth + 1) : Create(parent, changes);
+        if (ReferenceEquals(m, parent)) m = new CustomPropertyMap(parent, new Dictionary<string, CustomPropertyValue?>(StringComparer.Ordinal), parent._depth + 1);
+        m.NonInheritedNames = nonInherited;
+        return m;
+    }
+
     /// <summary>在 <paramref name="parent"/> 上应用差异（值为 null 表示移除）。差异为空时返回 parent 本身。</summary>
     internal static CustomPropertyMap Create(CustomPropertyMap parent, Dictionary<string, CustomPropertyValue?> changes)
     {
@@ -113,18 +133,37 @@ internal sealed class VariableResolver
     readonly List<Entry> _stack = new();
     CustomPropertyMap _parent = CustomPropertyMap.Empty;
     CssEnvironment _environment = null!;
+    CustomPropertyRegistry _registry = CustomPropertyRegistry.Empty;
+    StyleComputer? _computer;
     int _depth;
     int _elementBudget;
+    bool _ownMap;
 
     /// <summary>本元素的计算中是否用到了 env()。</summary>
     public bool UsedEnvironment { get; private set; }
 
-    public void Begin(CustomPropertyMap parent, CssEnvironment environment)
+    public void Begin(CustomPropertyMap parent, CssEnvironment environment) => Begin(parent, environment, CustomPropertyRegistry.Empty, null);
+
+    /// <summary>
+    /// 开始一个元素。已注册属性（<paramref name="registry"/>）：不继承的取初始值而不是父值；带类型的在替换后按语法校验并计算
+    /// （长度换算用 <paramref name="computer"/> 当前的字体大小，见 <see cref="StyleEngine"/> 的计算顺序）。
+    /// </summary>
+    public void Begin(CustomPropertyMap parent, CssEnvironment environment, CustomPropertyRegistry registry, StyleComputer? computer)
+        => Begin(parent, environment, registry, computer, ownMap: false);
+
+    /// <summary>
+    /// <paramref name="ownMap"/> 为 true 时 <paramref name="parent"/> 是元素自己已计算的映射（动画关键帧在元素的计算样式上求值）：
+    /// 未声明的属性（含不继承的已注册属性）直接取映射中的值，不重置为初始值。
+    /// </summary>
+    public void Begin(CustomPropertyMap parent, CssEnvironment environment, CustomPropertyRegistry registry, StyleComputer? computer, bool ownMap)
     {
+        _ownMap = ownMap;
         _entries.Clear();
         _stack.Clear();
         _parent = parent;
         _environment = environment;
+        _registry = registry;
+        _computer = computer;
         _depth = 0;
         _elementBudget = MaxTokensPerElement;
         UsedEnvironment = false;
@@ -135,22 +174,28 @@ internal sealed class VariableResolver
 
     public bool HasDeclarations => _entries.Count > 0;
 
+    /// <summary>是否需要构建新映射：有声明，或父元素设置了不继承的已注册属性（本元素要重置它们）。</summary>
+    public bool NeedsMap => _entries.Count > 0 || (!_ownMap && _parent.NonInheritedNames is not null);
+
     /// <summary>解析全部声明并得到本元素的映射（无差异时与父映射为同一实例）。</summary>
     public CustomPropertyMap BuildMap(Action<string>? onInvalid = null)
     {
-        if (_entries.Count == 0) return _parent;
+        if (!NeedsMap) return _parent;
         var changes = new Dictionary<string, CustomPropertyValue?>(StringComparer.Ordinal);
+        List<string>? nonInherited = null;
         foreach (var kv in _entries)
         {
             var e = kv.Value;
-            if (e.Declared is CssWideKeywordValue wide)
+            _registry.TryGet(kv.Key, out var reg);
+            var v = Resolve(kv.Key, e);
+            if (e.Declared is CssWideKeywordValue && reg is null)
             {
                 // initial → guaranteed-invalid；inherit / unset（自定义属性可继承）与父值相同，无需记录
-                if (wide.Keyword == Values.CssWideKeyword.Initial && _parent.TryGetValue(kv.Key, out _)) changes[kv.Key] = null;
+                if (((CssWideKeywordValue)e.Declared).Keyword == Values.CssWideKeyword.Initial && _parent.TryGetValue(kv.Key, out _)) changes[kv.Key] = null;
                 continue;
             }
-            var v = Resolve(kv.Key, e);
-            if (v is null) onInvalid?.Invoke(kv.Key);
+            if (v is null && e.Declared is not CssWideKeywordValue) onInvalid?.Invoke(kv.Key);
+            if (reg is not null && !reg.Inherits && !ReferenceEquals(v, reg.InitialValue)) (nonInherited ??= new List<string>()).Add(kv.Key);
             if (v is null)
             {
                 if (_parent.TryGetValue(kv.Key, out _)) changes[kv.Key] = null;
@@ -159,7 +204,16 @@ internal sealed class VariableResolver
             if (_parent.TryGetValue(kv.Key, out var pv) && ReferenceEquals(pv, v)) continue;
             changes[kv.Key] = v;
         }
-        return CustomPropertyMap.Create(_parent, changes);
+        // 父元素设置的不继承属性：本元素没有声明时回到初始值
+        if (!_ownMap && _parent.NonInheritedNames is { } parentNames)
+        {
+            foreach (var name in parentNames)
+            {
+                if (_entries.ContainsKey(name) || !_registry.TryGet(name, out var reg)) continue;
+                changes[name] = reg.InitialValue;
+            }
+        }
+        return CustomPropertyMap.Create(_parent, changes, nonInherited?.ToArray());
     }
 
     CustomPropertyValue? Resolve(string name, Entry e)
@@ -179,18 +233,27 @@ internal sealed class VariableResolver
                 return null;
             }
         }
+        _registry.TryGet(name, out var reg);
         if (e.Declared is not CustomPropertyValue cv)
         {
             e.State = State.Resolved;
-            e.Result = e.Declared is CssWideKeywordValue { Keyword: Values.CssWideKeyword.Initial } ? null
+            var keyword = ((CssWideKeywordValue)e.Declared).Keyword;
+            if (reg is not null)
+            {
+                // 已注册属性：initial 取初始值；unset / revert 类按是否继承
+                bool inherit = keyword == Values.CssWideKeyword.Inherit || (keyword != Values.CssWideKeyword.Initial && reg.Inherits);
+                e.Result = inherit ? ParentValue(name) : reg.InitialValue;
+                return e.Result;
+            }
+            e.Result = keyword == Values.CssWideKeyword.Initial ? null
                 : _parent.TryGetValue(name, out var inherited) ? inherited : null;
             return e.Result;
         }
         if (!cv.HasReferences)
         {
             e.State = State.Resolved;
-            e.Result = cv;
-            return cv;
+            e.Result = reg is null || reg.Syntax.IsUniversal ? cv : Typed(cv, reg);
+            return e.Result;
         }
         if (_depth >= MaxDepth) return null;
         e.State = State.InProgress;
@@ -202,14 +265,35 @@ internal sealed class VariableResolver
         _stack.RemoveAt(_stack.Count - 1);
         e.State = State.Resolved;
         e.Result = e.InCycle || list is null ? null : new CustomPropertyValue(list, hasReferences: false);
+        if (reg is not null)
+        {
+            // 计算值时无效的已注册属性按 unset 处理：继承的取父值，不继承的取初始值
+            e.Result = e.Result is null ? (reg.Inherits ? ParentValue(name) : reg.InitialValue)
+                : reg.Syntax.IsUniversal ? e.Result : Typed(e.Result, reg);
+        }
         return e.Result;
+    }
+
+    /// <summary>父元素上的值（父映射中没有时为初始值）。</summary>
+    CustomPropertyValue? ParentValue(string name)
+        => _parent.TryGetValue(name, out var v) ? v : _registry.TryGet(name, out var reg) ? reg.InitialValue : null;
+
+    /// <summary>按注册的语法校验并计算；不符合时按 unset 处理。</summary>
+    CustomPropertyValue? Typed(CustomPropertyValue v, RegisteredCustomProperty reg)
+    {
+        var ctx = _computer?.CurrentContext ?? new LengthContext(16, 16, _environment);
+        var computed = reg.Syntax.Compute(v.Tokens, ctx);
+        if (computed is null) return reg.Inherits ? ParentValue(reg.Name) : reg.InitialValue;
+        return ReferenceEquals(computed, v.Tokens) ? v : new CustomPropertyValue(computed, hasReferences: false);
     }
 
     /// <summary>查找 <c>var(--name)</c> 的值：本元素声明的先解析，否则取继承来的映射。</summary>
     CustomPropertyValue? Lookup(string name)
     {
         if (_entries.TryGetValue(name, out var e)) return Resolve(name, e);
-        return _parent.TryGetValue(name, out var v) ? v : null;
+        // 不继承的已注册属性：本元素没有声明时为初始值
+        if (_registry.TryGet(name, out var reg) && !reg.Inherits && !_ownMap) return reg.InitialValue;
+        return _parent.TryGetValue(name, out var v) ? v : reg?.InitialValue;
     }
 
     /// <summary>替换组件值列表中的全部 var()/env()；任何引用无效且无回退时返回 null（计算值时无效）。</summary>

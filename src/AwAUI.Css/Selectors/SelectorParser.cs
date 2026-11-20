@@ -57,6 +57,9 @@ public static class SelectorParser
         int _nestingCount;
         int _functionDepth;
 
+        /// <summary>正在解析 <c>:has()</c> 的参数：相对选择器的隐式锚点是 <see cref="HasAnchorSelector"/>，且不允许嵌套的 <c>:has()</c>。</summary>
+        bool _inHas;
+
         // 最近一次失败的原因
         string _failCode = CssDiagnosticCodes.InvalidSelector;
         string _failMessage = "无效的选择器";
@@ -172,7 +175,14 @@ public static class SelectorParser
 
             bool containsNesting = _nestingCount > nestingBefore;
             bool implicitNesting = false;
-            if (relative && (leading is not null || !containsNesting))
+            if (relative && _inHas)
+            {
+                // :has() 的相对选择器：总是以锚点开头（缺省组合器为后代）
+                compounds.Insert(0, new CompoundSelector(new SimpleSelector[] { HasAnchorSelector.Instance }, null, CompoundSelector.NoSelectors, isImplicit: true));
+                combinators.Insert(0, leading ?? Combinator.Descendant);
+                implicitNesting = true;
+            }
+            else if (relative && (leading is not null || !containsNesting))
             {
                 // 嵌套规则：不含 & 或以组合器开头的选择器前补隐式的 &
                 compounds.Insert(0, new CompoundSelector(new SimpleSelector[] { new NestingSelector(_parent) }, null,
@@ -264,10 +274,10 @@ public static class SelectorParser
                             }
                             if (pseudoElement is not null)
                             {
-                                if (pseudoElement.PseudoElement != PseudoElementKind.Part || sel is not PseudoClassSelector { IsStatePseudoClass: true })
+                                if (sel is not PseudoClassSelector { IsStatePseudoClass: true })
                                 {
                                     return Fail<CompoundSelector>(
-                                        $"伪元素 '{pseudoElement}' 之后不支持 '{sel}'（只有 ::part() 之后可以接状态类伪类，如 :hover）",
+                                        $"伪元素 '{pseudoElement}' 之后不支持 '{sel}'（伪元素之后只能接状态类伪类，如 :hover）",
                                         new SourceRange(t.Range.Start, v[pos - 1].Range.End), CssDiagnosticCodes.UnsupportedSelector);
                                 }
                                 (after ??= new List<SimpleSelector>()).Add(sel);
@@ -415,10 +425,8 @@ public static class SelectorParser
 
         static readonly string[] KnownUnsupportedPseudoClasses =
         {
-            "link", "visited", "any-link", "local-link", "target", "target-within", "lang", "dir", "read-only", "read-write",
-            "required", "optional", "valid", "invalid", "user-valid", "user-invalid", "in-range", "out-of-range", "indeterminate",
-            "default", "defined", "host", "host-context", "state", "autofill", "modal", "fullscreen", "popover-open", "playing",
-            "paused", "current", "past", "future", "nth-col", "nth-last-col", "blank", "open", "closed", "picture-in-picture",
+            "state", "current", "past", "future", "nth-col", "nth-last-col", "blank", "picture-in-picture", "buffering", "stalled",
+            "muted", "volume-locked", "seeking", "user-select-none",
         };
 
         static PseudoClass? KeywordPseudoClass(string lower) => lower switch
@@ -441,6 +449,34 @@ public static class SelectorParser
             "empty" => PseudoClass.Empty,
             "root" => PseudoClass.Root,
             "scope" => PseudoClass.Scope,
+            "host" => PseudoClass.Host,
+            "required" => PseudoClass.Required,
+            "optional" => PseudoClass.Optional,
+            "valid" => PseudoClass.Valid,
+            "invalid" => PseudoClass.Invalid,
+            "user-valid" => PseudoClass.UserValid,
+            "user-invalid" => PseudoClass.UserInvalid,
+            "read-only" => PseudoClass.ReadOnly,
+            "read-write" => PseudoClass.ReadWrite,
+            "indeterminate" => PseudoClass.Indeterminate,
+            "default" => PseudoClass.Default,
+            "in-range" => PseudoClass.InRange,
+            "out-of-range" => PseudoClass.OutOfRange,
+            "autofill" or "-webkit-autofill" => PseudoClass.Autofill,
+            "open" => PseudoClass.Open,
+            "closed" => PseudoClass.Closed,
+            "popover-open" => PseudoClass.PopoverOpen,
+            "modal" => PseudoClass.Modal,
+            "fullscreen" => PseudoClass.Fullscreen,
+            "target" => PseudoClass.Target,
+            "target-within" => PseudoClass.TargetWithin,
+            "visited" => PseudoClass.Visited,
+            "link" => PseudoClass.Link,
+            "any-link" => PseudoClass.AnyLink,
+            "local-link" => PseudoClass.LocalLink,
+            "defined" => PseudoClass.Defined,
+            "playing" => PseudoClass.Playing,
+            "paused" => PseudoClass.Paused,
             _ => null,
         };
 
@@ -456,9 +492,8 @@ public static class SelectorParser
                 {
                     case "before": return new PseudoElementSelector(PseudoElementKind.Before, PseudoElementSelector.NoParts, legacySyntax: true);
                     case "after": return new PseudoElementSelector(PseudoElementKind.After, PseudoElementSelector.NoParts, legacySyntax: true);
-                    case "first-line":
-                    case "first-letter":
-                        return Fail<SimpleSelector>($"伪元素 ::{lower} 暂不支持（后置）", range, CssDiagnosticCodes.UnsupportedSelector);
+                    case "first-line": return new PseudoElementSelector(PseudoElementKind.FirstLine, PseudoElementSelector.NoParts, legacySyntax: true);
+                    case "first-letter": return new PseudoElementSelector(PseudoElementKind.FirstLetter, PseudoElementSelector.NoParts, legacySyntax: true);
                 }
                 if (Array.IndexOf(KnownUnsupportedPseudoClasses, lower) >= 0)
                     return Fail<SimpleSelector>($"暂不支持伪类 ':{id.Value}'", range, CssDiagnosticCodes.UnsupportedSelector);
@@ -506,7 +541,55 @@ public static class SelectorParser
                 case "nth-of-type": return ParseNth(fn, NthKind.OfType, allowOf: false);
                 case "nth-last-of-type": return ParseNth(fn, NthKind.LastOfType, allowOf: false);
                 case "has":
-                    return Fail<SimpleSelector>("':has()' 暂不支持（后置）", range, CssDiagnosticCodes.UnsupportedSelector);
+                {
+                    if (_inHas) return Fail<SimpleSelector>("':has()' 不能嵌套在 ':has()' 中", range);
+                    _inHas = true;
+                    SelectorList? list;
+                    try
+                    {
+                        list = ParseList(args, 0, args.Count, forgiving: false, relative: true, fn.Range);
+                    }
+                    finally
+                    {
+                        _inHas = false;
+                    }
+                    if (list is null) return null;
+                    if (list.Count == 0) return Fail<SimpleSelector>("':has()' 需要至少一个相对选择器", range);
+                    if (!CheckNoPseudoElements(list, ":has()")) return null;
+                    return new HasSelector(list);
+                }
+                case "dir":
+                {
+                    var r = new Values.ValueReader(args);
+                    var dir = r.PeekIdentLower();
+                    if (dir is not ("ltr" or "rtl")) return Fail<SimpleSelector>("':dir()' 的参数必须是 ltr 或 rtl", range);
+                    r.Advance();
+                    if (!r.AtEnd) return Fail<SimpleSelector>("':dir()' 只接受一个参数", range);
+                    return new DirSelector(dir == "rtl" ? StyleDirection.Rtl : StyleDirection.Ltr);
+                }
+                case "lang":
+                {
+                    var ranges = new List<string>();
+                    var r = new Values.ValueReader(args);
+                    while (true)
+                    {
+                        var v = r.Next();
+                        if (v is CssToken { Type: CssTokenType.Ident or CssTokenType.String } t) ranges.Add(t.Value);
+                        else return Fail<SimpleSelector>("':lang()' 的参数必须是逗号分隔的语言范围", range);
+                        if (r.AtEnd) break;
+                        if (!r.TryComma()) return Fail<SimpleSelector>("':lang()' 的参数必须是逗号分隔的语言范围", range);
+                    }
+                    return new LangSelector(ranges);
+                }
+                case "host":
+                case "host-context":
+                {
+                    var list = ParseList(args, 0, args.Count, forgiving: false, relative: false, fn.Range);
+                    if (list is null) return null;
+                    if (list.Count != 1 || list[0].Compounds.Count != 1) return Fail<SimpleSelector>($"':{lower}()' 的参数必须是一个复合选择器", range);
+                    if (!CheckNoPseudoElements(list, ":" + lower + "()")) return null;
+                    return new HostFunctionSelector(lower == "host-context", list);
+                }
             }
             if (Array.IndexOf(KnownUnsupportedPseudoClasses, lower) >= 0)
                 return Fail<SimpleSelector>($"暂不支持伪类 ':{fn.Name}()'", range, CssDiagnosticCodes.UnsupportedSelector);
@@ -571,12 +654,12 @@ public static class SelectorParser
                     case "after": return new PseudoElementSelector(PseudoElementKind.After, PseudoElementSelector.NoParts, legacy);
                     case "placeholder": return new PseudoElementSelector(PseudoElementKind.Placeholder, PseudoElementSelector.NoParts, legacy);
                     case "selection": return new PseudoElementSelector(PseudoElementKind.Selection, PseudoElementSelector.NoParts, legacy);
-                    case "first-line":
-                    case "first-letter":
-                        return Fail<PseudoElementSelector>($"伪元素 '::{lower}' 暂不支持（后置）", id.Range, CssDiagnosticCodes.UnsupportedSelector);
-                    case "marker":
-                    case "backdrop":
-                    case "file-selector-button":
+                    case "first-line": return new PseudoElementSelector(PseudoElementKind.FirstLine, PseudoElementSelector.NoParts, legacy);
+                    case "first-letter": return new PseudoElementSelector(PseudoElementKind.FirstLetter, PseudoElementSelector.NoParts, legacy);
+                    case "marker": return new PseudoElementSelector(PseudoElementKind.Marker, PseudoElementSelector.NoParts, legacy);
+                    case "backdrop": return new PseudoElementSelector(PseudoElementKind.Backdrop, PseudoElementSelector.NoParts, legacy);
+                    case "file-selector-button": return new PseudoElementSelector(PseudoElementKind.FileSelectorButton, PseudoElementSelector.NoParts, legacy);
+                    case "details-content": return new PseudoElementSelector(PseudoElementKind.DetailsContent, PseudoElementSelector.NoParts, legacy);
                     case "cue":
                     case "slotted":
                     case "grammar-error":
@@ -585,6 +668,9 @@ public static class SelectorParser
                     case "highlight":
                         return Fail<PseudoElementSelector>($"暂不支持伪元素 '::{id.Value}'", id.Range, CssDiagnosticCodes.UnsupportedSelector);
                 }
+                // Chromium 把未知的 ::-webkit-* 视为有效（永不匹配）；按它处理以免整条规则被丢弃
+                if (lower.StartsWith("-webkit-", StringComparison.Ordinal))
+                    return new PseudoElementSelector(PseudoElementKind.Vendor, PseudoElementSelector.NoParts, legacy, id.Value);
                 return Fail<PseudoElementSelector>($"未知的伪元素 '::{id.Value}'", id.Range, CssDiagnosticCodes.UnsupportedSelector);
             }
             if (c is CssFunction fn)

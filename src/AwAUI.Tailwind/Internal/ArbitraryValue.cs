@@ -149,4 +149,21 @@ internal static class Limits
 
     /// <summary>复合变体（group-*、has-*、not-* ...）的最大嵌套层数。</summary>
     public const int MaxCompoundDepth = 16;
+
+    /// <summary>
+    /// 单个候选展开嵌套后选择器与 at 规则参数的总长度上限（字符，按上界估算）。
+    /// 变体可以让选择器按层数指数增长（<c>[&amp;_a,&amp;_b]:</c>、<c>not-group-has-*:</c>、多选择器的 <c>@custom-variant</c> 叠加），
+    /// 仅靠候选长度和变体数无法约束。正常类名远低于此值（参考语料中最大约 1.3 KiB）；
+    /// 留出余量给带大量嵌套规则的自定义 <c>@utility</c>（类似 typography 的 prose，选择器约 20 KiB）再叠加变体。
+    /// </summary>
+    public const int MaxCandidateSelectorLength = 256 * 1024;
+
+    /// <summary>一次编译中 <c>@apply</c> 展开产生的节点总数上限（<c>@utility</c> 互相 <c>@apply</c> 多次时按层数指数增长）。</summary>
+    public const int MaxApplyExpansionNodes = 250_000;
+
+    /// <summary>单个值中 <c>theme()</c>、<c>--theme()</c>、<c>--spacing()</c>、<c>--alpha()</c> 的展开次数上限（展开结果会继续展开，循环引用时不终止）。</summary>
+    public const int MaxFunctionSubstitutions = 1000;
+
+    /// <summary>一次编译中 <c>@import</c> 的样式表总数上限（每个文件导入多个文件时按深度指数增长）。</summary>
+    public const int MaxImports = 10_000;
 }

@@ -28,6 +28,12 @@ internal sealed class StyleComputer
 
     public ComputedStyleFlags Flags { get; set; }
 
+    /// <summary>正在计算的元素（伪元素时为原始元素）：<c>content</c> 中的 <c>attr()</c> 读取它的属性。</summary>
+    public Selectors.StyleElement? Element { get; set; }
+
+    /// <summary>容器查询长度单位的基准来源（由级联按元素设置）。</summary>
+    public ContainerLengthSource? Containers { get; set; }
+
     public void Begin(ComputedStyle? parent, bool isRoot)
     {
         Parent = parent;
@@ -43,10 +49,21 @@ internal sealed class StyleComputer
             _rootFontSizeForFontSize = parent.RootFontSize;
             RootFontSize = parent.RootFontSize;
         }
+        LineHeight = parent is null ? double.NaN : parent.LineHeight.Resolve(parent.FontSize);
+        RootLineHeight = parent is null || isRoot ? double.NaN : parent.RootLineHeight;
         Flags = ComputedStyleFlags.None;
     }
 
-    LengthContext Context => new(FontSize, RootFontSize, Environment);
+    LengthContext Context => new(FontSize, RootFontSize, Environment, Containers, LineHeight, RootLineHeight);
+
+    /// <summary><c>lh</c> 的基准（本元素的行高，计算 line-height 之前为父元素的行高）；NaN 表示按 1.2 倍字体大小。</summary>
+    public double LineHeight { get; set; } = double.NaN;
+
+    /// <summary><c>rlh</c> 的基准。</summary>
+    public double RootLineHeight { get; set; } = double.NaN;
+
+    /// <summary>当前的长度上下文（已注册自定义属性的长度换算用）。</summary>
+    internal LengthContext CurrentContext => Context;
 
     CalcResult Eval(CalcNode node, in LengthContext context)
     {
@@ -180,6 +197,83 @@ internal sealed class StyleComputer
     }
 
     public CssGridLine ComputeGridLine(CssValue v) => ((GridLineSpecifiedValue)v).Value;
+
+    // ================= 第九批：不依赖上下文的值与依赖字体/视口的值 =================
+
+    /// <summary>解析时即已算好的值。</summary>
+    public T Pre<T>(CssValue v) => ((PrecomputedValue<T>)v).Value;
+
+    /// <summary>依赖上下文（em、视口、容器单位）的值：保守地标记依赖视口。</summary>
+    LengthContext DependentContext()
+    {
+        Flags |= ComputedStyleFlags.DependsOnViewport;
+        return Context;
+    }
+
+    public CssTransformList ComputeTransformList(CssValue v)
+    {
+        var t = (TransformParsers.TransformListValue)v;
+        return t.Computed ?? TransformParsers.Compute(t.Functions, DependentContext());
+    }
+
+    public CssTranslate ComputeTranslate(CssValue v) => TransformParsers.ComputeTranslate(v, ContextFor(v));
+
+    public CssTransformOrigin ComputeTransformOrigin(CssValue v) => TransformParsers.ComputeOrigin(v, ContextFor(v));
+
+    /// <summary><c>perspective</c>：px，none 为 -1。</summary>
+    public float ComputePerspective(CssValue v)
+    {
+        var node = ((NumericValue)v).Node;
+        if (node.Category == CalcCategory.Number) return -1;
+        return Math.Max(0, CalcMath.Finite(Eval(node, Context).Px));
+    }
+
+    public CssFilterList ComputeFilterList(CssValue v)
+    {
+        var f = (FilterParsers.FilterListValue)v;
+        return f.Computed ?? FilterParsers.Compute(f.Filters, DependentContext());
+    }
+
+    public CssClipPath ComputeClipPath(CssValue v)
+    {
+        var c = (ClipPathParsers.ClipPathValue)v;
+        return c.Computed ?? ClipPathParsers.Compute(v, DependentContext());
+    }
+
+    public CssContent ComputeContent(CssValue v)
+    {
+        var c = (ContentParsers.ContentValue)v;
+        return c.Computed ?? ContentParsers.Compute(c.Items, c.Alt, Element, Context);
+    }
+
+    public CssVerticalAlign ComputeVerticalAlign(CssValue v) => TextParsers.ComputeVerticalAlign(v, ContextFor(v));
+
+    /// <summary>可为负的长度（px），如 letter-spacing、scroll-margin。</summary>
+    public float ComputeSignedLength(CssValue v) => CalcMath.Finite(Eval(((NumericValue)v).Node, Context).Px);
+
+    public CssTextIndent ComputeTextIndent(CssValue v) => TextParsers.ComputeTextIndent(v, ContextFor(v));
+
+    public CssTabSize ComputeTabSize(CssValue v) => TextParsers.ComputeTabSize(v, ContextFor(v));
+
+    public CssDecorationThickness ComputeDecorationThickness(CssValue v) => TextParsers.ComputeDecorationThickness(v, ContextFor(v));
+
+    public CssBorderSpacing ComputeBorderSpacing(CssValue v) => TextParsers.ComputeBorderSpacing(v, ContextFor(v));
+
+    /// <summary>值中含视口或容器单位时标记依赖视口（em 只依赖本元素的字体大小，不需要标记）。</summary>
+    LengthContext ContextFor(CssValue v)
+    {
+        if (UsesViewport(v)) Flags |= ComputedStyleFlags.DependsOnViewport;
+        return Context;
+    }
+
+    static bool UsesViewport(CssValue v) => v switch
+    {
+        TransformParsers.TranslateValue t => (t.X?.UsesViewport ?? false) || (t.Y?.UsesViewport ?? false) || (t.Z?.UsesViewport ?? false),
+        TransformParsers.OriginValue o => o.X.UsesViewport || o.Y.UsesViewport || (o.Z?.UsesViewport ?? false),
+        TextParsers.LengthKeywordValue l => l.Node?.UsesViewport ?? false,
+        TextParsers.PairValue p => p.A.UsesViewport || p.B.UsesViewport,
+        _ => true,
+    };
 
     public CssGridTemplateAreas ComputeGridAreas(CssValue v) => ((GridAreasSpecifiedValue)v).Value;
 

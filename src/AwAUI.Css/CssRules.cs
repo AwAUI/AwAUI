@@ -18,8 +18,16 @@ public enum CssRuleKind
     Keyframe,
     FontFace,
     Import,
-    /// <summary>未知或暂不支持的 at 规则（如 <c>@supports</c>），内容按原样保留但不生效。</summary>
+    /// <summary>未知或暂不支持的 at 规则（如 <c>@scope</c>），内容按原样保留但不生效。</summary>
     UnknownAtRule,
+    /// <summary><c>@supports</c>。</summary>
+    Supports,
+    /// <summary><c>@container</c>。</summary>
+    Container,
+    /// <summary><c>@starting-style</c>。</summary>
+    StartingStyle,
+    /// <summary><c>@property</c>。</summary>
+    Property,
 }
 
 /// <summary>规则基类。规则树是不可变的解析结果。</summary>
@@ -171,6 +179,113 @@ public sealed class CssMediaRule : CssRule
     public override IReadOnlyList<CssRule> ChildRules => Rules;
 }
 
+/// <summary>
+/// <c>@supports</c> 规则。条件按本引擎的实际支持情况在解析时求值（CSS Conditional 3/4）：声明测试 <c>(prop: value)</c> 检查属性
+/// 是否受支持且值能被解析，<c>selector()</c> 检查选择器能否解析，<c>font-tech()</c>、<c>font-format()</c> 与无法识别的条件不成立。
+/// </summary>
+public sealed class CssSupportsRule : CssRule
+{
+    internal CssSupportsRule(IReadOnlyList<CssComponentValue> prelude, string conditionText, bool matches, IReadOnlyList<CssRule> rules, SourceRange range)
+        : base(range)
+    {
+        Prelude = prelude;
+        ConditionText = conditionText;
+        Matches = matches;
+        Rules = rules;
+    }
+
+    public override CssRuleKind Kind => CssRuleKind.Supports;
+
+    public IReadOnlyList<CssComponentValue> Prelude { get; }
+
+    /// <summary>条件原文。</summary>
+    public string ConditionText { get; }
+
+    /// <summary>条件是否成立（解析时求值；本引擎的支持情况在运行期不变）。</summary>
+    public bool Matches { get; }
+
+    public IReadOnlyList<CssRule> Rules { get; }
+
+    public override IReadOnlyList<CssRule> ChildRules => Rules;
+}
+
+/// <summary>
+/// <c>@container [&lt;container-name&gt;]? &lt;container-condition&gt;</c>（CSS Containment 3 的尺寸查询）。条件按元素求值：
+/// 查询容器是最近的、<c>container-type</c> 支持所需轴且名称匹配的祖先，尺寸由宿主经 <see cref="Selectors.StyleElement.TryGetContainerSize"/> 提供。
+/// </summary>
+public sealed class CssContainerRule : CssRule
+{
+    internal CssContainerRule(IReadOnlyList<CssComponentValue> prelude, string? name, MediaCondition condition, IReadOnlyList<CssRule> rules, SourceRange range)
+        : base(range)
+    {
+        Prelude = prelude;
+        Name = name;
+        Condition = condition;
+        Rules = rules;
+    }
+
+    public override CssRuleKind Kind => CssRuleKind.Container;
+
+    public IReadOnlyList<CssComponentValue> Prelude { get; }
+
+    /// <summary>容器名（区分大小写）；省略为 null（匹配任何查询容器）。</summary>
+    public string? Name { get; }
+
+    /// <summary>条件（与媒体条件同一棵树，特性为容器尺寸特性）。</summary>
+    public MediaCondition Condition { get; }
+
+    public IReadOnlyList<CssRule> Rules { get; }
+
+    public override IReadOnlyList<CssRule> ChildRules => Rules;
+}
+
+/// <summary>
+/// <c>@starting-style</c>（CSS Transitions 2）：其中的规则不参与普通级联，只在计算元素的「起始样式」时生效
+/// （元素首次得到样式或从 <c>display: none</c> 变为显示时，作为过渡的起点，见 <see cref="Cascade.StyleEngine.ResolveStartingStyle"/>）。
+/// </summary>
+public sealed class CssStartingStyleRule : CssRule
+{
+    internal CssStartingStyleRule(IReadOnlyList<CssRule> rules, SourceRange range) : base(range) => Rules = rules;
+
+    public override CssRuleKind Kind => CssRuleKind.StartingStyle;
+
+    public IReadOnlyList<CssRule> Rules { get; }
+
+    public override IReadOnlyList<CssRule> ChildRules => Rules;
+}
+
+/// <summary>
+/// <c>@property --name { syntax: …; inherits: …; initial-value: …; }</c>（CSS Properties and Values API 1）。
+/// 无效的规则（缺少描述符、语法字符串无效、初始值不符合语法或不是计算期独立的）在解析时报告并丢弃，不会出现在规则树中。
+/// </summary>
+public sealed class CssPropertyRule : CssRule
+{
+    internal CssPropertyRule(string name, Values.CssPropertySyntax syntax, bool inherits, IReadOnlyList<CssComponentValue>? initialValue,
+        IReadOnlyList<CssDeclaration> declarations, SourceRange range) : base(range)
+    {
+        Name = name;
+        Syntax = syntax;
+        Inherits = inherits;
+        InitialValue = initialValue;
+        Declarations = declarations;
+    }
+
+    public override CssRuleKind Kind => CssRuleKind.Property;
+
+    /// <summary>自定义属性名（含 <c>--</c>，区分大小写）。</summary>
+    public string Name { get; }
+
+    public Values.CssPropertySyntax Syntax { get; }
+
+    public bool Inherits { get; }
+
+    /// <summary>初始值的组件值；语法为 <c>*</c> 且省略时为 null（初始值为「保证无效」）。</summary>
+    public IReadOnlyList<CssComponentValue>? InitialValue { get; }
+
+    /// <summary>描述符原样（DevTools）。</summary>
+    public IReadOnlyList<CssDeclaration> Declarations { get; }
+}
+
 /// <summary>块形式的 <c>@layer</c>：<c>@layer name { … }</c> 或匿名 <c>@layer { … }</c>。</summary>
 public sealed class CssLayerBlockRule : CssRule
 {
@@ -274,8 +389,11 @@ public sealed class CssImportRule : CssRule
     /// <summary>层名；<see cref="HasLayer"/> 为真且本属性为 null 表示导入到匿名层。</summary>
     public string? LayerName { get; }
 
-    /// <summary><c>supports(…)</c> 条件的原文（不求值，见 <see cref="CssDiagnosticCodes.UnsupportedAtRule"/>）。</summary>
+    /// <summary><c>supports(…)</c> 条件的原文。</summary>
     public string? SupportsText { get; }
+
+    /// <summary><c>supports(…)</c> 条件是否成立（没有条件时为真）；不成立时导入的样式表与层都不生效。</summary>
+    public bool SupportsMatches { get; internal set; } = true;
 
     public MediaQueryList Media { get; }
 }

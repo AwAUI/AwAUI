@@ -44,6 +44,33 @@ public enum CssLengthUnit : byte
     Dvmax,
     /// <summary>百分比（相对某个百分比基准，布局时解析）。</summary>
     Percent,
+    /// <summary>查询容器宽度的 1%（CSS Containment 3）；没有合适的容器时按小视口。</summary>
+    Cqw,
+    /// <summary>查询容器高度的 1%。</summary>
+    Cqh,
+    /// <summary>查询容器行内尺寸的 1%（横排即宽度）。</summary>
+    Cqi,
+    /// <summary>查询容器块尺寸的 1%（横排即高度）。</summary>
+    Cqb,
+    Cqmin,
+    Cqmax,
+    /// <summary>元素的行高（line-height 的计算值；normal 按 1.2 倍字体大小）。</summary>
+    Lh,
+    /// <summary>根元素的行高。</summary>
+    Rlh,
+}
+
+/// <summary>
+/// 容器查询长度单位（cqw/cqh/cqi/cqb/cqmin/cqmax）的基准来源：计算值阶段由级联按元素的祖先查询容器惰性提供。
+/// 没有合适的查询容器时返回 false，单位按小视口尺寸换算（CSS Containment 3 §8）。
+/// </summary>
+public abstract class ContainerLengthSource
+{
+    /// <summary>最近的、支持行内轴（宽度）尺寸查询的祖先容器的内容盒宽度。</summary>
+    public abstract bool TryGetWidth(out double width);
+
+    /// <summary>最近的、支持块轴（高度）尺寸查询的祖先容器的内容盒高度。</summary>
+    public abstract bool TryGetHeight(out double height);
 }
 
 /// <summary>
@@ -52,11 +79,33 @@ public enum CssLengthUnit : byte
 public readonly struct LengthContext
 {
     public LengthContext(double fontSize, double rootFontSize, CssEnvironment environment)
+        : this(fontSize, rootFontSize, environment, null)
+    {
+    }
+
+    public LengthContext(double fontSize, double rootFontSize, CssEnvironment environment, ContainerLengthSource? containers)
+        : this(fontSize, rootFontSize, environment, containers, double.NaN, double.NaN)
+    {
+    }
+
+    public LengthContext(double fontSize, double rootFontSize, CssEnvironment environment, ContainerLengthSource? containers, double lineHeight, double rootLineHeight)
     {
         FontSize = fontSize;
         RootFontSize = rootFontSize;
         Environment = environment ?? throw new ArgumentNullException(nameof(environment));
+        Containers = containers;
+        LineHeight = lineHeight;
+        RootLineHeight = rootLineHeight;
     }
+
+    /// <summary><c>lh</c> 的基准（px）；NaN 时按 1.2 倍 <see cref="FontSize"/>。</summary>
+    public double LineHeight { get; }
+
+    /// <summary><c>rlh</c> 的基准（px）；NaN 时按 1.2 倍 <see cref="RootFontSize"/>。</summary>
+    public double RootLineHeight { get; }
+
+    /// <summary>容器查询长度单位的基准；为 null 时这些单位按小视口换算。</summary>
+    public ContainerLengthSource? Containers { get; }
 
     /// <summary><c>em</c> 的基准（px）。</summary>
     public double FontSize { get; }
@@ -89,10 +138,13 @@ public readonly struct CssLength : IEquatable<CssLength>
     public bool IsAbsolute => Unit <= CssLengthUnit.Pc;
 
     /// <summary>是否依赖字体大小。</summary>
-    public bool IsFontRelative => Unit is CssLengthUnit.Em or CssLengthUnit.Rem or CssLengthUnit.Ex or CssLengthUnit.Ch;
+    public bool IsFontRelative => Unit is CssLengthUnit.Em or CssLengthUnit.Rem or CssLengthUnit.Ex or CssLengthUnit.Ch or CssLengthUnit.Lh or CssLengthUnit.Rlh;
 
     /// <summary>是否依赖视口尺寸。</summary>
     public bool IsViewportRelative => Unit >= CssLengthUnit.Vw && Unit <= CssLengthUnit.Dvmax;
+
+    /// <summary>是否为容器查询长度单位（cqw 等）。</summary>
+    public bool IsContainerRelative => Unit >= CssLengthUnit.Cqw && Unit <= CssLengthUnit.Cqmax;
 
     /// <summary>把非百分比长度换算为 px。百分比不能在此换算，抛出异常。</summary>
     public double ToPx(in LengthContext context)
@@ -124,11 +176,25 @@ public readonly struct CssLength : IEquatable<CssLength>
             case CssLengthUnit.Dvmin: return Value * Math.Min(env.ViewportWidth, env.ViewportHeight) / 100;
             case CssLengthUnit.Dvmax: return Value * Math.Max(env.ViewportWidth, env.ViewportHeight) / 100;
             case CssLengthUnit.Percent: throw new InvalidOperationException("百分比需要百分比基准，不能直接换算为 px。");
+            case CssLengthUnit.Cqw:
+            case CssLengthUnit.Cqi: return Value * ContainerWidth(context) / 100;
+            case CssLengthUnit.Cqh:
+            case CssLengthUnit.Cqb: return Value * ContainerHeight(context) / 100;
+            case CssLengthUnit.Cqmin: return Value * Math.Min(ContainerWidth(context), ContainerHeight(context)) / 100;
+            case CssLengthUnit.Cqmax: return Value * Math.Max(ContainerWidth(context), ContainerHeight(context)) / 100;
+            case CssLengthUnit.Lh: return Value * (double.IsNaN(context.LineHeight) ? context.FontSize * 1.2 : context.LineHeight);
+            case CssLengthUnit.Rlh: return Value * (double.IsNaN(context.RootLineHeight) ? context.RootFontSize * 1.2 : context.RootLineHeight);
             default: return Value * AbsoluteFactor(Unit);
         }
     }
 
     /// <summary>绝对单位到 px 的换算系数（1in = 96px）。</summary>
+    static double ContainerWidth(in LengthContext c)
+        => c.Containers is { } src && src.TryGetWidth(out var w) ? w : c.Environment.SmallViewportWidth;
+
+    static double ContainerHeight(in LengthContext c)
+        => c.Containers is { } src && src.TryGetHeight(out var h) ? h : c.Environment.SmallViewportHeight;
+
     internal static double AbsoluteFactor(CssLengthUnit unit) => unit switch
     {
         CssLengthUnit.Px => 1,
@@ -177,6 +243,14 @@ public readonly struct CssLength : IEquatable<CssLength>
             case "dvh": result = CssLengthUnit.Dvh; return true;
             case "dvmin": result = CssLengthUnit.Dvmin; return true;
             case "dvmax": result = CssLengthUnit.Dvmax; return true;
+            case "cqw": result = CssLengthUnit.Cqw; return true;
+            case "cqh": result = CssLengthUnit.Cqh; return true;
+            case "cqi": result = CssLengthUnit.Cqi; return true;
+            case "cqb": result = CssLengthUnit.Cqb; return true;
+            case "cqmin": result = CssLengthUnit.Cqmin; return true;
+            case "cqmax": result = CssLengthUnit.Cqmax; return true;
+            case "lh": result = CssLengthUnit.Lh; return true;
+            case "rlh": result = CssLengthUnit.Rlh; return true;
             default: return false;
         }
     }
@@ -190,6 +264,7 @@ public readonly struct CssLength : IEquatable<CssLength>
     {
         "px", "cm", "mm", "q", "in", "pt", "pc", "em", "rem", "ex", "ch", "vw", "vh", "vmin", "vmax", "vi", "vb",
         "svw", "svh", "svmin", "svmax", "lvw", "lvh", "lvmin", "lvmax", "dvw", "dvh", "dvmin", "dvmax", "%",
+        "cqw", "cqh", "cqi", "cqb", "cqmin", "cqmax", "lh", "rlh",
     };
 
     public bool Equals(CssLength other) => Value.Equals(other.Value) && Unit == other.Unit;
