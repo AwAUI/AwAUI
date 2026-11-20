@@ -56,29 +56,40 @@ internal static class PropertyCodeGenerator
         public int Phase;
     }
 
+    /// <summary>计算值类型的比较方式：Operator = 用 != 比较的值类型；Enum = 枚举（哈希按 int）；Struct = 用 Equals 比较的结构；Class = 引用类型（object.Equals）。</summary>
+    enum Kind { Operator, Enum, Struct, Class }
+
     /// <summary>值类型表：计算值的 C# 类型、解析/计算/序列化表达式。{0} = 枚举名，{1} = 标志表达式，{2} = 是否非负（计算表达式用），x = 字段值。</summary>
     sealed class TypeInfo
     {
-        public TypeInfo(string cs, string parse, string compute, string serialize, bool op)
+        public TypeInfo(string cs, string parse, string compute, string serialize, Kind kind)
         {
             CsType = cs;
             Parse = parse;
             Compute = compute;
             Serialize = serialize;
-            UseOperator = op;
+            Kind = kind;
+        }
+
+        public TypeInfo(string cs, string parse, string compute, string serialize, bool op)
+            : this(cs, parse, compute, serialize, op ? (cs is "{0}" ? Kind.Enum : Kind.Operator) : Kind.Struct)
+        {
         }
 
         public string CsType;
         public string Parse;
         public string Compute;
         public string Serialize;
-        public bool UseOperator;
+        public Kind Kind;
+        public bool UseOperator => Kind is Kind.Operator or Kind.Enum;
     }
+
+    static TypeInfo Pre(string cs, string parse, string serialize, Kind kind) => new(cs, parse, "c.Pre<" + cs + ">(value)", serialize, kind);
 
     static readonly Dictionary<string, TypeInfo> Types = new(StringComparer.Ordinal)
     {
-        ["Keyword"] = new("{0}", "ValueParsers.Keyword(ref r, KeywordTables.{0})", "({0})c.Keyword(value)", "KeywordTables.{0}.NameOf((int)x)", true),
-        ["Cursor"] = new("{0}", "ValueParsers.Cursor(ref r, KeywordTables.{0})", "({0})c.Keyword(value)", "KeywordTables.{0}.NameOf((int)x)", true),
+        ["Keyword"] = new("{0}", "ValueParsers.Keyword(ref r, KeywordTables.{0})", "({0})c.Keyword(value)", "KeywordTables.{0}.NameOf((int)x)", Kind.Enum),
+        ["Cursor"] = new("{0}", "ValueParsers.Cursor(ref r, KeywordTables.{0})", "({0})c.Keyword(value)", "KeywordTables.{0}.NameOf((int)x)", Kind.Enum),
         ["Size"] = new("SizeValue", "ValueParsers.Size(ref r, {1})", "c.ComputeSize(value)", "x.ToString()", false),
         ["LengthPercentage"] = new("LengthPercentage", "ValueParsers.LengthPercentage(ref r, {1})", "c.ComputeLengthPercentage(value, nonNegative: {2})", "x.ToString()", false),
         ["LineWidth"] = new("float", "ValueParsers.LineWidth(ref r)", "c.ComputeLength(value)", "ValueText.Px(x)", true),
@@ -87,9 +98,9 @@ internal static class PropertyCodeGenerator
         ["Alpha"] = new("float", "ValueParsers.Alpha(ref r)", "c.ComputeAlpha(value)", "ValueText.Number(x)", true),
         ["IntegerOrAuto"] = new("IntegerOrAuto", "ValueParsers.IntegerOrAuto(ref r)", "c.ComputeIntegerOrAuto(value)", "x.ToString()", false),
         ["Radius"] = new("CornerRadius", "ValueParsers.Radius(ref r)", "c.ComputeRadius(value)", "x.ToString()", false),
-        ["ImageList"] = new("ImageList", "ValueParsers.ImageList(ref r)", "c.ComputeImageList(value)", "x.ToString()", false),
-        ["ShadowList"] = new("ShadowList", "ValueParsers.ShadowList(ref r)", "c.ComputeShadowList(value)", "x.ToString()", false),
-        ["FontFamily"] = new("FontFamilyList", "ValueParsers.FontFamily(ref r)", "c.ComputeFontFamily(value)", "x.ToString()", false),
+        ["ImageList"] = new("ImageList", "ValueParsers.ImageList(ref r)", "c.ComputeImageList(value)", "x.ToString()", Kind.Class),
+        ["ShadowList"] = new("ShadowList", "ValueParsers.ShadowList(ref r)", "c.ComputeShadowList(value)", "x.ToString()", Kind.Class),
+        ["FontFamily"] = new("FontFamilyList", "ValueParsers.FontFamily(ref r)", "c.ComputeFontFamily(value)", "x.ToString()", Kind.Class),
         ["FontSize"] = new("float", "ValueParsers.FontSize(ref r)", "c.ComputeFontSize(value)", "ValueText.Px(x)", true),
         ["FontWeight"] = new("float", "ValueParsers.FontWeight(ref r)", "c.ComputeFontWeight(value)", "ValueText.Number(x)", true),
         ["FontStretch"] = new("float", "ValueParsers.FontStretch(ref r)", "c.ComputeFontStretch(value)", "ValueText.Percent(x)", true),
@@ -97,14 +108,118 @@ internal static class PropertyCodeGenerator
         ["Position"] = new("PositionValue", "ValueParsers.Position(ref r)", "c.ComputePosition(value)", "x.ToString()", false),
         ["AspectRatio"] = new("AspectRatioValue", "ValueParsers.AspectRatio(ref r)", "c.ComputeAspectRatio(value)", "x.ToString()", false),
         ["Integer"] = new("int", "GridParsers.Integer(ref r)", "c.ComputeInteger(value)", "ValueText.Integer(x)", true),
-        ["GridTemplate"] = new("CssGridTrackList", "GridParsers.TrackList(ref r)", "c.ComputeGridTrackList(value)", "x.ToString()", false),
-        ["GridTrackSizes"] = new("CssGridTrackList", "GridParsers.TrackSizes(ref r)", "c.ComputeGridTrackList(value)", "x.ToString()", false),
-        ["GridAreas"] = new("CssGridTemplateAreas", "GridParsers.Areas(ref r)", "c.ComputeGridAreas(value)", "x.ToString()", false),
+        ["GridTemplate"] = new("CssGridTrackList", "GridParsers.TrackList(ref r)", "c.ComputeGridTrackList(value)", "x.ToString()", Kind.Class),
+        ["GridTrackSizes"] = new("CssGridTrackList", "GridParsers.TrackSizes(ref r)", "c.ComputeGridTrackList(value)", "x.ToString()", Kind.Class),
+        ["GridAreas"] = new("CssGridTemplateAreas", "GridParsers.Areas(ref r)", "c.ComputeGridAreas(value)", "x.ToString()", Kind.Class),
         ["GridLine"] = new("CssGridLine", "GridParsers.Line(ref r)", "c.ComputeGridLine(value)", "x.ToString()", true),
-        ["GridAutoFlow"] = new("CssGridAutoFlow", "GridParsers.AutoFlow(ref r)", "(CssGridAutoFlow)c.Keyword(value)", "GridText.AutoFlow(x)", true),
+        ["GridAutoFlow"] = new("CssGridAutoFlow", "GridParsers.AutoFlow(ref r)", "(CssGridAutoFlow)c.Keyword(value)", "GridText.AutoFlow(x)", Kind.Enum),
+        // ---- 第九批：变换、滤镜、裁剪、内容、文本、过渡与动画、交互与滚动 ----
+        ["KeywordList"] = Pre("CssList<{0}>", "AnimationParsers.KeywordList(ref r, KeywordTables.{0}, static i => ({0})i)", "x.Join(e => KeywordTables.{0}.NameOf((int)e), \"none\")", Kind.Class),
+        ["TimeList"] = Pre("CssList<float>", "AnimationParsers.TimeList(ref r, {1})", "x.Join(ValueText.Time, \"0s\")", Kind.Class),
+        ["EasingList"] = Pre("CssList<CssEasingFunction>", "AnimationParsers.EasingList(ref r)", "x.Join(e => e.ToString(), \"ease\")", Kind.Class),
+        ["TransitionProperty"] = Pre("CssList<string>", "AnimationParsers.TransitionProperty(ref r)", "x.Join(s => s, \"none\")", Kind.Class),
+        ["AnimationName"] = Pre("CssList<string>", "AnimationParsers.AnimationName(ref r)", "x.Join(s => s.Length == 0 ? \"none\" : s, \"none\")", Kind.Class),
+        ["IterationCount"] = Pre("CssList<float>", "AnimationParsers.IterationCountList(ref r)", "x.Join(n => float.IsPositiveInfinity(n) ? \"infinite\" : ValueText.Number(n), \"1\")", Kind.Class),
+        ["WillChange"] = Pre("CssList<string>", "BehaviorParsers.WillChange(ref r)", "x.Join(s => s, \"auto\")", Kind.Class),
+        ["ContainerName"] = Pre("CssList<string>", "BehaviorParsers.ContainerName(ref r)", "x.Join(s => s, \"none\")", Kind.Class),
+        ["TransformList"] = new("CssTransformList", "TransformParsers.TransformList(ref r)", "c.ComputeTransformList(value)", "x.ToString()", Kind.Class),
+        ["Translate"] = new("CssTranslate", "TransformParsers.Translate(ref r)", "c.ComputeTranslate(value)", "x.ToString()", Kind.Struct),
+        ["Rotate"] = Pre("CssRotate", "TransformParsers.Rotate(ref r)", "x.ToString()", Kind.Struct),
+        ["Scale"] = Pre("CssScale", "TransformParsers.Scale(ref r)", "x.ToString()", Kind.Struct),
+        ["TransformOrigin"] = new("CssTransformOrigin", "TransformParsers.Origin(ref r)", "c.ComputeTransformOrigin(value)", "x.ToString()", Kind.Struct),
+        ["Perspective"] = new("float", "TransformParsers.Perspective(ref r)", "c.ComputePerspective(value)", "x < 0 ? \"none\" : ValueText.Px(x)", Kind.Operator),
+        ["FilterList"] = new("CssFilterList", "FilterParsers.FilterList(ref r)", "c.ComputeFilterList(value)", "x.ToString()", Kind.Class),
+        ["ClipPath"] = new("CssClipPath", "ClipPathParsers.ClipPath(ref r)", "c.ComputeClipPath(value)", "x.ToString()", Kind.Class),
+        ["Content"] = new("CssContent", "ContentParsers.Content(ref r)", "c.ComputeContent(value)", "x.ToString()", Kind.Class),
+        ["Quotes"] = Pre("CssQuotes", "ContentParsers.Quotes(ref r)", "x.ToString()", Kind.Class),
+        ["ListStyleType"] = Pre("CssListStyleType", "ContentParsers.ListStyleType(ref r)", "x.ToString()", Kind.Struct),
+        ["VerticalAlign"] = new("CssVerticalAlign", "TextParsers.VerticalAlign(ref r)", "c.ComputeVerticalAlign(value)", "x.ToString()", Kind.Struct),
+        ["Spacing"] = new("float", "TextParsers.Spacing(ref r)", "c.ComputeSignedLength(value)", "x == 0 ? \"normal\" : ValueText.Px(x)", Kind.Operator),
+        ["Length"] = new("float", "ValueParsers.SignedLength(ref r)", "c.ComputeSignedLength(value)", "ValueText.Px(x)", Kind.Operator),
+        ["TextIndent"] = new("CssTextIndent", "TextParsers.TextIndent(ref r)", "c.ComputeTextIndent(value)", "x.ToString()", Kind.Struct),
+        ["TabSize"] = new("CssTabSize", "TextParsers.TabSize(ref r)", "c.ComputeTabSize(value)", "x.ToString()", Kind.Struct),
+        ["DecorationThickness"] = new("CssDecorationThickness", "TextParsers.DecorationThickness(ref r)", "c.ComputeDecorationThickness(value)", "x.ToString()", Kind.Struct),
+        ["BorderSpacing"] = new("CssBorderSpacing", "TextParsers.BorderSpacing(ref r)", "c.ComputeBorderSpacing(value)", "x.ToString()", Kind.Struct),
+        ["SvgPaint"] = Pre("CssSvgPaint", "TextParsers.SvgPaint(ref r)", "x.ToString()", Kind.Struct),
+        ["AutoColor"] = Pre("CssAutoColor", "TextParsers.AutoColor(ref r)", "x.ToString()", Kind.Struct),
+        ["ScrollbarColor"] = Pre("CssScrollbarColor", "TextParsers.ScrollbarColor(ref r)", "x.ToString()", Kind.Struct),
+        ["StrokeWidth"] = new("LengthPercentage", "TextParsers.StrokeWidth(ref r)", "c.ComputeLengthPercentage(value, nonNegative: true)", "x.ToString()", Kind.Struct),
+        ["TextShadow"] = new("ShadowList", "TextParsers.TextShadow(ref r)", "c.ComputeShadowList(value)", "TextParsers.TextShadowText(x)", Kind.Class),
+        ["LineClamp"] = new("int", "TextParsers.LineClamp(ref r)", "c.ComputeInteger(value)", "x == 0 ? \"none\" : ValueText.Integer(x)", Kind.Operator),
+        ["FontFeatures"] = Pre("CssList<CssFontFeature>", "TextParsers.FontFeatureSettings(ref r)", "x.Join(f => f.ToString(), \"normal\")", Kind.Class),
+        ["FontVariations"] = Pre("CssList<CssFontVariation>", "TextParsers.FontVariationSettings(ref r)", "x.Join(f => f.ToString(), \"normal\")", Kind.Class),
+        ["TextDecorationLine"] = Pre("CssTextDecorationLine", "TextParsers.DecorationLine(ref r)", "TextParsers.DecorationLineText(x)", Kind.Enum),
+        ["FontVariantNumeric"] = Pre("CssFontVariantNumeric", "TextParsers.FontVariantNumeric(ref r)", "TextParsers.FontVariantNumericText(x)", Kind.Enum),
+        ["UnderlinePosition"] = Pre("CssTextUnderlinePosition", "TextParsers.UnderlinePosition(ref r)", "TextParsers.UnderlinePositionText(x)", Kind.Enum),
+        ["ColorScheme"] = Pre("CssColorScheme", "TextParsers.ColorScheme(ref r)", "TextParsers.ColorSchemeText(x)", Kind.Enum),
+        ["TouchAction"] = Pre("CssTouchAction", "BehaviorParsers.TouchAction(ref r)", "BehaviorParsers.TouchActionText(x)", Kind.Enum),
+        ["Contain"] = Pre("CssContain", "BehaviorParsers.Contain(ref r)", "BehaviorParsers.ContainText(x)", Kind.Enum),
+        ["ScrollSnapType"] = Pre("CssScrollSnapType", "BehaviorParsers.ScrollSnapType(ref r)", "x.ToString()", Kind.Struct),
+        ["ScrollSnapAlign"] = Pre("CssScrollSnapAlign", "BehaviorParsers.ScrollSnapAlign(ref r)", "x.ToString()", Kind.Struct),
+        ["ScrollbarGutter"] = new("{0}", "BehaviorParsers.ScrollbarGutter(ref r)", "({0})c.Keyword(value)", "BehaviorParsers.ScrollbarGutterText(x)", Kind.Enum),
+        ["Raw"] = Pre("string", "RawParsers.{0}(ref r)", "x", Kind.Operator),
     };
 
     static readonly HashSet<string> KnownFlags = new(StringComparer.Ordinal) { "Auto", "None", "Normal", "Intrinsic", "Content", "NonNegative" };
+
+    /// <summary>
+    /// 插值与合成（design/16「动画插值」）：计算值类型 → <c>CssInterpolation</c> 中的插值方法、加法方法（null 表示只能替换）、
+    /// 是否总按非负钳制（不看属性的 NonNegative 标志）。不在表中的类型只能离散插值。
+    /// </summary>
+    static readonly Dictionary<string, (string Interp, string? Add, bool NonNegative)> Interps = new(StringComparer.Ordinal)
+    {
+        ["Size"] = ("Size", "SizeAdd", false),
+        ["LengthPercentage"] = ("LengthPercentage", "LengthPercentageAdd", false),
+        ["StrokeWidth"] = ("LengthPercentage", "LengthPercentageAdd", true),
+        ["LineWidth"] = ("Float", "FloatAdd", true),
+        ["Color"] = ("Color", "ColorAdd", false),
+        ["Number"] = ("Float", "FloatAdd", false),
+        ["Alpha"] = ("Alpha", "AlphaAdd", false),
+        ["IntegerOrAuto"] = ("IntegerOrAuto", "IntegerOrAutoAdd", false),
+        ["Radius"] = ("Radius", "RadiusAdd", true),
+        ["ShadowList"] = ("Shadows", "ShadowsAdd", false),
+        ["TextShadow"] = ("Shadows", "ShadowsAdd", false),
+        ["FontSize"] = ("Float", "FloatAdd", true),
+        ["FontWeight"] = ("FontWeight", "FontWeightAdd", false),
+        ["FontStretch"] = ("Float", "FloatAdd", true),
+        ["LineHeight"] = ("LineHeight", "LineHeightAdd", false),
+        ["Position"] = ("Position", "PositionAdd", false),
+        ["AspectRatio"] = ("AspectRatio", null, false),
+        ["Integer"] = ("Integer", "IntegerAdd", false),
+        ["TransformList"] = ("Transform", "TransformAdd", false),
+        ["Translate"] = ("Translate", "TranslateAdd", false),
+        ["Rotate"] = ("Rotate", "RotateAdd", false),
+        ["Scale"] = ("Scale", "ScaleAdd", false),
+        ["TransformOrigin"] = ("TransformOrigin", "TransformOriginAdd", false),
+        ["Perspective"] = ("Perspective", null, false),
+        ["FilterList"] = ("Filters", "FiltersAdd", false),
+        ["ClipPath"] = ("ClipPath", null, false),
+        ["VerticalAlign"] = ("VerticalAlign", null, false),
+        ["Spacing"] = ("Float", "FloatAdd", false),
+        ["Length"] = ("Float", "FloatAdd", false),
+        ["TextIndent"] = ("TextIndent", null, false),
+        ["TabSize"] = ("TabSize", null, false),
+        ["DecorationThickness"] = ("DecorationThickness", null, false),
+        ["BorderSpacing"] = ("BorderSpacing", null, false),
+        ["SvgPaint"] = ("SvgPaint", null, false),
+        ["AutoColor"] = ("AutoColor", null, false),
+        ["ScrollbarColor"] = ("ScrollbarColor", null, false),
+        ["FontVariations"] = ("FontVariations", null, false),
+    };
+
+    /// <summary>按属性名覆盖插值方法（规范为该属性定义了特殊的插值规则）。</summary>
+    static readonly Dictionary<string, (string Interp, string? Add, bool NonNegative)> PropertyInterps = new(StringComparer.Ordinal)
+    {
+        // CSS Values 4：visibility 在两端之一为 visible 时，(0, 1) 内的进度都取 visible
+        ["visibility"] = ("Visibility", null, false),
+    };
+
+    static (string Interp, string? Add, bool NonNegative)? InterpFor(Longhand l)
+    {
+        if (l.Animatable != "by-computed-value") return null;
+        if (PropertyInterps.TryGetValue(l.Name, out var p)) return p;
+        return Interps.TryGetValue(l.Type, out var t) ? t : null;
+    }
 
     /// <summary>生成全部文件：文件名 → 内容（LF 换行）。</summary>
     public static SortedDictionary<string, string> Generate(string json)
@@ -165,8 +280,10 @@ internal static class PropertyCodeGenerator
                     l.Flags.Add((string)f!);
                 }
             if (!Types.ContainsKey(l.Type)) throw new FormatException($"{l.Name}: 未知类型 {l.Type}");
-            if ((l.Type is "Keyword" or "Cursor") && (l.Enum is null || !enumByName.ContainsKey(l.Enum)))
+            if ((l.Type is "Keyword" or "Cursor" or "KeywordList" or "ScrollbarGutter") && (l.Enum is null || !enumByName.ContainsKey(l.Enum)))
                 throw new FormatException($"{l.Name}: 缺少或未知的枚举 {l.Enum}");
+            if (l.Type == "Raw" && string.IsNullOrEmpty(l.Enum))
+                throw new FormatException($"{l.Name}: Raw 类型需要以 enum 字段给出解析器名");
             if (!groupByName.TryGetValue(Str(d, "group"), out var g)) throw new FormatException($"{l.Name}: 未知分组");
             if (g.Inherited != l.Inherited) throw new FormatException($"{l.Name}: 继承性与分组 {g.Name} 不一致");
             if (l.Affects is not ("structure" or "layout" or "paint" or "composite" or "none")) throw new FormatException($"{l.Name}: affects 无效");
@@ -216,6 +333,7 @@ internal static class PropertyCodeGenerator
             ["CssProperties.g.cs"] = GenTable(longhands, shorthands, planned, unsupported),
             ["PropertyParsers.g.cs"] = GenParsers(longhands, shorthands),
             ["ComputedStyle.g.cs"] = GenComputedStyle(groups, longhands),
+            ["AnimationDispatch.g.cs"] = GenAnimationDispatch(groups, longhands),
         };
         return files;
     }
@@ -441,6 +559,7 @@ internal static class PropertyCodeGenerator
         foreach (var g in groups) w.Line($"{g.Prop} = b.{g.Name};");
         w.Line("CustomProperties = b.CustomProperties;");
         w.Line("RootFontSize = b.RootFontSize;");
+        w.Line("RootLineHeight = b.RootLineHeight;");
         w.Line("Flags = b.Flags;");
         w.Close();
         foreach (var g in groups)
@@ -513,6 +632,19 @@ internal static class PropertyCodeGenerator
         }
         w.Close();
         w.Line();
+        w.Line("/// <summary>全部分组取 <paramref name=\"source\"/> 的实例（未拥有，写时复制）：在一个已计算的样式上覆盖个别属性（动画值）。</summary>");
+        w.Line("public void ResetGroupsFrom(ComputedStyle source)");
+        w.Open();
+        foreach (var g in groups)
+        {
+            w.Line($"{g.Name} = source.{g.Prop};");
+            w.Line($"{g.Field}Owned = false;");
+        }
+        w.Close();
+        w.Line();
+        w.Line("/// <summary>是否有分组被复制（写入过与来源不同的值）。</summary>");
+        w.Line($"public bool AnyGroupOwned => {string.Join(" || ", groups.ConvertAll(g => g.Field + "Owned"))};");
+        w.Line();
         w.Line("/// <summary>创建全部分组的空白实例（只用于构造初始样式）。</summary>");
         w.Line("public void CreateEmptyGroups()");
         w.Open();
@@ -550,6 +682,98 @@ internal static class PropertyCodeGenerator
         return w.ToString();
     }
 
+    static string GenAnimationDispatch(List<Group> groups, List<Longhand> longhands)
+    {
+        var w = new Writer();
+        w.Raw(Header);
+        w.Line("using AwAUI.Css.Values;");
+        w.Line();
+        w.Line("namespace AwAUI.Css.Animation;");
+        w.Line();
+        w.Line("/// <summary>按属性分派的计算值读写、插值与合成（动画引擎使用；值以装箱的计算值类型传递）。</summary>");
+        w.Line("internal static class AnimationDispatch");
+        w.Open();
+        w.Line("/// <summary>读取长属性的计算值（装箱）。</summary>");
+        w.Line("public static object GetValue(ComputedStyle s, CssPropertyId id)");
+        w.Open();
+        w.Line("switch (id)");
+        w.Open();
+        foreach (var l in longhands) w.Line($"case CssPropertyId.{l.Pascal}: return s.{l.Group.Prop}.{l.Pascal};");
+        w.Line("default: throw new System.ArgumentOutOfRangeException(nameof(id));");
+        w.Close();
+        w.Close();
+        w.Line();
+        w.Line("/// <summary>样式的一个分组实例（按引用比较两个样式的分组是否相同）。</summary>");
+        w.Line("public static object GetGroup(ComputedStyle s, CssPropertyGroup g)");
+        w.Open();
+        w.Line("switch (g)");
+        w.Open();
+        foreach (var g in groups) w.Line($"case CssPropertyGroup.{g.Name}: return s.{g.Prop};");
+        w.Line("default: throw new System.ArgumentOutOfRangeException(nameof(g));");
+        w.Close();
+        w.Close();
+        w.Line();
+        w.Line("/// <summary>把计算值直接写入构建器（值相同则不复制分组）。值的类型必须与属性的计算值类型一致。</summary>");
+        w.Line("public static void SetValue(StyleBuilder b, CssPropertyId id, object value)");
+        w.Open();
+        w.Line("switch (id)");
+        w.Open();
+        foreach (var l in longhands)
+            w.Line($"case CssPropertyId.{l.Pascal}: {{ var x = ({Cs(l)})value; if ({NotEqual(l, $"b.{l.Group.Name}.{l.Pascal}", "x")}) b.Mutable{l.Group.Name}().{l.Pascal} = x; return; }}");
+        w.Close();
+        w.Close();
+        w.Line();
+        w.Line("/// <summary>属性是否按计算值插值（否则离散）。</summary>");
+        w.Line("public static bool IsInterpolable(CssPropertyId id)");
+        w.Open();
+        w.Line("switch (id)");
+        w.Open();
+        foreach (var l in longhands)
+            if (InterpFor(l) is not null) w.Line($"case CssPropertyId.{l.Pascal}:");
+        w.Indent++;
+        w.Line("return true;");
+        w.Indent--;
+        w.Line("default: return false;");
+        w.Close();
+        w.Close();
+        w.Line();
+        w.Line("/// <summary>按计算值插值；两个值不能插值（如 auto 与长度）时返回 false，由调用方离散处理。</summary>");
+        w.Line("public static bool TryInterpolate(CssPropertyId id, object a, object b, double p, out object result)");
+        w.Open();
+        w.Line("switch (id)");
+        w.Open();
+        foreach (var l in longhands)
+        {
+            if (InterpFor(l) is not { } it) continue;
+            bool nonNeg = it.NonNegative || l.Flags.Contains("NonNegative");
+            var cs = Cs(l);
+            w.Line($"case CssPropertyId.{l.Pascal}: {{ if (CssInterpolation.{it.Interp}(({cs})a, ({cs})b, p, {B(nonNeg)}, out var r)) {{ result = r; return true; }} break; }}");
+        }
+        w.Close();
+        w.Line("result = a;");
+        w.Line("return false;");
+        w.Close();
+        w.Line();
+        w.Line("/// <summary>加法合成（<c>add</c>；<paramref name=\"accumulate\"/> 为 <c>accumulate</c>）；不支持时返回 false（按替换处理）。</summary>");
+        w.Line("public static bool TryAdd(CssPropertyId id, object a, object b, bool accumulate, out object result)");
+        w.Open();
+        w.Line("switch (id)");
+        w.Open();
+        foreach (var l in longhands)
+        {
+            if (InterpFor(l) is not { Add: { } add } it) continue;
+            bool nonNeg = it.NonNegative || l.Flags.Contains("NonNegative");
+            var cs = Cs(l);
+            w.Line($"case CssPropertyId.{l.Pascal}: {{ if (CssInterpolation.{add}(({cs})a, ({cs})b, accumulate, {B(nonNeg)}, out var r)) {{ result = r; return true; }} break; }}");
+        }
+        w.Close();
+        w.Line("result = b;");
+        w.Line("return false;");
+        w.Close();
+        w.Close();
+        return w.ToString();
+    }
+
     // ================= 辅助 =================
 
     static string Cs(Longhand l) => string.Format(CultureInfo.InvariantCulture, Types[l.Type].CsType, l.Enum);
@@ -557,10 +781,10 @@ internal static class PropertyCodeGenerator
     static string NotEqual(Longhand l, string a, string b)
         => Types[l.Type].UseOperator ? $"{a} != {b}" : IsClass(l) ? $"!object.Equals({a}, {b})" : $"!{a}.Equals({b})";
 
-    static bool IsClass(Longhand l) => Types[l.Type].CsType is "ImageList" or "ShadowList" or "FontFamilyList" or "CssGridTrackList" or "CssGridTemplateAreas";
+    static bool IsClass(Longhand l) => Types[l.Type].Kind == Kind.Class || (Types[l.Type].CsType == "string");
 
     static string Hash(Longhand l, string a) =>
-        Types[l.Type].CsType is "{0}" or "CssGridAutoFlow" ? $"(int){a}" : IsClass(l) ? $"({a}?.GetHashCode() ?? 0)" : $"{a}.GetHashCode()";
+        Types[l.Type].Kind == Kind.Enum ? $"(int){a}" : IsClass(l) ? $"({a}?.GetHashCode() ?? 0)" : $"{a}.GetHashCode()";
 
     static string FlagsExpr(List<string> flags)
     {

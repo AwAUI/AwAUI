@@ -351,6 +351,68 @@ static float4 blendModes(float4 s, float4 d, uint mode)
                   sa + da - sa * da);
 }
 
+// ---------------------------------------------------------------- 滤镜（QuadShape.Filter，与软件后端的 FilterExecutor 逐步相同）
+
+static float4 filterRead(texture2d<float> t, int2 c, float4 valid)
+{
+    if (c.x < int(valid.x) || c.y < int(valid.y) || c.x >= int(valid.z) || c.y >= int(valid.w)) return float4(0.0);
+    return t.read(uint2(c));
+}
+
+static float4 filterPass(QuadInstance q, float2 p, int2 ip, texture2d<float> src, texture2d<float> src2)
+{
+    uint op = q.kinds.z;
+    int2 off = int2(q.tex.xy);
+    if (op == 0u) {
+        float4 c = filterRead(src, ip + off, q.radiiY);
+        float a = c.w;
+        float4 u = a > 0.0 ? float4(c.xyz / a, a) : float4(0.0, 0.0, 0.0, a);
+        float nr = clamp(dot(q.paint0, u) + q.extra.x, 0.0, 1.0);
+        float ng = clamp(dot(q.paint1, u) + q.extra.y, 0.0, 1.0);
+        float nb = clamp(dot(q.shape, u) + q.extra.z, 0.0, 1.0);
+        float na = clamp(dot(q.radiiX, u) + q.extra.w, 0.0, 1.0);
+        return float4(nr * na, ng * na, nb * na, na);
+    }
+    if (op == 1u) {
+        int k = int(q.extra.x);
+        float4 acc = float4(0.0);
+        for (int b = 0; b < k; b++)
+            for (int a = 0; a < k; a++)
+                acc += filterRead(src, ip * k + int2(a, b) + off, q.radiiY);
+        return acc / float(k * k);
+    }
+    if (op == 2u || op == 3u) {
+        float inv = q.extra.x;
+        int r = int(q.extra.y);
+        int2 axis = op == 2u ? int2(1, 0) : int2(0, 1);
+        int2 c = ip + off;
+        float4 acc = float4(0.0);
+        for (int t = r; t >= 1; t--) {
+            float w = exp(-float(t * t) * inv);
+            acc += w * (filterRead(src, c - axis * t, q.radiiY) + filterRead(src, c + axis * t, q.radiiY));
+        }
+        acc += filterRead(src, c, q.radiiY);
+        return acc * q.extra.z;
+    }
+    if (op == 4u) {
+        float k = q.extra.x;
+        float2 uv = p / k - 0.5;
+        float2 f = floor(uv);
+        float2 t = uv - f;
+        int2 i0 = int2(f) + off;
+        float4 c00 = filterRead(src, i0, q.radiiY);
+        float4 c10 = filterRead(src, i0 + int2(1, 0), q.radiiY);
+        float4 c01 = filterRead(src, i0 + int2(0, 1), q.radiiY);
+        float4 c11 = filterRead(src, i0 + int2(1, 1), q.radiiY);
+        float4 top = c00 + (c10 - c00) * t.x;
+        float4 bottom = c01 + (c11 - c01) * t.x;
+        return top + (bottom - top) * t.y;
+    }
+    float4 c = filterRead(src, ip + off, q.radiiY);
+    float s = filterRead(src2, ip + int2(q.paint0.xy), q.radiiX).w;
+    return c + q.color * (s * (1.0 - c.w));
+}
+
 // ---------------------------------------------------------------- 片元
 
 fragment float4 quad_fragment(VOut in [[stage_in]],
@@ -370,6 +432,9 @@ fragment float4 quad_fragment(VOut in [[stage_in]],
     float cov = 1.0;
     float4 src;
 
+    if (shape == 7u) {
+        return filterPass(q, p, ip, coverageTex, lutTex);
+    }
     if (shape == 4u) {
         src = coverageTex.read(uint2(ip + int2(q.tex.xy)));
         cov = q.color.x;
