@@ -1,0 +1,59 @@
+@using AwAUI.Controls.Primitives
+@using AwAUI.Icons.Lucide
+
+@(BuildCheckbox())
+
+@code {
+    const string CheckboxClass =
+        "peer inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input bg-transparent p-0 shadow-xs transition-shadow outline-none " +
+        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 " +
+        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:ring-destructive/40 " +
+        "data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary " +
+        "data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground dark:data-[state=indeterminate]:bg-primary";
+
+    readonly ControllableState<bool> _checked = new();
+
+    public string? Id { get; set; }
+    public bool? Checked { get; set; }
+    public bool DefaultChecked { get; set; }
+    public Action<bool>? CheckedChanged { get; set; }
+    public Action<bool>? OnCheckedChange { get; set; }
+
+    /// <summary>When true, the box shows a mixed state supplied by the caller.</summary>
+    public bool Indeterminate { get; set; }
+
+    /// <summary>Activation of a mixed checkbox requests that the caller clear the mixed state.</summary>
+    public Action<bool>? IndeterminateChanged { get; set; }
+
+    public bool Disabled { get; set; }
+    public string? Class { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public Action<PointerEvent>? OnClick { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildCheckbox()
+    {
+        bool isChecked = _checked.Sync(Checked, DefaultChecked, CheckedChanged + OnCheckedChange);
+        string state = Indeterminate ? ToggleHost.Indeterminate : isChecked ? ToggleHost.Checked : ToggleHost.Unchecked;
+        var button = ToggleHost.Create(Role.CheckBox, "checkbox", state, Id, Disabled, Ref, CheckboxClass, Class, Rest, OnClick, Toggle);
+        if (Indeterminate || isChecked)
+        {
+            var mark = new global::AwAUI.UI.Svg(Indeterminate ? LucideIcons.Minus : LucideIcons.Check) { Class = "pointer-events-none size-3.5 shrink-0" };
+            mark.Attributes["data-slot"] = "checkbox-indicator";
+            mark.Attributes["data-state"] = state;
+            mark.Attributes["aria-hidden"] = "true";
+            button.Children.Add(mark);
+        }
+        return button;
+    }
+
+    void Toggle()
+    {
+        if (Indeterminate)
+        {
+            _checked.Set(true);
+            IndeterminateChanged?.Invoke(false);
+        }
+        else _checked.Set(!_checked.Value);
+    }
+}

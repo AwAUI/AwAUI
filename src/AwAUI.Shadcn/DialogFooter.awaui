@@ -1,0 +1,14 @@
+<div @attributes="@(DialogAttributes.ForPart("dialog-footer", Rest, Class, "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"))">
+    @Children
+    @if (ShowCloseButton)
+    {
+        <DialogClose AsChild><Button Variant="ButtonVariant.Outline">Close</Button></DialogClose>
+    }
+</div>
+
+@code {
+    public bool ShowCloseButton { get; set; }
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

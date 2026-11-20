@@ -1,0 +1,737 @@
+@layer aw-fluent-tokens, aw-fluent-controls;
+
+@layer aw-fluent-tokens {
+  :root[data-aw-fluent] {
+    --aw-bg: #f3f3f3;
+    --aw-text: #1b1b1b;
+    --aw-text-muted: #616161;
+    --aw-surface: #ffffff;
+    --aw-border: #d1d1d1;
+    --aw-accent: #005fb8;
+    --aw-accent-text: #ffffff;
+    --aw-accent-hover: #00549f;
+    --aw-accent-pressed: #004578;
+    --aw-focus: #005fb8;
+    --aw-danger: #b10e1e;
+    --aw-control: #ffffff;
+    --aw-control-hover: #f5f5f5;
+    --aw-control-pressed: #ebebeb;
+    --aw-control-edge: #b3b3b3;
+    --aw-input-edge: #707070;
+    --aw-disabled-surface: #ededed;
+    --aw-disabled-border: #cccccc;
+    --aw-disabled-text: #727272;
+
+    --aw-font-family: "Segoe UI", system-ui, sans-serif;
+    --aw-font-size: 14px;
+    --aw-line-height: 20px;
+    --aw-radius: 4px;
+    --aw-control-height: 32px;
+    --aw-control-padding-x: 12px;
+    --aw-control-padding-y: 4px;
+    --aw-control-gap: 8px;
+    --aw-content-padding: 12px;
+    --aw-textarea-height: 80px;
+  }
+
+  :root[data-aw-fluent][data-aw-compact] {
+    --aw-control-height: 26px;
+    --aw-control-padding-x: 8px;
+    --aw-control-padding-y: 2px;
+    --aw-control-gap: 6px;
+    --aw-content-padding: 8px;
+    --aw-textarea-height: 64px;
+  }
+
+  /* Explicit palettes take precedence over media preferences. An absent data-theme follows media. */
+  @media (prefers-color-scheme: dark) {
+    :root[data-aw-fluent]:not([data-theme]),
+    :root[data-aw-fluent][data-theme="system"] {
+      --aw-bg: #202020;
+      --aw-text: #f5f5f5;
+      --aw-text-muted: #b8b8b8;
+      --aw-surface: #282828;
+      --aw-border: #4d4d4d;
+      --aw-accent: #60cdff;
+      --aw-accent-text: #082739;
+      --aw-accent-hover: #82d8ff;
+      --aw-accent-pressed: #49b7eb;
+      --aw-focus: #60cdff;
+      --aw-danger: #ff99a4;
+      --aw-control: #333333;
+      --aw-control-hover: #3e3e3e;
+      --aw-control-pressed: #292929;
+      --aw-control-edge: #555555;
+      --aw-input-edge: #9c9c9c;
+      --aw-disabled-surface: #292929;
+      --aw-disabled-border: #454545;
+      --aw-disabled-text: #969696;
+    }
+  }
+
+  :root[data-aw-fluent][data-theme="dark"] {
+    --aw-bg: #202020;
+    --aw-text: #f5f5f5;
+    --aw-text-muted: #b8b8b8;
+    --aw-surface: #282828;
+    --aw-border: #4d4d4d;
+    --aw-accent: #60cdff;
+    --aw-accent-text: #082739;
+    --aw-accent-hover: #82d8ff;
+    --aw-accent-pressed: #49b7eb;
+    --aw-focus: #60cdff;
+    --aw-danger: #ff99a4;
+    --aw-control: #333333;
+    --aw-control-hover: #3e3e3e;
+    --aw-control-pressed: #292929;
+    --aw-control-edge: #555555;
+    --aw-input-edge: #9c9c9c;
+    --aw-disabled-surface: #292929;
+    --aw-disabled-border: #454545;
+    --aw-disabled-text: #969696;
+  }
+
+  @media (forced-colors: active), (prefers-contrast: more) {
+    :root[data-aw-fluent]:not([data-theme]),
+    :root[data-aw-fluent][data-theme="system"] {
+      --aw-bg: #000000;
+      --aw-text: #ffffff;
+      --aw-text-muted: #ffffff;
+      --aw-surface: #000000;
+      --aw-border: #ffffff;
+      --aw-accent: #ffff00;
+      --aw-accent-text: #000000;
+      --aw-accent-hover: #ffff9e;
+      --aw-accent-pressed: #d8d800;
+      --aw-focus: #00ffff;
+      --aw-danger: #ff9dca;
+      --aw-control: #000000;
+      --aw-control-hover: #292929;
+      --aw-control-pressed: #444444;
+      --aw-control-edge: #ffffff;
+      --aw-input-edge: #ffffff;
+      --aw-disabled-surface: #000000;
+      --aw-disabled-border: #aaaaaa;
+      --aw-disabled-text: #aaaaaa;
+    }
+  }
+
+  :root[data-aw-fluent][data-theme="high-contrast"] {
+    --aw-bg: #000000;
+    --aw-text: #ffffff;
+    --aw-text-muted: #ffffff;
+    --aw-surface: #000000;
+    --aw-border: #ffffff;
+    --aw-accent: #ffff00;
+    --aw-accent-text: #000000;
+    --aw-accent-hover: #ffff9e;
+    --aw-accent-pressed: #d8d800;
+    --aw-focus: #00ffff;
+    --aw-danger: #ff9dca;
+    --aw-control: #000000;
+    --aw-control-hover: #292929;
+    --aw-control-pressed: #444444;
+    --aw-control-edge: #ffffff;
+    --aw-input-edge: #ffffff;
+    --aw-disabled-surface: #000000;
+    --aw-disabled-border: #aaaaaa;
+    --aw-disabled-text: #aaaaaa;
+  }
+}
+
+@layer aw-fluent-controls {
+  :where(:root[data-aw-fluent]) {
+    background-color: var(--aw-bg);
+    color: var(--aw-text);
+    font-family: var(--aw-font-family);
+    font-size: var(--aw-font-size);
+    line-height: var(--aw-line-height);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-button, .aw-checkbox, .aw-toggle-switch, .aw-radio-button, .aw-textbox, .aw-label, .aw-textblock) {
+    font-family: var(--aw-font-family);
+    font-size: var(--aw-font-size);
+    line-height: var(--aw-line-height);
+    color: var(--aw-text);
+  }
+
+  /* Push and toggle buttons share their geometry. Accent and pressed toggles share a palette. */
+  :where(:root[data-aw-fluent]) .aw-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--aw-control-gap);
+    min-height: var(--aw-control-height);
+    padding: var(--aw-control-padding-y) var(--aw-control-padding-x);
+    border: 1px solid var(--aw-control-edge);
+    border-bottom-color: var(--aw-input-edge);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-control);
+    font-weight: 600;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-button:hover {
+    background-color: var(--aw-control-hover);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-button:active {
+    background-color: var(--aw-control-pressed);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-button:where(.accent, .aw-toggle-button[data-state="on"]) {
+    color: var(--aw-accent-text);
+    border-color: var(--aw-accent);
+    background-color: var(--aw-accent);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-button:where(.accent, .aw-toggle-button[data-state="on"]):hover {
+    border-color: var(--aw-accent-hover);
+    background-color: var(--aw-accent-hover);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-button:where(.accent, .aw-toggle-button[data-state="on"]):active {
+    border-color: var(--aw-accent-pressed);
+    background-color: var(--aw-accent-pressed);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-button:disabled {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+    border-color: var(--aw-disabled-border);
+    background-color: var(--aw-disabled-surface);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-button, .aw-checkbox, .aw-toggle-switch, .aw-radio-button, .aw-hyperlink-button):focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-hyperlink-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: var(--aw-control-height);
+    padding: 0;
+    border: 0;
+    border-radius: var(--aw-radius);
+    background-color: transparent;
+    color: var(--aw-accent);
+    text-decoration: underline;
+    white-space: normal;
+    cursor: pointer;
+  }
+  :where(:root[data-aw-fluent]) .aw-hyperlink-button:hover {
+    color: var(--aw-accent-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-hyperlink-button:active {
+    color: var(--aw-accent-pressed);
+  }
+  :where(:root[data-aw-fluent]) .aw-hyperlink-button[aria-disabled="true"] {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+    cursor: default;
+  }
+
+  /* The actual button includes the label in its target. Only the indicator has a painted box. */
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--aw-control-gap);
+    min-height: var(--aw-control-height);
+    padding: 0;
+    border: 0;
+    border-radius: var(--aw-radius);
+    background-color: transparent;
+    text-align: left;
+    white-space: normal;
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button) > [part="label"] {
+    min-width: 0;
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button) > [part="indicator"] {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    border: 1px solid var(--aw-input-edge);
+    background-color: var(--aw-control);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-checkbox > [part="indicator"] {
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--aw-radius);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-radio-button > [part="indicator"] {
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-radio-button > [part="indicator"] > [part="mark"] {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentcolor;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-checkbox[data-state="checked"] > [part="indicator"] > [part="mark"] {
+    width: 6px;
+    height: 10px;
+    border-right: 2px solid currentcolor;
+    border-bottom: 2px solid currentcolor;
+    transform: translateY(-1px) rotate(45deg);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-checkbox[data-state="mixed"] > [part="indicator"] > [part="mark"] {
+    width: 10px;
+    height: 2px;
+    background-color: currentcolor;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-toggle-switch > [part="indicator"] {
+    justify-content: flex-start;
+    width: 40px;
+    height: 20px;
+    padding: 3px;
+    border-radius: 999px;
+    color: var(--aw-text-muted);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-toggle-switch > [part="indicator"] > [part="thumb"] {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background-color: currentcolor;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-toggle-switch[data-state="checked"] > [part="indicator"] {
+    justify-content: flex-end;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-toggle-switch[data-state="mixed"] > [part="indicator"] {
+    justify-content: center;
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):hover > [part="indicator"] {
+    background-color: var(--aw-control-hover);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):active > [part="indicator"] {
+    background-color: var(--aw-control-pressed);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):where([data-state="checked"], [data-state="mixed"]) > [part="indicator"] {
+    color: var(--aw-accent-text);
+    border-color: var(--aw-accent);
+    background-color: var(--aw-accent);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):where([data-state="checked"], [data-state="mixed"]):hover > [part="indicator"] {
+    border-color: var(--aw-accent-hover);
+    background-color: var(--aw-accent-hover);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):where([data-state="checked"], [data-state="mixed"]):active > [part="indicator"] {
+    border-color: var(--aw-accent-pressed);
+    background-color: var(--aw-accent-pressed);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):disabled {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-checkbox, .aw-toggle-switch, .aw-radio-button):disabled > [part="indicator"] {
+    color: var(--aw-disabled-text);
+    border-color: var(--aw-disabled-border);
+    background-color: var(--aw-disabled-surface);
+  }
+
+  /* The shell owns the border and focus treatment; the inner input owns text editing. */
+  :where(:root[data-aw-fluent]) .aw-textbox {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid var(--aw-control-edge);
+    border-bottom: 2px solid var(--aw-input-edge);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-control);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox:hover {
+    background-color: var(--aw-control-hover);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox:focus-within {
+    border-bottom-color: var(--aw-focus);
+    background-color: var(--aw-control);
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox[data-invalid="true"] {
+    border-bottom-color: var(--aw-danger);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox[aria-disabled="true"] {
+    color: var(--aw-disabled-text);
+    border-color: var(--aw-disabled-border);
+    background-color: var(--aw-disabled-surface);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox > [part="input"] {
+    display: block;
+    flex: 1 1 0px;
+    min-width: 0;
+    min-height: calc(var(--aw-control-height) - 3px);
+    padding: var(--aw-control-padding-y) var(--aw-control-padding-x);
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background-color: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    opacity: 1;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox[data-multiline="true"] > [part="input"] {
+    min-height: var(--aw-textarea-height);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox > :is([part="leading"], [part="trailing"]) {
+    flex-shrink: 0;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox > [part="leading"] {
+    padding-left: var(--aw-control-gap);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox > [part="trailing"] {
+    padding-right: var(--aw-control-gap);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox > [part="input"]::placeholder {
+    color: var(--aw-text-muted);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textbox > [part="input"]:disabled::placeholder {
+    color: var(--aw-disabled-text);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-label {
+    font-weight: 600;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-textblock {
+    display: block;
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-content-control, .aw-border, .aw-headered-content-control) {
+    display: block;
+    min-width: 0;
+    color: var(--aw-text);
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-border, .aw-headered-content-control) {
+    padding: var(--aw-content-padding);
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-headered-content-control > [part="header"] {
+    margin-bottom: var(--aw-control-gap);
+    color: var(--aw-text);
+    font-weight: 600;
+  }
+
+  :where(:root[data-aw-fluent]) .aw-headered-content-control > [part="content"] {
+    min-width: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-selectable-textblock:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-flyout-content,
+  :where(:root[data-aw-fluent]) .aw-popup[part="content"],
+  :where(:root[data-aw-fluent]) .aw-tooltip[part="content"] {
+    color: var(--aw-text);
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+    box-shadow: 0 4px 12px #0003;
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-flyout-item {
+    min-height: var(--aw-control-height);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-flyout-item:not(:disabled):is(:hover, :focus) {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-flyout-item:disabled {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-flyout-trigger:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-popup[part="content"] { padding: var(--aw-content-padding); }
+  :where(:root[data-aw-fluent]) .aw-tooltip[part="content"] { padding: 6px 9px; font-size: 12px; }
+  :where(:root[data-aw-fluent]) .aw-tooltip-target:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-selectable-textblock::selection {
+    background-color: color-mix(in srgb, var(--aw-accent) 30%, transparent);
+  }
+  :where(:root[data-aw-fluent]) .aw-decorator,
+  :where(:root[data-aw-fluent]) .aw-viewbox {
+    min-width: 0;
+    min-height: 0;
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-transitioning-content > [part="content"] {
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-tab-control {
+    display: flex;
+    flex-direction: column;
+    gap: var(--aw-control-gap);
+  }
+  :where(:root[data-aw-fluent]) .aw-tab-control[data-orientation="vertical"] {
+    flex-direction: row;
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-tab-control > [part="tab-list"], .aw-tab-strip) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-tab-control[data-orientation="vertical"] > [part="tab-list"], .aw-tab-strip[data-orientation="vertical"]) {
+    flex-direction: column;
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-tab-control, .aw-tab-strip) [part="tab"][aria-selected="true"] {
+    color: var(--aw-accent);
+    border-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-tab-control > [part="tab-panel"] {
+    padding: var(--aw-content-padding);
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+  }
+  :where(:root[data-aw-fluent]) .aw-tab-control > [part="tab-panel"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+
+  :where(:root[data-aw-fluent]) :is(.aw-listbox, .aw-items-repeater) {
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    color: var(--aw-text);
+    background-color: var(--aw-control);
+  }
+  :where(:root[data-aw-fluent]) .aw-listbox { padding: 2px; }
+  :where(:root[data-aw-fluent]) .aw-items-repeater:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-items-repeater [part="item"] {
+    display: flex;
+    align-items: center;
+    padding-inline: var(--aw-control-padding-x);
+    border-bottom: 1px solid var(--aw-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-listbox-item {
+    display: flex;
+    align-items: center;
+    min-height: var(--aw-control-height);
+    padding-inline: var(--aw-control-padding-x);
+    border: 1px solid transparent;
+    border-radius: var(--aw-radius);
+  }
+  :where(:root[data-aw-fluent]) .aw-listbox-item:not([aria-disabled="true"]):hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-listbox-item[data-state="selected"] {
+    color: var(--aw-accent);
+    border-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-listbox-item:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-listbox-item[aria-disabled="true"] {
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-slider {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    min-height: var(--aw-control-height);
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--aw-radius);
+    background: transparent;
+    touch-action: none;
+    user-select: none;
+  }
+  :where(:root[data-aw-fluent]) .aw-slider > [part="track"] {
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--aw-input-edge);
+  }
+  :where(:root[data-aw-fluent]) .aw-slider [part="range"] {
+    border-radius: 999px;
+    background: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-slider [part="thumb"] {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--aw-accent);
+    border-radius: 50%;
+    background: var(--aw-surface);
+  }
+  :where(:root[data-aw-fluent]) .aw-slider:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 1px;
+  }
+  :where(:root[data-aw-fluent]) .aw-slider:disabled {
+    opacity: 1;
+  }
+  :where(:root[data-aw-fluent]) .aw-slider:disabled :is([part="track"], [part="range"]) {
+    background: var(--aw-disabled-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-slider:disabled [part="thumb"] {
+    border-color: var(--aw-disabled-border);
+    background: var(--aw-disabled-surface);
+  }
+  :where(:root[data-aw-fluent]) .aw-expander > [part="content"][data-state="open"] {
+    padding: var(--aw-content-padding) 0 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-split-view {
+    gap: var(--aw-control-gap);
+  }
+  :where(:root[data-aw-fluent]) .aw-split-view > [part="body"] {
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+  }
+  :where(:root[data-aw-fluent]) .aw-split-view > [part="body"] > [part="pane"] {
+    background-color: var(--aw-bg);
+    color: var(--aw-text);
+    padding: var(--aw-content-padding);
+    border-right: 1px solid var(--aw-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-split-view[data-state="closed"] > [part="body"] > [part="pane"] {
+    padding-inline: calc(var(--aw-content-padding) / 2);
+    text-align: center;
+  }
+  :where(:root[data-aw-fluent]) .aw-split-view[data-pane-placement="right"] > [part="body"] > [part="pane"] {
+    border-left: 1px solid var(--aw-border);
+    border-right-width: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-split-view > [part="body"] > [part="pane"][data-overlay] {
+    box-shadow: 0 4px 12px #0003;
+  }
+  :where(:root[data-aw-fluent]) .aw-flyout-close {
+    margin-top: var(--aw-control-gap);
+  }
+
+  :where(:root[data-aw-fluent]) .aw-combobox {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--aw-control-gap);
+    min-height: var(--aw-control-height);
+    padding: var(--aw-control-padding-y) var(--aw-control-padding-x);
+    background: var(--aw-control);
+    border: 1px solid var(--aw-control-edge);
+    border-radius: var(--aw-radius);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-combobox:hover { background: var(--aw-control-hover); }
+  :where(:root[data-aw-fluent]) .aw-combobox:focus-visible { outline: 2px solid var(--aw-focus); }
+  :where(:root[data-aw-fluent]) .aw-combobox:disabled { color: var(--aw-disabled-text); }
+  :where(:root[data-aw-fluent]) .aw-combobox[data-placeholder] > [part="value"] { color: var(--aw-text-muted); }
+  :where(:root[data-aw-fluent]) .aw-combobox-indicator {
+    width: 9px;
+    height: 6px;
+    flex-shrink: 0;
+    background-color: currentColor;
+    clip-path: polygon(0 0, 50% 70%, 100% 0, 100% 30%, 50% 100%, 0 30%);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-combobox-popup, .aw-tree-view) {
+    padding: 3px;
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background: var(--aw-control);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-combobox-popup {
+    box-shadow: 0 4px 12px #0002;
+    transform-origin: var(--aw-popper-transform-origin, center);
+  }
+  :where(:root[data-aw-fluent]) .aw-combobox-popup[data-state="open"] {
+    animation: aw-fluent-combobox-in 150ms ease-out;
+  }
+  :where(:root[data-aw-fluent]) .aw-combobox-popup[data-state="closed"] {
+    animation: aw-fluent-combobox-out 150ms ease-in forwards;
+  }
+  @keyframes aw-fluent-combobox-in { from { opacity: 0; transform: scale(.95); } }
+  @keyframes aw-fluent-combobox-out { to { opacity: 0; transform: scale(.95); } }
+  @media (prefers-reduced-motion: reduce) {
+    :where(:root[data-aw-fluent]) .aw-combobox-popup[data-state] { animation: none; }
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-combobox-item, .aw-tree-view [part="row"]) {
+    display: flex;
+    align-items: center;
+    min-height: var(--aw-control-height);
+    padding-inline: var(--aw-control-padding-x);
+    border: 1px solid transparent;
+    border-radius: var(--aw-radius);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-combobox-item[data-highlighted], .aw-tree-view [part="row"]:hover) {
+    background: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-combobox-item[aria-selected="true"], .aw-tree-view [part="row"][data-selected="true"]) {
+    color: var(--aw-accent);
+    border-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-combobox-item[aria-disabled="true"], .aw-tree-view [part="row"][data-disabled="true"]) {
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-tree-view [part="item"]:focus-visible > [part="row"] {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-tree-view [part="group"] { padding-inline-start: 18px; }
+  :where(:root[data-aw-fluent]) .aw-tree-view [part="indicator"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    width: 24px;
+    flex-shrink: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-tree-view [part="indicator"][data-state]::before {
+    content: "";
+    display: block;
+    width: 9px;
+    height: 6px;
+    background-color: currentColor;
+    clip-path: polygon(0 0, 50% 70%, 100% 0, 100% 30%, 50% 100%, 0 30%);
+    rotate: -90deg;
+  }
+  :where(:root[data-aw-fluent]) .aw-tree-view [part="indicator"][data-state="open"]::before { rotate: 0deg; }
+}

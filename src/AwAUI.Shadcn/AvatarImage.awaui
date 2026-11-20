@@ -1,0 +1,36 @@
+@(BuildImage())
+
+@code {
+    readonly Ref<Element> _image = new();
+
+    /// <summary>The source to load through AwAUI’s image cache.</summary>
+    public ImageSource? Source { get; set; }
+    public string? Alt { get; set; }
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildImage()
+    {
+        var presentation = Use<Avatar.ImagePresentation>();
+        var reference = Ref ?? _image;
+        UseEffect(() => presentation.TrackImage(reference), presentation, reference);
+
+        var attributes = VisualPart.Attributes("avatar-image", "aspect-square size-full", Class, Rest);
+        var source = Source ?? (attributes["src"] switch
+        {
+            ImageSource supplied => supplied,
+            string uri when uri.Length > 0 => ImageSource.FromUri(uri),
+            _ => null,
+        });
+        var image = new global::AwAUI.UI.Image
+        {
+            Source = source, Alt = Alt ?? attributes["alt"] as string, Style = Style, Ref = reference,
+        };
+        attributes["src"] = null;
+        attributes["alt"] = null;
+        image.MergeAttributes(attributes);
+        return image;
+    }
+}

@@ -1,0 +1,23 @@
+<div role="alert" style="@Style" @ref="Ref" @attributes="@(AlertAttributes())">
+    @Children
+</div>
+
+@code {
+    const string AlertClass =
+        "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current";
+
+    public AlertVariant Variant { get; set; }
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    AttributeDictionary AlertAttributes()
+    {
+        string variant = Variant == AlertVariant.Destructive
+            ? "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current"
+            : "bg-card text-card-foreground";
+        return VisualPart.Attributes("alert", AlertClass + " " + variant, Class, Rest);
+    }
+}

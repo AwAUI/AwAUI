@@ -1,0 +1,9 @@
+<AwAUI.Controls.Primitives.Dialog.Trigger AsChild="@AsChild" Children="@Children"
+                                         Attributes="@DialogAttributes.ForPart("dialog-trigger", Rest, Class)" />
+
+@code {
+    public bool AsChild { get; set; }
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

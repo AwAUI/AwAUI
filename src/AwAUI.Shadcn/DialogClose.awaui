@@ -1,0 +1,9 @@
+<AwAUI.Controls.Primitives.Dialog.Close AsChild="@AsChild" Children="@Children"
+                                       Attributes="@DialogAttributes.ForPart("dialog-close", Rest, Class)" />
+
+@code {
+    public bool AsChild { get; set; }
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

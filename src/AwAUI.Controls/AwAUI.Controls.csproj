@@ -1,17 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
     组件库第 1、2 层（design/23、22，决策 D38–D40）：Primitives/ 是无样式的行为原语（Radix Primitives + Floating UI + Avalonia 选择模型的对应物），
-    其余目录是 Avalonia 风格的基础控件（后续批次）。只依赖 UI 及其公开的下层；原语的状态机与几何是纯函数，可脱离渲染测试。
+    Controls/ 是 Avalonia 风格的基础控件。只依赖 UI 及其公开的下层；原语的状态机与几何是纯函数，可脱离渲染测试。
   -->
   <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
   <Import Project="$(RepoRoot)build/Polyfills.props" />
   <PropertyGroup>
+    <Description>Standard AwAUI controls and unstyled behavior primitives.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RootNamespace>AwAUI.Controls</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
     <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
     <ProjectReference Include="../AwAUI.Platform/AwAUI.Platform.csproj" />
     <ProjectReference Include="../AwAUI.Layout/AwAUI.Layout.csproj" />
     <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <!-- 组件的 Props 胶水（PropsEqual / AdoptProps）由源生成器生成：只在编译期使用，不进入运行时引用 -->
+    <ProjectReference Include="../tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

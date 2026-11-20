@@ -1,0 +1,23 @@
+@(BuildFallback())
+
+@code {
+    const string FallbackClass = "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs";
+    readonly Ref<Element> _fallback = new();
+
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildFallback()
+    {
+        var presentation = Use<Avatar.ImagePresentation>();
+        var reference = Ref ?? _fallback;
+        UseEffect(() => presentation.TrackFallback(reference), presentation, reference);
+
+        var fallback = new Div { Style = Style, Ref = reference, Children = Children ?? new NodeList() };
+        fallback.MergeAttributes(VisualPart.Attributes("avatar-fallback", FallbackClass, Class, Rest));
+        return fallback;
+    }
+}

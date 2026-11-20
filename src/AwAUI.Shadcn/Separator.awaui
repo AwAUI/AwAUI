@@ -1,0 +1,23 @@
+@(BuildSeparator())
+
+@code {
+    const string SeparatorClass =
+        "shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px";
+
+    public SeparatorOrientation Orientation { get; set; } = SeparatorOrientation.Horizontal;
+    public bool Decorative { get; set; } = true;
+    public string? Class { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildSeparator()
+    {
+        bool vertical = Orientation == SeparatorOrientation.Vertical;
+        var separator = new Div { Role = Decorative ? Role.Presentation : Role.Separator };
+        separator.Attributes["data-slot"] = "separator";
+        separator.Attributes["data-orientation"] = vertical ? "vertical" : "horizontal";
+        if (!Decorative && vertical) separator.Attributes["aria-orientation"] = "vertical";
+        separator.MergeAttributes(Rest);
+        separator.Class = AwAUI.Tailwind.TailwindMerge.Cn(SeparatorClass, separator.Class.Text, Class);
+        return separator;
+    }
+}

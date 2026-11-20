@@ -1,0 +1,9 @@
+<div @attributes="@(DialogAttributes.ForPart("dialog-header", Rest, Class, "flex flex-col gap-2 text-center sm:text-left"))">
+    @Children
+</div>
+
+@code {
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

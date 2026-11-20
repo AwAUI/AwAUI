@@ -1,0 +1,11 @@
+<AwAUI.Controls.Primitives.Dialog.Overlay Children="@Children"
+                                         Attributes="@DialogAttributes.ForPart("dialog-overlay", Rest, Class, DefaultClass)" />
+
+@code {
+    // Animate the color channel so the full-window mask does not need a software offscreen opacity layer.
+    const string DefaultClass = "fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-aw-dialog-backdrop-in data-[state=closed]:animate-aw-dialog-backdrop-out";
+
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

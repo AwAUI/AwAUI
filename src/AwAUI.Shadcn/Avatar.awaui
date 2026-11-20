@@ -1,0 +1,72 @@
+@(BuildAvatar())
+
+@code {
+    const string AvatarClass = "group/avatar relative flex size-8 shrink-0 overflow-hidden rounded-full select-none data-[size=lg]:size-10 data-[size=sm]:size-6";
+    readonly ImagePresentation _presentation = new();
+
+    public AvatarSize Size { get; set; }
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildAvatar()
+    {
+        // A Div gives the image its own layout box; AwAUI spans are text runs.
+        var avatar = new Div { Style = Style, Ref = Ref, Children = Children ?? new NodeList() };
+        var attributes = VisualPart.Attributes("avatar", AvatarClass, Class, Rest);
+        attributes["data-size"] = Size switch
+        {
+            AvatarSize.Sm => "sm",
+            AvatarSize.Lg => "lg",
+            _ => "default",
+        };
+        avatar.MergeAttributes(attributes);
+        return Provide(_presentation, avatar);
+    }
+
+    protected override void OnMount()
+    {
+        if (Root is { } root) root.LayoutCompleted += _presentation.Update;
+    }
+
+    protected override void OnUnmount()
+    {
+        if (Root is { } root) root.LayoutCompleted -= _presentation.Update;
+    }
+
+    internal sealed class ImagePresentation
+    {
+        readonly List<Ref<Element>> _images = new();
+        readonly List<Ref<Element>> _fallbacks = new();
+
+        internal Action TrackImage(Ref<Element> image)
+        {
+            _images.Add(image);
+            return () => _images.Remove(image);
+        }
+
+        internal Action TrackFallback(Ref<Element> fallback)
+        {
+            _fallbacks.Add(fallback);
+            return () => _fallbacks.Remove(fallback);
+        }
+
+        internal void Update(UIRoot root)
+        {
+            // LoadState is available after layout. Switch both boxes before paint so loading
+            // and failed sources never show the native image placeholder over the fallback.
+            bool hasImage = false;
+            foreach (var reference in _images)
+            {
+                if (reference.Current is not ImageElement image) continue;
+                bool ready = image.LoadState == ImageLoadState.Ready;
+                image.SetStyleOverride("display", ready ? null : "none");
+                hasImage |= ready;
+            }
+            foreach (var reference in _fallbacks)
+                reference.Current?.SetStyleOverride("display", hasImage ? "none" : null);
+        }
+    }
+}

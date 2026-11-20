@@ -113,6 +113,12 @@ public sealed class Presence
         TimeSpan longest = TimeSpan.Zero;
         if (animating && style.AnimationDuration > longest) longest = style.AnimationDuration;
         if (transitioning && style.TransitionDuration > longest) longest = style.TransitionDuration;
+        SuspendExit(longest, now);
+    }
+
+    // The component tracks the actual runtime instances as a group, including multiple animations.
+    internal void SuspendExit(TimeSpan longest, TimeSpan now)
+    {
         // 时长来自样式（可能极大）：饱和相加，不溢出
         _deadline = longest > TimeSpan.Zero ? SaturatingAdd(SaturatingAdd(now, longest), EndEventGrace) : SaturatingAdd(now, FallbackTimeout);
         Transition(PresenceState.UnmountSuspended);
@@ -125,7 +131,7 @@ public sealed class Presence
         var name = animationName ?? "";
         if (!ContainsName(_currentAnimationName, name)) return;
         _waitingAnimation = false;
-        if (_pendingTransitions == 0) Transition(PresenceState.Unmounted);
+        if (_pendingTransitions == 0) FinishExit();
     }
 
     /// <summary><c>transitionend</c> / <c>transitioncancel</c>（目标是内容根元素时）。</summary>
@@ -133,17 +139,22 @@ public sealed class Presence
     {
         if (State != PresenceState.UnmountSuspended || _pendingTransitions == 0) return;
         _pendingTransitions--;
-        if (_pendingTransitions == 0 && !_waitingAnimation) Transition(PresenceState.Unmounted);
+        if (_pendingTransitions == 0 && !_waitingAnimation) FinishExit();
     }
 
     /// <summary>推进时间：挂起超过截止时间时卸载。返回是否因此卸载。</summary>
     public bool Tick(TimeSpan now)
     {
         if (State != PresenceState.UnmountSuspended || now < _deadline) return false;
+        FinishExit();
+        return true;
+    }
+
+    internal void FinishExit()
+    {
         _pendingTransitions = 0;
         _waitingAnimation = false;
         Transition(PresenceState.Unmounted);
-        return true;
     }
 
     void Transition(PresenceState next)

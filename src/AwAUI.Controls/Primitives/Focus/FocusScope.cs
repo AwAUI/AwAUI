@@ -166,6 +166,31 @@ public sealed class FocusScopeStack<T> where T : class
         scope.IsPaused = false;
     }
 
+    /// <summary>
+    /// 把 <paramref name="scope"/> 放在 <paramref name="above"/> 之下（暂停状态）：外层作用域在它的嵌套作用域之后挂载时使用，
+    /// 生效的仍是嵌套的作用域。<paramref name="above"/> 不在栈中时等同于 <see cref="Add"/>。
+    /// </summary>
+    public void AddBelow(FocusScopeModel<T> scope, FocusScopeModel<T> above)
+    {
+        if (scope is null) throw new ArgumentNullException(nameof(scope));
+        if (above is null) throw new ArgumentNullException(nameof(above));
+        if (ReferenceEquals(scope, above)) throw new ArgumentException("作用域不能放在自身之下。", nameof(above));
+        int index = _scopes.IndexOf(above);
+        if (index < 0)
+        {
+            Add(scope);
+            return;
+        }
+        int existing = _scopes.IndexOf(scope);
+        if (existing >= 0)
+        {
+            _scopes.RemoveAt(existing);
+            if (existing < index) index--;
+        }
+        _scopes.Insert(index, scope);
+        scope.IsPaused = true;
+    }
+
     /// <summary>移除并恢复新的栈顶。</summary>
     public void Remove(FocusScopeModel<T> scope)
     {

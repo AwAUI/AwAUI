@@ -1,0 +1,18 @@
+@(BuildSpinner())
+
+@code {
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildSpinner()
+    {
+        var attributes = VisualPart.Attributes("spinner", "size-4 animate-spin", Class, Rest);
+        attributes["role"] ??= Role.Status;
+        attributes["aria-label"] ??= "Loading";
+        var glyph = new global::AwAUI.UI.Svg(global::AwAUI.Icons.Lucide.LucideIcons.LoaderCircle) { Style = Style, Ref = Ref };
+        glyph.MergeAttributes(attributes);
+        return glyph;
+    }
+}

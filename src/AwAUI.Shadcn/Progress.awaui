@@ -1,0 +1,53 @@
+@using System.Globalization
+
+@(BuildProgress())
+
+@code {
+    const string TrackClass = "relative h-2 w-full overflow-hidden rounded-full bg-primary/20";
+    const string IndicatorClass = "h-full w-full flex-1 bg-primary transition-all";
+    const double DefaultMax = 100;
+
+    /// <summary>Progress from zero to Max; null or an out of range value is indeterminate.</summary>
+    public double? Value { get; set; }
+    public double Max { get; set; } = DefaultMax;
+    public Func<double, double, string>? GetValueLabel { get; set; }
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildProgress()
+    {
+        double max = Max > 0 && !double.IsInfinity(Max) ? Max : DefaultMax;
+        double? value = Value is double current && current >= 0 && current <= max ? current : (double?)null;
+        double percent = value.GetValueOrDefault() / max * 100;
+        string state = value is null ? "indeterminate" : value == max ? "complete" : "loading";
+        string maxText = Number(max);
+        string? valueText = value is double actual ? Number(actual) : null;
+
+        var track = new Div { Role = Role.ProgressBar, Style = Style, Ref = Ref };
+        track.MergeAttributes(VisualPart.Attributes("progress", TrackClass, Class, Rest));
+        track.Attributes["aria-valuemin"] = "0";
+        track.Attributes["aria-valuemax"] = maxText;
+        track.Attributes["aria-valuenow"] = valueText;
+        track.Attributes["aria-valuetext"] = value is double n
+            ? track.Attributes["aria-valuetext"] ?? GetValueLabel?.Invoke(n, max) ?? Number(Math.Floor(percent + 0.5)) + "%"
+            : null;
+        SetProgressAttributes(track, state, valueText, maxText);
+
+        var indicator = new Div { Class = IndicatorClass, Style = "transform: translateX(" + Number(percent - 100) + "%)" };
+        indicator.Attributes["data-slot"] = "progress-indicator";
+        SetProgressAttributes(indicator, state, valueText, maxText);
+        track.Children.Add(indicator);
+        return track;
+    }
+
+    static void SetProgressAttributes(ElementNode node, string state, string? value, string max)
+    {
+        node.Attributes["data-state"] = state;
+        node.Attributes["data-value"] = value;
+        node.Attributes["data-max"] = max;
+    }
+
+    static string Number(double value) => value.ToString("G", CultureInfo.InvariantCulture);
+}

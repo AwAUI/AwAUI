@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.props" />
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>AwAUI components based on shadcn/ui's New York theme.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Controls/AwAUI.Controls.csproj" />
+    <ProjectReference Include="../AwAUI.Icons.Lucide/AwAUI.Icons.Lucide.csproj" />
+    <ProjectReference Include="../AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <ProjectReference Include="../Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <AwAUITailwindStylesheet Include="Styles/shadcn.css" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
+</Project>

@@ -1,0 +1,30 @@
+@using System.Globalization
+
+<div class="relative w-full" style="@RatioStyle()" data-radix-aspect-ratio-wrapper="">
+    <div style="@ContentStyle()" @ref="Ref"
+         @attributes="@(VisualPart.Attributes("aspect-ratio", null, Class, Rest))">
+        @Children
+    </div>
+</div>
+
+@code {
+    /// <summary>Width divided by height. The default is 1.</summary>
+    public double Ratio { get; set; } = 1;
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    string ContentStyle()
+    {
+        const string fill = "position: absolute; inset: 0";
+        return string.IsNullOrWhiteSpace(Style) ? fill : Style!.Trim().TrimEnd(';') + "; " + fill;
+    }
+
+    string RatioStyle()
+    {
+        var ratio = Ratio > 0 && Ratio <= float.MaxValue && Ratio >= float.Epsilon ? Ratio : 1;
+        return "aspect-ratio: " + ratio.ToString("G", CultureInfo.InvariantCulture);
+    }
+}

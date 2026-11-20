@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Fluent style tokens and default control styles for AwAUI.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <ProjectReference Include="../AwAUI.Css/AwAUI.Css.csproj" />
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <EmbeddedResource Include="Styles/fluent.css" LogicalName="AwAUI.Themes.Fluent.Styles.fluent.css" />
+  </ItemGroup>
+</Project>

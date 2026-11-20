@@ -1,0 +1,163 @@
+/* shadcn/ui New York v4: neutral tokens and utility mappings. */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *, :root[data-aw-theme=dark] *));
+
+@theme inline {
+  --animate-aw-dialog-backdrop-in: aw-dialog-backdrop-in var(--tw-animation-duration, var(--tw-duration, .15s)) var(--tw-ease, ease) var(--tw-animation-delay, 0s);
+  --animate-aw-dialog-backdrop-out: aw-dialog-backdrop-out var(--tw-animation-duration, var(--tw-duration, .15s)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) forwards;
+  @keyframes aw-dialog-backdrop-in { from { background-color: transparent; } }
+  @keyframes aw-dialog-backdrop-out { to { background-color: transparent; } }
+  --animate-aw-dialog-panel-in: aw-dialog-panel-in var(--tw-animation-duration, var(--tw-duration, .2s)) var(--tw-ease, ease) var(--tw-animation-delay, 0s);
+  --animate-aw-dialog-panel-out: aw-dialog-panel-out var(--tw-animation-duration, var(--tw-duration, .2s)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) forwards;
+  @keyframes aw-dialog-panel-in { from { opacity: 0; transform: scale(.95); } }
+  @keyframes aw-dialog-panel-out { to { opacity: 0; transform: scale(.95); } }
+  --animate-aw-popup-in: aw-popup-in var(--tw-animation-duration, var(--tw-duration, .15s)) var(--tw-ease, ease) var(--tw-animation-delay, 0s);
+  --animate-aw-popup-out: aw-popup-out var(--tw-animation-duration, var(--tw-duration, .15s)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) forwards;
+  @keyframes aw-popup-in {
+    from { opacity: 0; transform: translate(var(--aw-popup-offset-x, 0px), var(--aw-popup-offset-y, 0px)) scale(.95); }
+  }
+  @keyframes aw-popup-out { to { opacity: 0; transform: scale(.95); } }
+  --animate-aw-sheet-in: aw-sheet-in var(--tw-animation-duration, .5s) var(--tw-ease, ease-in-out) var(--tw-animation-delay, 0s);
+  --animate-aw-sheet-out: aw-sheet-out var(--tw-animation-duration, .3s) var(--tw-ease, ease-in-out) var(--tw-animation-delay, 0s) forwards;
+  @keyframes aw-sheet-in {
+    from { transform: translate(var(--aw-sheet-x, 0px), var(--aw-sheet-y, 0px)); }
+  }
+  @keyframes aw-sheet-out {
+    to { transform: translate(var(--aw-sheet-x, 0px), var(--aw-sheet-y, 0px)); }
+  }
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark, :root[data-aw-theme=dark] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  :root {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Use the final Popper side, including when the popup flips at a viewport edge. */
+@layer components {
+  [data-aw-popper-content-wrapper]:has(> :is([data-slot=popover-content], [data-slot=tooltip-content],
+      [data-slot=select-content], [data-slot=dropdown-menu-content], [data-slot=dropdown-menu-sub-content])[data-state=closed]) {
+    pointer-events: none;
+  }
+
+  [data-slot=sheet-content] {
+    &[data-side=top] { --aw-sheet-y: -100%; }
+    &[data-side=bottom] { --aw-sheet-y: 100%; }
+    &[data-side=left] { --aw-sheet-x: -100%; }
+    &[data-side=right] { --aw-sheet-x: 100%; }
+  }
+
+  :is([data-slot=popover-content], [data-slot=tooltip-content], [data-slot=select-content],
+      [data-slot=dropdown-menu-content], [data-slot=dropdown-menu-sub-content]) {
+    &[data-side=bottom] { --aw-popup-offset-y: -0.5rem; }
+    &[data-side=top] { --aw-popup-offset-y: 0.5rem; }
+    &[data-side=left] { --aw-popup-offset-x: 0.5rem; }
+    &[data-side=right] { --aw-popup-offset-x: -0.5rem; }
+  }
+}
+
+/* Keep the reduced-motion preference for components that use transitions or exit keyframes. */
+@media (prefers-reduced-motion: reduce) {
+  /* Presence disposes the inactive tree on the next build. Suppress its last paint now. */
+  :is([data-slot=popover-content], [data-slot=tooltip-content], [data-slot=select-content],
+      [data-slot=dropdown-menu-content], [data-slot=dropdown-menu-sub-content], [data-slot=dialog-content],
+      [data-slot=dialog-overlay], [data-slot=alert-dialog-content], [data-slot=alert-dialog-overlay],
+      [data-slot=sheet-content], [data-slot=sheet-overlay], [data-slot=accordion-content])[data-state=closed] {
+    visibility: hidden;
+  }
+  :is([data-slot=button], [data-slot=input], [data-slot=badge], [data-slot=checkbox], [data-slot=switch], [data-slot=switch-thumb], [data-slot=dialog-content], [data-slot=dialog-overlay],
+      [data-slot=textarea], [data-slot=select-trigger], [data-slot=sheet-close],
+      [data-slot=dialog-close], [data-slot=alert-dialog-content], [data-slot=sheet-content],
+      [data-slot=progress-indicator], [data-slot=skeleton], [data-slot=spinner]) {
+    animation: none;
+    transition: none;
+  }
+}

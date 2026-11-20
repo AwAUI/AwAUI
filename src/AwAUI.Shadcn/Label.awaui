@@ -1,0 +1,88 @@
+@(BuildLabel())
+
+@code {
+    const string LabelClass = "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50";
+
+    public string? Id { get; set; }
+
+    /// <summary>The ID of an input, checkbox, or switch in the same window. If omitted, the first nested control is used.</summary>
+    public string? For { get; set; }
+
+    public string? Class { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public Action<PointerEvent>? OnClick { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildLabel()
+    {
+        var label = new LabelNode
+        {
+            Id = Id,
+            Ref = Ref,
+            OnClick = OnClick,
+            Children = Children ?? new NodeList(),
+        };
+        label.Attributes["data-slot"] = "label";
+        label.Attributes["for"] = For;
+        label.MergeAttributes(Rest);
+        label.Class = AwAUI.Tailwind.TailwindMerge.Cn(LabelClass, label.Class.Text, Class);
+        var handler = label.OnClick;
+        label.OnClick = e =>
+        {
+            handler?.Invoke(e);
+            if (!e.DefaultPrevented) FocusControl(e);
+        };
+        var down = label.OnPointerDown;
+        label.OnPointerDown = e =>
+        {
+            down?.Invoke(e);
+            if (!e.DefaultPrevented && e.Button == AwAUI.Platform.PointerButtons.Left
+                && AssociatedControl(e) is { IsFocused: true })
+                e.PreventDefault(); // Clicking the label again keeps focus and any selection.
+        };
+        return label;
+    }
+
+    static void FocusControl(PointerEvent e)
+    {
+        if (AssociatedControl(e) is not { Root: { } root } control) return;
+        if (root.FocusManager.Focus(control, e.IsSynthetic ? FocusOrigin.Programmatic : FocusOrigin.Pointer)
+            && control is ButtonElement)
+            root.Input.Activate(control);
+    }
+
+    static Element? AssociatedControl(PointerEvent e)
+    {
+        if (e.CurrentTarget is not { Root: { } root } label) return null;
+        // A nested interactive element handles its own click.
+        for (var target = e.Target; target is not null && !ReferenceEquals(target, label); target = target.Parent)
+            if (target.IsFocusable || target.CanBeDisabled || target.Role == Role.Link) return null;
+
+        var id = label.GetAttribute("for");
+        var control = FindControl(id is null ? label : root.RootElement, id);
+        return control is { IsFocusable: true, IsVisible: true } && !root.IsPointerBlocked(control) ? control : null;
+    }
+
+    static Element? FindControl(Element start, string? id)
+    {
+        if (id == "") return null;
+        var pending = new Stack<Element>();
+        pending.Push(start);
+        while (pending.Count > 0)
+        {
+            var element = pending.Pop();
+            if (id is null ? IsLabelable(element) : element.Id == id) return IsLabelable(element) ? element : null;
+            var children = element.Children;
+            for (int index = children.Count - 1; index >= 0; index--) pending.Push(children[index]);
+        }
+        return null;
+    }
+
+    static bool IsLabelable(Element element) => element is InputElement or ButtonElement { Role: Role.CheckBox or Role.Switch or Role.Radio };
+
+    sealed class LabelNode : ElementNode
+    {
+        protected override Element CreateElement() => new Element("label");
+    }
+}

@@ -1,0 +1,56 @@
+@(BuildInput())
+
+@code {
+    const string InputClass =
+        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary/25 placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30 " +
+        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 " +
+        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40";
+
+    /// <summary>Controlled value. A null value leaves editing state in the element.</summary>
+    public string? Value { get; set; }
+
+    /// <summary>Receives each edit and supports <c>@bind-Value</c>.</summary>
+    public Action<string>? ValueChanged { get; set; }
+
+    public string? Id { get; set; }
+    public string? InputType { get; set; }
+    public string? Placeholder { get; set; }
+    public bool Disabled { get; set; }
+    public bool ReadOnly { get; set; }
+    public string? Class { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public Action<InputEvent>? OnInput { get; set; }
+    public Action<InputEvent>? OnChange { get; set; }
+    public Action<SubmitEvent>? OnSubmit { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildInput()
+    {
+        var input = new global::AwAUI.UI.Input
+        {
+            Id = Id,
+            InputType = InputType,
+            Value = Value,
+            Placeholder = Placeholder,
+            Disabled = Disabled,
+            ReadOnly = ReadOnly,
+            Ref = Ref,
+            OnInput = OnInput,
+            OnChange = OnChange,
+            OnSubmit = OnSubmit,
+        };
+        input.Attributes["data-slot"] = "input";
+        input.MergeAttributes(Rest);
+        input.Class = AwAUI.Tailwind.TailwindMerge.Cn(InputClass, input.Class.Text, Class);
+        if (ValueChanged is { } changed)
+        {
+            var handler = input.OnInput;
+            input.OnInput = e =>
+            {
+                changed(e.Value);
+                handler?.Invoke(e);
+            };
+        }
+        return input;
+    }
+}

@@ -1,0 +1,8 @@
+<AwAUI.Controls.Primitives.Dialog.Description Children="@Children"
+                                             Attributes="@DialogAttributes.ForPart("dialog-description", Rest, Class, "text-sm text-muted-foreground")" />
+
+@code {
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

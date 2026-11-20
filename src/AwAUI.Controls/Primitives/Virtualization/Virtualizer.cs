@@ -50,7 +50,7 @@ public sealed class VirtualizerOptions
     /// <summary>粘性项的索引（如分组标题）：当前分组的标题总是包含在渲染范围内，并给出被下一个标题推走的位置。</summary>
     public IReadOnlyList<int>? StickyIndices { get; init; }
 
-    /// <summary>一次最多渲染的项数（保护：零尺寸的项或巨大的视口不会使渲染数量失控）。</summary>
+    /// <summary>一次最多渲染的项数（保护：零尺寸的项、巨大的视口或预渲染不会使渲染数量失控）。超出时优先保留与视口相交的项。</summary>
     public int MaxRenderedItems { get; init; } = 10_000;
 
     /// <summary>位于视口开头之上的项测量尺寸变化时，调整滚动偏移使可见内容不跳动（滚动锚定）。</summary>

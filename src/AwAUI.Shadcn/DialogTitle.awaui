@@ -1,0 +1,8 @@
+<AwAUI.Controls.Primitives.Dialog.Title Children="@Children"
+                                       Attributes="@DialogAttributes.ForPart("dialog-title", Rest, Class, "text-lg leading-none font-semibold")" />
+
+@code {
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

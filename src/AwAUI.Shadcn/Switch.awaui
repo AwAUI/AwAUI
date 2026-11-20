@@ -1,0 +1,44 @@
+@using AwAUI.Controls.Primitives
+
+@(BuildSwitch())
+
+@code {
+    const string SwitchClass =
+        "peer group/switch inline-flex shrink-0 items-center justify-start rounded-full border border-transparent bg-input p-0 shadow-xs transition-colors outline-none " +
+        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 " +
+        "data-[size=default]:h-[1.15rem] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 " +
+        "data-[state=checked]:bg-primary dark:data-[state=unchecked]:bg-input/80";
+    const string ThumbClass =
+        "pointer-events-none block shrink-0 rounded-full bg-background transition-transform group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 " +
+        "data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0 dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground";
+
+    readonly ControllableState<bool> _checked = new();
+
+    public string? Id { get; set; }
+    public bool? Checked { get; set; }
+    public bool DefaultChecked { get; set; }
+    public Action<bool>? CheckedChanged { get; set; }
+    public Action<bool>? OnCheckedChange { get; set; }
+    public bool Disabled { get; set; }
+    public SwitchSize Size { get; set; }
+    public string? Class { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public Action<PointerEvent>? OnClick { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildSwitch()
+    {
+        string state = _checked.Sync(Checked, DefaultChecked, CheckedChanged + OnCheckedChange)
+            ? ToggleHost.Checked : ToggleHost.Unchecked;
+        var button = ToggleHost.Create(Role.Switch, "switch", state, Id, Disabled, Ref, SwitchClass, Class, Rest, OnClick, Toggle);
+        button.Attributes["data-size"] = Size == SwitchSize.Sm ? "sm" : "default";
+        var thumb = new Span { Class = ThumbClass };
+        thumb.Attributes["data-slot"] = "switch-thumb";
+        thumb.Attributes["data-state"] = state;
+        thumb.Attributes["aria-hidden"] = "true";
+        button.Children.Add(thumb);
+        return button;
+    }
+
+    void Toggle() => _checked.Set(!_checked.Value);
+}

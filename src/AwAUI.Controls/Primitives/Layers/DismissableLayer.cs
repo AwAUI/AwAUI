@@ -16,16 +16,23 @@ public enum DismissReason : byte
 /// </summary>
 public sealed class DismissableLayerEvent<TNode>
 {
-    internal DismissableLayerEvent(DismissReason reason, TNode? target)
+    internal DismissableLayerEvent(DismissReason reason, TNode? target, object? originalEvent = null)
     {
         Reason = reason;
         Target = target;
+        OriginalEvent = originalEvent;
     }
 
     public DismissReason Reason { get; }
 
     /// <summary>指针按下 / 获得焦点的目标（Escape 时为 null）。</summary>
     public TNode? Target { get; }
+
+    /// <summary>
+    /// 引起它的宿主事件（Radix 的 <c>event.detail.originalEvent</c>）：UI 中是 <c>PointerEvent</c>（外部指针按下，可据此区分右键）、
+    /// <c>FocusChangedEventArgs</c>（焦点移出）或 <c>KeyEvent</c>（Escape）。宿主没有给出时为 null。
+    /// </summary>
+    public object? OriginalEvent { get; }
 
     public bool DefaultPrevented { get; private set; }
 
@@ -109,11 +116,24 @@ public sealed class DismissableLayerStack<TNode>
     /// <summary>最上层；栈空时为 null。</summary>
     public DismissableLayer<TNode>? TopLayer => _layers.Count == 0 ? null : _layers[_layers.Count - 1];
 
-    /// <summary>入栈（打开）。同一层重复入栈被忽略。</summary>
+    /// <summary>
+    /// 入栈（打开）。同一层重复入栈被忽略。栈中已有本层的逻辑子层（<see cref="DismissableLayer{TNode}.Parent"/> 链经过本层）时，
+    /// 本层插在第一个这样的子层之下：嵌套的层同时挂载时（组件的挂载回调子先于父），父层仍在子层之下。
+    /// </summary>
     public void Push(DismissableLayer<TNode> layer)
     {
         if (layer is null) throw new ArgumentNullException(nameof(layer));
         if (_layers.Contains(layer)) return;
+        for (int i = 0; i < _layers.Count; i++)
+        {
+            int depth = 0;
+            for (var p = _layers[i].Parent; p is not null && depth <= _layers.Count; p = p.Parent, depth++)
+            {
+                if (!ReferenceEquals(p, layer)) continue;
+                _layers.Insert(i, layer);
+                return;
+            }
+        }
         _layers.Add(layer);
     }
 
@@ -151,12 +171,15 @@ public sealed class DismissableLayerStack<TNode>
     /// 分派 Escape：只有最上层处理。返回处理它的层（没有层时为 null）；<paramref name="dismissed"/> 表示该层应关闭
     /// （此时宿主应对按键事件 <c>PreventDefault</c>）。
     /// </summary>
-    public DismissableLayer<TNode>? DispatchEscape(out bool dismissed)
+    public DismissableLayer<TNode>? DispatchEscape(out bool dismissed) => DispatchEscape(null, out dismissed);
+
+    /// <summary>分派 Escape，并把宿主的按键事件作为 <see cref="DismissableLayerEvent{TNode}.OriginalEvent"/> 交给回调。</summary>
+    public DismissableLayer<TNode>? DispatchEscape(object? originalEvent, out bool dismissed)
     {
         dismissed = false;
         var top = TopLayer;
         if (top is null) return null;
-        var e = new DismissableLayerEvent<TNode>(DismissReason.EscapeKey, default);
+        var e = new DismissableLayerEvent<TNode>(DismissReason.EscapeKey, default, originalEvent);
         top.OnEscapeKeyDown?.Invoke(e);
         if (!e.DefaultPrevented && top.OnDismiss is not null)
         {
@@ -167,12 +190,20 @@ public sealed class DismissableLayerStack<TNode>
     }
 
     /// <summary>分派一次指针按下。返回因此被关闭的层（自上而下）。</summary>
-    public IReadOnlyList<DismissableLayer<TNode>> DispatchPointerDown(TNode target) => DispatchOutside(target, DismissReason.PointerDownOutside);
+    public IReadOnlyList<DismissableLayer<TNode>> DispatchPointerDown(TNode target) => DispatchOutside(target, DismissReason.PointerDownOutside, null);
+
+    /// <summary>分派一次指针按下，<paramref name="originalEvent"/> 是宿主的指针事件（回调据此区分右键等）。</summary>
+    public IReadOnlyList<DismissableLayer<TNode>> DispatchPointerDown(TNode target, object? originalEvent) =>
+        DispatchOutside(target, DismissReason.PointerDownOutside, originalEvent);
 
     /// <summary>分派一次焦点变化（新焦点为 <paramref name="target"/>）。返回因此被关闭的层（自上而下）。</summary>
-    public IReadOnlyList<DismissableLayer<TNode>> DispatchFocusIn(TNode target) => DispatchOutside(target, DismissReason.FocusOutside);
+    public IReadOnlyList<DismissableLayer<TNode>> DispatchFocusIn(TNode target) => DispatchOutside(target, DismissReason.FocusOutside, null);
 
-    IReadOnlyList<DismissableLayer<TNode>> DispatchOutside(TNode target, DismissReason reason)
+    /// <summary>分派一次焦点变化，<paramref name="originalEvent"/> 是宿主的焦点变化事件。</summary>
+    public IReadOnlyList<DismissableLayer<TNode>> DispatchFocusIn(TNode target, object? originalEvent) =>
+        DispatchOutside(target, DismissReason.FocusOutside, originalEvent);
+
+    IReadOnlyList<DismissableLayer<TNode>> DispatchOutside(TNode target, DismissReason reason, object? originalEvent)
     {
         var snapshot = _layers.ToArray();
         var dismissed = new List<DismissableLayer<TNode>>();
@@ -191,7 +222,7 @@ public sealed class DismissableLayerStack<TNode>
         }
         foreach (var layer in targets)
         {
-            var e = new DismissableLayerEvent<TNode>(reason, target);
+            var e = new DismissableLayerEvent<TNode>(reason, target, originalEvent);
             if (reason == DismissReason.PointerDownOutside) layer.OnPointerDownOutside?.Invoke(e);
             else layer.OnFocusOutside?.Invoke(e);
             layer.OnInteractOutside?.Invoke(e);

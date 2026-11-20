@@ -1,0 +1,12 @@
+<div style="@Style" @ref="Ref"
+     @attributes="@(VisualPart.Attributes("alert-title", "col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight", Class, Rest))">
+    @Children
+</div>
+
+@code {
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

@@ -1,0 +1,12 @@
+<div style="@Style" @ref="Ref"
+     @attributes="@(VisualPart.Attributes("skeleton", "animate-pulse rounded-md bg-accent", Class, Rest))">
+    @Children
+</div>
+
+@code {
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

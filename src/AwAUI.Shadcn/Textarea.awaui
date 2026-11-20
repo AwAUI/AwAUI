@@ -1,0 +1,37 @@
+@(BuildEditor())
+
+@code {
+    const string EditorClass = "flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40";
+
+    public string? Id { get; set; }
+    public string? Value { get; set; }
+    public Action<string>? ValueChanged { get; set; }
+    public string? Placeholder { get; set; }
+    public bool Disabled { get; set; }
+    public bool ReadOnly { get; set; }
+    public string? Class { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public Action<InputEvent>? OnInput { get; set; }
+    public Action<InputEvent>? OnChange { get; set; }
+    public Action<SubmitEvent>? OnSubmit { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildEditor()
+    {
+        var editor = new AwAUI.UI.TextArea
+        {
+            Id = Id, Value = Value, Placeholder = Placeholder, Disabled = Disabled,
+            ReadOnly = ReadOnly, Ref = Ref, Role = Role.TextBox, OnInput = OnInput,
+            OnChange = OnChange, OnSubmit = OnSubmit,
+        };
+        editor.Attributes["data-slot"] = "textarea";
+        editor.MergeAttributes(Rest);
+        editor.Class = AwAUI.Tailwind.TailwindMerge.Cn(EditorClass, editor.Class.Text, Class);
+        if (ValueChanged is { } changed)
+        {
+            var onInput = editor.OnInput;
+            editor.OnInput = e => { changed(e.Value); onInput?.Invoke(e); };
+        }
+        return editor;
+    }
+}

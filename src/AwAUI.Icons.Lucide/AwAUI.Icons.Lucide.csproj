@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <PropertyGroup>
+    <Description>A curated set of Lucide icons for AwAUI.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <None Include="LICENSE;README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

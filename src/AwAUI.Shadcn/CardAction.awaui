@@ -1,0 +1,11 @@
+<div data-slot="card-action"
+     class="@AwAUI.Tailwind.TailwindMerge.Cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", Class)"
+     @attributes="Rest">
+    @Children
+</div>
+
+@code {
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

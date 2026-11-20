@@ -1,0 +1,56 @@
+@using AwAUI.Controls.Primitives
+
+@(BuildToggle())
+
+@code {
+    const string ToggleClass =
+        "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none hover:bg-muted hover:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+
+    readonly ControllableState<bool> _pressed = new();
+
+    public string? Id { get; set; }
+    public bool? Pressed { get; set; }
+    public bool DefaultPressed { get; set; }
+    public Action<bool>? PressedChanged { get; set; }
+    public Action<bool>? OnPressedChange { get; set; }
+    public bool Disabled { get; set; }
+    public ToggleVariant Variant { get; set; }
+    public ToggleSize Size { get; set; }
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public Action<PointerEvent>? OnClick { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildToggle()
+    {
+        bool pressed = _pressed.Sync(Pressed, DefaultPressed, PressedChanged + OnPressedChange);
+        string variant = Variant == ToggleVariant.Outline
+            ? "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground"
+            : "bg-transparent";
+        string size = Size switch
+        {
+            ToggleSize.Sm => "h-8 min-w-8 px-1.5",
+            ToggleSize.Lg => "h-10 min-w-10 px-2.5",
+            _ => "h-9 min-w-9 px-2",
+        };
+        var button = new global::AwAUI.UI.Button
+        {
+            Id = Id, Disabled = Disabled, Style = Style, Ref = Ref, OnClick = OnClick,
+            Children = Children ?? new NodeList(),
+        };
+        var attributes = VisualPart.Attributes("toggle", ToggleClass + " " + variant + " " + size, Class, Rest);
+        attributes["role"] ??= Role.Button;
+        button.MergeAttributes(attributes);
+        button.Attributes["type"] = "button";
+        button.Attributes["aria-pressed"] = pressed ? "true" : "false";
+        button.Attributes["data-state"] = pressed ? "on" : "off";
+        button.Attributes["data-disabled"] = button.Disabled ? "" : null;
+        button.OnClick = EventComposition.Compose(button.OnClick, e =>
+        {
+            if (!e.DefaultPrevented && !button.Disabled) _pressed.Set(!_pressed.Value);
+        });
+        return button;
+    }
+}

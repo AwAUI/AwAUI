@@ -1,0 +1,11 @@
+<div data-slot="card-description"
+     class="@AwAUI.Tailwind.TailwindMerge.Cn("text-sm text-muted-foreground", Class)"
+     @attributes="Rest">
+    @Children
+</div>
+
+@code {
+    public string? Class { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

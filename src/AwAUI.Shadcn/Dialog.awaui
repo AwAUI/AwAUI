@@ -1,0 +1,12 @@
+<AwAUI.Controls.Primitives.Dialog.Root Open="@Open" DefaultOpen="@DefaultOpen" Modal="@Modal"
+                                      OnOpenChange="@(OpenChanged + OnOpenChange)" Children="@Children" />
+
+@code {
+    public bool? Open { get; set; }
+    public bool DefaultOpen { get; set; }
+    public bool Modal { get; set; } = true;
+    public Action<bool>? OnOpenChange { get; set; }
+    /// <summary>Change callback used by <c>@bind-Open</c>.</summary>
+    public Action<bool>? OpenChanged { get; set; }
+    public NodeList? Children { get; set; }
+}

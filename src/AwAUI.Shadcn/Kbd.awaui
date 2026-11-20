@@ -1,0 +1,26 @@
+@(BuildKey())
+
+@code {
+    const string KeyClass =
+        "pointer-events-none inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-sm bg-muted px-1 font-sans text-xs font-medium text-muted-foreground select-none " +
+        "[&_svg:not([class*='size-'])]:size-3 " +
+        "[[data-slot=tooltip-content]_&]:bg-background/20 [[data-slot=tooltip-content]_&]:text-background dark:[[data-slot=tooltip-content]_&]:bg-background/10";
+
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildKey()
+    {
+        var key = new KeyElement { Style = Style, Ref = Ref, Children = Children ?? new NodeList() };
+        key.MergeAttributes(VisualPart.Attributes("kbd", KeyClass, Class, Rest));
+        return key;
+    }
+
+    sealed class KeyElement : ElementNode
+    {
+        protected override Element CreateElement() => new Element("kbd");
+    }
+}
