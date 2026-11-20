@@ -33,6 +33,7 @@ public enum DrawOp : byte
     DrawImageNine = 35,         // 保留
     DrawGlyphRun = 36,          // DrawGlyphRunCmd，GlyphRun 在资源表中
     DrawTextDecoration = 37,    // 保留
+    DrawBackdrop = 38,          // DrawBackdropCmd，Filter 在资源表中（FormatVersion 2）
 
     // 分组
     PushLayer = 48,

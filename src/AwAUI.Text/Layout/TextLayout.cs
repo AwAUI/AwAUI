@@ -115,6 +115,7 @@ public sealed partial class TextLayout
         _style = style;
         _source = text;
         _placeholders = placeholders;
+        _spanList = spans;
         int n = text.Length;
         _text = text.ToCharArray();
 
@@ -166,6 +167,19 @@ public sealed partial class TextLayout
 
     /// <summary>占位盒数量。</summary>
     public int PlaceholderCount => _placeholders.Length;
+
+    readonly StyleSpan[] _spanList;
+
+    /// <summary>
+    /// 偏移 <paramref name="offset"/> 处字符的文本样式（构建时 <see cref="ParagraphBuilder.PushStyle"/> 给出的实例）；
+    /// 不在任何样式片段内（或越界）时为段落的默认样式 <see cref="ParagraphStyle.TextStyle"/>。
+    /// </summary>
+    public TextStyle GetStyleAt(int offset)
+    {
+        foreach (var span in _spanList)
+            if (offset >= span.Start && offset < span.End) return span.Style;
+        return _style.TextStyle;
+    }
 
     // ------------------------------------------------------------------ 样式
 
@@ -622,6 +636,13 @@ public sealed partial class TextLayout
             if (it.Placeholder >= 0) continue;
             var info = _styles[it.Style];
             ComputeVerticalMetrics(info, it.Face!, out it.Above, out it.Below);
+            // vertical-align 的基线偏移：行内盒整体上移 / 下移，行盒的上、下延伸随之变化
+            float shift = TextStyle.Sanitize(info.Style.BaselineShift, -TextStyle.MaxFontSize, TextStyle.MaxFontSize);
+            if (shift != 0)
+            {
+                it.Above += shift;
+                it.Below -= shift;
+            }
             var d = it.Face!.Descriptor;
             if (info.Style.FontWeight.Value >= 600 && d.Weight.Value < 600) it.Synthetic |= GlyphRunFlags.SyntheticBold;
             if (info.Style.FontStyle != FontStyle.Normal && d.Style == FontStyle.Normal) it.Synthetic |= GlyphRunFlags.SyntheticOblique;
@@ -915,6 +936,10 @@ public sealed partial class TextLayout
             u.Advance = 0;
         else
         {
+            // 保留的制表符（不折叠空白时）：tab-size 个空格宽（整形时按空格整形）或给定长度
+            if (cp == '\t' && !_style.CollapsesSpaces)
+                u.Advance = _style.TabSizeIsLength ? TextStyle.Sanitize(_style.TabSize, 0, MaxFiniteWidth)
+                    : u.Advance * TextStyle.Sanitize(_style.TabSize, 0, 1000);
             u.Advance += info.LetterSpacing;
             if ((f & UnitFlags.Space) != 0) u.Advance += info.WordSpacing;
         }
@@ -993,11 +1018,14 @@ public sealed partial class TextLayout
                 }
                 else
                     foreach (var s in _segments) m = Math.Max(m, s.Width - s.Hang);
-                _minIntrinsic = m;
+                _minIntrinsic = m + IntrinsicIndent;
             }
             return _minIntrinsic;
         }
     }
+
+    /// <summary>固有宽度计入的缩进：只计长度部分的正缩进（百分比相对的可用宽度此时未知）。</summary>
+    float IntrinsicIndent => Math.Max(0, TextStyle.Sanitize(_style.TextIndent, 0, MaxFiniteWidth));
 
     /// <summary>最大固有宽度（max-content）：不自动换行时最宽一行的宽度。不触发断行。</summary>
     public float MaxIntrinsicWidth
@@ -1016,7 +1044,7 @@ public sealed partial class TextLayout
                     }
                     else w += s.Width;
                 }
-                _maxIntrinsic = Math.Max(m, w);
+                _maxIntrinsic = Math.Max(m, w) + IntrinsicIndent;
             }
             return _maxIntrinsic;
         }

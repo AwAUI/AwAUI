@@ -49,6 +49,40 @@ internal static unsafe class Vector128Kernels
         }
     }
 
+    public static void SrcOverBitmapRow(Span<byte> destination, ReadOnlySpan<byte> source, float opacity)
+    {
+        int count = source.Length / 4;
+        int i = 0;
+        var coverage = Vector128.Create(opacity);
+        var scale = Vector128.Create(ToFloat);
+        var fullAlpha = Vector128.Create(0xFF000000u);
+        fixed (byte* target = destination)
+        fixed (byte* pixels = source)
+        {
+            var destinationPixels = (uint*)target;
+            var sourcePixels = (uint*)pixels;
+            for (; i <= count - 4; i += 4)
+            {
+                var src = Vector128.Load(sourcePixels + i);
+                if (src == Vector128<uint>.Zero) continue;
+                if (opacity == 1f && (src & fullAlpha) == fullAlpha)
+                {
+                    src.Store(destinationPixels + i);
+                    continue;
+                }
+                var dst = Vector128.Load(destinationPixels + i);
+                var alpha = Channel(src, 24) * scale * coverage;
+                var inverse = Vector128<float>.One - alpha;
+                var r = Channel(src, 0) * scale * coverage + Channel(dst, 0) * scale * inverse;
+                var g = Channel(src, 8) * scale * coverage + Channel(dst, 8) * scale * inverse;
+                var b = Channel(src, 16) * scale * coverage + Channel(dst, 16) * scale * inverse;
+                var a = alpha + Channel(dst, 24) * scale * inverse;
+                Pack(ToByte(r), ToByte(g), ToByte(b), ToByte(a)).Store(destinationPixels + i);
+            }
+        }
+        ScalarKernels.SrcOverBitmapRow(destination.Slice(i * 4), source.Slice(i * 4), opacity);
+    }
+
     /// <summary>纯色 SrcOver。SoA：一次 4 个像素，每个通道一个向量。</summary>
     public static void SrcOverSolid(Span<byte> dst, bool bgra, Vector4 color, ReadOnlySpan<float> coverage)
     {

@@ -362,10 +362,13 @@ public sealed partial class LayoutEngine
 
         if (s.AspectRatio is float ratio && ratio > 0 && !float.IsInfinity(ratio))
         {
-            if (!IsDef(r.Width) && IsDef(r.Height)) r.Width = Lim((Math.Max(r.Height, pbH) - adjH) * ratio + adjW);
+            // 比值推出的轴按另一轴的使用值（经 min/max 钳制后）计算（CSS Sizing 4 §5.1）：
+            // <img width=300 height=150 style="max-width: 100%; height: auto"> 在 120px 宽的容器中是 120×60，而不是 120×150
+            if (!IsDef(r.Width) && IsDef(r.Height))
+                r.Width = Lim((Math.Max(Clamp(r.Height, r.MinHeight, r.MaxHeight), pbH) - adjH) * ratio + adjW);
             else if (IsDef(r.Width) && !IsDef(r.Height))
             {
-                r.Height = Lim((Math.Max(r.Width, pbW) - adjW) / ratio + adjH);
+                r.Height = Lim((Math.Max(Clamp(r.Width, r.MinWidth, r.MaxWidth), pbW) - adjW) / ratio + adjH);
                 r.HeightFromRatio = true;
             }
         }

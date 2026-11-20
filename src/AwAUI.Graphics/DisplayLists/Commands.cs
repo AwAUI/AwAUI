@@ -103,6 +103,10 @@ public struct BoxShadowCmd
     public int Inset;
 }
 
+/// <summary>
+/// 开启隔离组（design/13）。<see cref="HasFilter"/> 与 <see cref="FilterRef"/> 是 <see cref="DisplayList.FormatVersion"/> 2 追加的：
+/// 只认识旧前缀的读取器把它当作没有滤镜的普通图层（滤镜不生效，栈仍然配对）；旧格式的命令在 <see cref="HasFilter"/> 处是填充的 0。
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PushLayerCmd
 {
@@ -110,7 +114,23 @@ public struct PushLayerCmd
     public float Opacity;
     public BlendMode BlendMode;
     public byte HasBounds;
-    private byte _pad0, _pad1;
+    /// <summary>1 表示 <see cref="FilterRef"/> 有效（资源表中的 <see cref="Filter"/>）。</summary>
+    public byte HasFilter;
+    private byte _pad1;
+    public int FilterRef;
+}
+
+/// <summary>
+/// 背景滤镜（操作码 38，CSS <c>backdrop-filter</c>）：当前表面上已绘制的内容（背景）在 <see cref="Shape"/>（局部坐标，当前变换与裁剪下）
+/// 之内被替换为经 <see cref="FilterRef"/> 处理后的结果：dst = lerp(dst, filter(dst), 覆盖率 × <see cref="Opacity"/>)。
+/// 滤镜的输入范围是形状的设备包围盒按滤镜外扩量外扩（与整个渲染目标求交，不与裁剪求交）。
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct DrawBackdropCmd
+{
+    public RoundRect Shape;
+    public int FilterRef;
+    public float Opacity;
 }
 
 [StructLayout(LayoutKind.Sequential)]

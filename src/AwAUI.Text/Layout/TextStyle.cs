@@ -25,6 +25,39 @@ public enum TextDecorationStyle : byte
     Wavy,
 }
 
+/// <summary>CSS <c>text-underline-position</c>。</summary>
+public enum UnderlinePosition : byte
+{
+    /// <summary>取字体的下划线位置（post 表），没有时按字号估计。</summary>
+    Auto,
+    /// <summary>放在字形下伸部之下（不穿过下伸部，CSS <c>under</c>）。</summary>
+    Under,
+}
+
+/// <summary>一层文字阴影（CSS <c>text-shadow</c> 的一项）：偏移、模糊半径与颜色。</summary>
+public readonly struct TextShadow : IEquatable<TextShadow>
+{
+    public TextShadow(float offsetX, float offsetY, float blur, Color color)
+    {
+        OffsetX = TextStyle.Sanitize(offsetX, -TextStyle.MaxFontSize, TextStyle.MaxFontSize);
+        OffsetY = TextStyle.Sanitize(offsetY, -TextStyle.MaxFontSize, TextStyle.MaxFontSize);
+        Blur = TextStyle.Sanitize(blur, 0, TextStyle.MaxFontSize);
+        Color = color;
+    }
+
+    public float OffsetX { get; }
+    public float OffsetY { get; }
+
+    /// <summary>模糊半径（CSS 语义，σ = Blur / 2）。绘制按 <see cref="TextLayout.Paint"/> 的说明近似。</summary>
+    public float Blur { get; }
+
+    public Color Color { get; }
+
+    public bool Equals(TextShadow o) => OffsetX.Equals(o.OffsetX) && OffsetY.Equals(o.OffsetY) && Blur.Equals(o.Blur) && Color.Equals(o.Color);
+    public override bool Equals(object? obj) => obj is TextShadow s && Equals(s);
+    public override int GetHashCode() => HashCodeCompat.Combine(OffsetX.GetHashCode(), OffsetY.GetHashCode(), Blur.GetHashCode(), Color.GetHashCode());
+}
+
 /// <summary>CSS <c>text-transform</c>（第 1 级：大小写变换）。</summary>
 public enum TextTransform : byte
 {
@@ -136,6 +169,28 @@ public sealed class TextStyle
 
     /// <summary>装饰线粗细（逻辑像素）；NaN 表示 auto（取字体的下划线 / 删除线粗细）。</summary>
     public float DecorationThickness { get; init; } = float.NaN;
+
+    /// <summary>下划线相对其原位置的偏移（CSS <c>text-underline-offset</c>，逻辑像素，向下为正）；NaN 表示 auto（取字体度量）。
+    /// 给出时 <see cref="UnderlinePosition.Auto"/> 的下划线顶边在基线之下该距离处，<see cref="UnderlinePosition.Under"/> 的在下伸部之下该距离处。</summary>
+    public float UnderlineOffset { get; init; } = float.NaN;
+
+    /// <summary>CSS <c>text-underline-position</c>。</summary>
+    public UnderlinePosition UnderlinePosition { get; init; }
+
+    /// <summary>
+    /// 文字阴影（CSS <c>text-shadow</c>），按 CSS 的顺序：第一项在最上面。阴影画在文字与装饰线之下，偏移文字与装饰线的形状。
+    /// 最多使用前 <see cref="MaxShadows"/> 项。
+    /// </summary>
+    public IReadOnlyList<TextShadow>? Shadows { get; init; }
+
+    /// <summary>每个样式最多绘制的阴影层数（不可信的样式表不能让每个字形串产生无界的绘制命令）。</summary>
+    public const int MaxShadows = 16;
+
+    /// <summary>
+    /// 基线偏移（逻辑像素，向上为正）：CSS <c>vertical-align: sub / super / &lt;length&gt;</c> 作用于行内文字时，本样式的文字整体抬高或降低，
+    /// 行盒随之增高以容纳它。
+    /// </summary>
+    public float BaselineShift { get; init; }
 
     /// <summary>字母间距（CSS <c>letter-spacing</c>，逻辑像素）：加在每个字素簇之后。</summary>
     public float LetterSpacing { get; init; }

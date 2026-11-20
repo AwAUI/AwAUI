@@ -66,6 +66,8 @@ internal sealed partial class FrameRecorder
     readonly Stack<State> _stack = new();
     readonly Stack<LayerFrame> _layers = new();
     readonly List<PixelRect> _dstRects = new();
+    readonly List<FilterImage> _filterImages = new();
+    readonly List<FilterPass> _filterPasses = new();
 
     FrameGraph _graph = null!;
     FrameTarget _target = null!;
@@ -152,6 +154,11 @@ internal sealed partial class FrameRecorder
         public float Opacity;
         public BlendMode BlendMode;
         public bool Offscreen;
+
+        /// <summary>滤镜图层：滤镜、录制时的变换与滤镜的范围上限（与软件后端相同，见 <see cref="FilterPlan"/>）。</summary>
+        public Filter? Filter;
+        public Matrix3x2 Ctm;
+        public PixelRect FilterLimit;
     }
 
     /// <summary>
@@ -336,15 +343,22 @@ internal sealed partial class FrameRecorder
                 {
                     var c = reader.Read<PushLayerCmd>();
                     int index = layerIndex++;
-                    // 与软件后端相同：不透明度为 1 的 SrcOver 组只在组内有读目标的绘制时才需要离屏（见 LayerIsolation）
-                    bool isolate = c.Opacity < 1f || c.BlendMode != BlendMode.SrcOver
+                    var filter = c.HasFilter != 0 ? reader.GetResource<Filter>(c.FilterRef) : null;
+                    // 与软件后端相同：不透明度为 1 的 SrcOver 组只在组内有读目标的绘制时才需要离屏（见 LayerIsolation）；滤镜图层总是离屏
+                    bool isolate = filter is not null || c.Opacity < 1f || c.BlendMode != BlendMode.SrcOver
                         || (isolation ??= LayerIsolation.Analyze(list)).Needs(index);
-                    PushLayer(c, isolate);
+                    PushLayer(c, isolate, filter);
                     break;
                 }
                 case DrawOp.PopLayer:
                     PopLayer();
                     break;
+                case DrawOp.DrawBackdrop:
+                {
+                    var c = reader.Read<DrawBackdropCmd>();
+                    DrawBackdrop(c, reader.GetResource<Filter>(c.FilterRef), aa);
+                    break;
+                }
                 case DrawOp.DrawDisplayList:
                 {
                     var child = reader.GetResource<DisplayList>(reader.Read<DrawDisplayListCmd>().DisplayListRef);
@@ -953,11 +967,12 @@ internal sealed partial class FrameRecorder
 
     // ---------------------------------------------------------------- 图层
 
-    void PushLayer(in PushLayerCmd c, bool isolate)
+    void PushLayer(in PushLayerCmd c, bool isolate, Filter? filter)
     {
         _stack.Push(_state);
         var frame = new LayerFrame { Parent = _target, Opacity = c.Opacity, BlendMode = c.BlendMode };
         _layers.Push(frame);
+        if (filter is not null && PushFilterLayer(c, frame, filter)) return;
 
         var clip = _state.Clip;
         if (c.HasBounds != 0) clip = clip.WithBounds(PixelRect.RoundOut(c.Bounds.TransformBounds(_state.Ctm)));
@@ -992,6 +1007,11 @@ internal sealed partial class FrameRecorder
         _state = _stack.Count > 0 ? _stack.Pop() : _state;
         if (frame.Offscreen) _layerDepth--;
         if (frame.Layer is null) return;
+        if (frame.Filter is not null)
+        {
+            PopFilterLayer(frame);
+            return;
+        }
 
         _target = frame.Parent;
         _dstOp = null;
@@ -1009,5 +1029,215 @@ internal sealed partial class FrameRecorder
         };
         // 图层内部已经应用过裁剪，合成时只按矩形范围写回
         Emit(ref q, layer, null, mode, new ClipInfo(inner.Clip.Bounds));
+    }
+
+    // ---------------------------------------------------------------- 滤镜（与软件后端相同的 FilterPlan）
+
+    /// <summary>离屏滤镜图像的最大边长（设备像素）；超出时不应用滤镜并上报降级。</summary>
+    const int MaxFilterTextureSize = 8192;
+
+    /// <summary>
+    /// 滤镜图层（见软件后端的 RasterContext.PushFilterLayer）：内容画在不受外层裁剪限制的离屏目标上，弹出时执行滤镜，再以外层的完整裁剪合成。
+    /// 返回 false 表示按普通图层处理。
+    /// </summary>
+    bool PushFilterLayer(in PushLayerCmd c, LayerFrame frame, Filter filter)
+    {
+        var ctm = _state.Ctm;
+        var parentClip = _state.Clip;
+        FilterPlan.DeviceOutset(filter, ctm, out int l, out int t, out int r, out int b);
+        var limit = PixelRect.FromLTRB(
+            _window.X - Math.Min(l, FilterPlan.MaxOutsideReach), _window.Y - Math.Min(t, FilterPlan.MaxOutsideReach),
+            _window.Right + Math.Min(r, FilterPlan.MaxOutsideReach), _window.Bottom + Math.Min(b, FilterPlan.MaxOutsideReach));
+        var rect = c.HasBounds != 0 ? PixelRect.RoundOut(c.Bounds.TransformBounds(ctm)).Intersect(limit) : limit;
+        var reach = PixelRect.FromLTRB(rect.X - l, rect.Y - t, rect.Right + r, rect.Bottom + b);
+        if (rect.IsEmpty || parentClip.IsEmpty || reach.Intersect(parentClip.Bounds).IsEmpty || c.Opacity <= 0f && c.BlendMode == BlendMode.SrcOver)
+        {
+            _state = _state.With(new ClipInfo(default));
+            return true;
+        }
+        if ((long)rect.Width * rect.Height > RasterContext.MaxFilterLayerPixels || !FitsTexture(limit))
+        {
+            Degrade($"Filter layer larger than {RasterContext.MaxFilterLayerPixels} device pixels drawn without its filter.");
+            return false;
+        }
+        if (_layerDepth >= MaxLayerDepth)
+        {
+            Degrade($"Layers nested deeper than {MaxLayerDepth} are drawn without an offscreen group (opacity, blend mode and filter ignored).");
+            return false;
+        }
+        _layerDepth++;
+        frame.Offscreen = true;
+        frame.Filter = filter;
+        frame.Ctm = ctm;
+        frame.FilterLimit = limit;
+        var layer = new FrameTarget(rect, null);
+        _graph.Layers.Add(layer);
+        frame.Layer = layer;
+        _target = layer;
+        _dstOp = null;
+        _state = _state.With(new ClipInfo(rect));
+        return true;
+    }
+
+    /// <summary>滤镜的所有中间图像都在 limit 之内：limit 的边长不超过纹理上限时它们都能放进一张纹理。</summary>
+    static bool FitsTexture(PixelRect limit) => limit.Width <= MaxFilterTextureSize && limit.Height <= MaxFilterTextureSize;
+
+    void PopFilterLayer(LayerFrame frame)
+    {
+        _target = frame.Parent;
+        _dstOp = null;
+        var result = RecordFilter(frame.Filter!, frame.Ctm, frame.Layer!, frame.FilterLimit);
+        if (result is null) return;
+        var mode = ResolveBlend(frame.BlendMode);
+        // 滤镜的结果受外层的完整裁剪（含解析形状与蒙版）
+        var clip = _state.Clip;
+        var bounds = result.Rect.Intersect(clip.Bounds);
+        if (bounds.IsEmpty) return;
+        _target.Ops.Add(new FrameOp { Kind = FrameOpKind.RenderLayer, Layer = result });
+        var q = new GpuQuadInstance
+        {
+            Bounds = Box(bounds),
+            Color = new Vector4(frame.Opacity, 0, 0, 0),
+            Texture = new Vector4(-result.Rect.X, -result.Rect.Y, 0, 0),
+            Kinds = new QuadKinds { Shape = QuadShape.Layer },
+        };
+        Emit(ref q, result, null, mode, clip);
+    }
+
+    /// <summary>
+    /// 把滤镜的执行计划录制成一串离屏目标：每一步一个目标，先渲染它读取的输入，再画一个 <see cref="QuadShape.Filter"/> 实例。
+    /// 返回最终图像的目标；结果为空（或超出预算）时返回 null。
+    /// </summary>
+    FrameTarget? RecordFilter(Filter filter, in Matrix3x2 ctm, FrameTarget source, PixelRect limit)
+    {
+        int last = FilterPlan.Build(filter, ctm, source.Rect, limit, _filterImages, _filterPasses, _degraded);
+        var images = _filterImages;
+        var targets = new FrameTarget?[images.Count];
+        targets[0] = source;
+        foreach (var p in _filterPasses)
+        {
+            var outRect = images[p.Output].Rect;
+            var inRect = images[p.Input].Rect;
+            if (outRect.IsEmpty || inRect.IsEmpty) return null;
+            var input = targets[p.Input]!;
+            var t = new FrameTarget(outRect, null);
+            _graph.Layers.Add(t);
+            t.Ops.Add(new FrameOp { Kind = FrameOpKind.RenderLayer, Layer = input });
+            FrameTarget? second = null;
+            if (p.Input2 >= 0)
+            {
+                second = targets[p.Input2];
+                if (second is null || images[p.Input2].Rect.IsEmpty) return null;
+                t.Ops.Add(new FrameOp { Kind = FrameOpKind.RenderLayer, Layer = second });
+            }
+            var q = new GpuQuadInstance
+            {
+                Bounds = Box(outRect),
+                Texture = new Vector4(-inRect.X, -inRect.Y, 0, 0),
+                RadiiY = new Vector4(0, 0, inRect.Width, inRect.Height),
+                Kinds = new QuadKinds { Shape = QuadShape.Filter },
+            };
+            long taps = 1;
+            switch (p.Kind)
+            {
+                case FilterPassKind.ColorMatrix:
+                {
+                    var m = p.Matrix!;
+                    q.Kinds.Reserved = QuadFilterOp.ColorMatrix;
+                    q.Paint0 = new Vector4(m[0], m[1], m[2], m[3]);
+                    q.Paint1 = new Vector4(m[5], m[6], m[7], m[8]);
+                    q.Shape = new Vector4(m[10], m[11], m[12], m[13]);
+                    q.RadiiX = new Vector4(m[15], m[16], m[17], m[18]);
+                    q.Extra = new Vector4(m[4], m[9], m[14], m[19]);
+                    break;
+                }
+                case FilterPassKind.Downsample:
+                    q.Kinds.Reserved = QuadFilterOp.Downsample;
+                    q.Extra = new Vector4(p.Scale, 0, 0, 0);
+                    taps = (long)p.Scale * p.Scale;
+                    break;
+                case FilterPassKind.BlurX:
+                case FilterPassKind.BlurY:
+                {
+                    FilterPlan.Weights(p.Sigma, p.Radius, out float sum);
+                    q.Kinds.Reserved = p.Kind == FilterPassKind.BlurX ? QuadFilterOp.BlurX : QuadFilterOp.BlurY;
+                    q.Extra = new Vector4(1 / (2 * p.Sigma * p.Sigma), p.Radius, 1 / sum, 0);
+                    taps = 2L * p.Radius + 1;
+                    break;
+                }
+                case FilterPassKind.Upsample:
+                    q.Kinds.Reserved = QuadFilterOp.Upsample;
+                    q.Extra = new Vector4(p.Scale, 0, 0, 0);
+                    taps = 4;
+                    break;
+                case FilterPassKind.DropShadow:
+                {
+                    var r2 = images[p.Input2].Rect;
+                    q.Kinds.Reserved = QuadFilterOp.DropShadow;
+                    q.Color = p.Color;
+                    q.Paint0 = new Vector4(-(p.Dx + r2.X), -(p.Dy + r2.Y), 0, 0);
+                    q.RadiiX = new Vector4(0, 0, r2.Width, r2.Height);
+                    taps = 2;
+                    break;
+                }
+            }
+            int index = _graph.Add(q);
+            _instancePixels += (long)outRect.Width * outRect.Height * taps;
+            t.Ops.Add(new FrameOp
+            {
+                Kind = FrameOpKind.Draw, First = index, Count = 1, Coverage = input, Lut = second, Blend = GpuBlendState.Replace,
+            });
+            targets[p.Output] = t;
+        }
+        var result = targets[last];
+        return result is null || result.Rect.IsEmpty ? null : result;
+    }
+
+    /// <summary>
+    /// 背景滤镜（见软件后端的 RasterContext.DrawBackdrop）：把当前目标在读取范围内的像素拷贝到离屏纹理，执行滤镜，再在形状之内以 Src
+    /// 写回（覆盖率 × 不透明度插值）。
+    /// </summary>
+    void DrawBackdrop(in DrawBackdropCmd c, Filter filter, bool aa)
+    {
+        var clip = _state.Clip;
+        if (clip.IsEmpty || filter.IsEmpty) return;
+        var ctm = _state.Ctm;
+        var shapeDev = c.Shape.Rect.TransformBounds(ctm);
+        var shapePx = PixelRect.RoundOut(shapeDev);
+        var area = shapePx.Intersect(clip.Bounds);
+        if (area.IsEmpty) return;
+        FilterPlan.DeviceOutset(filter, ctm, out int l, out int t, out int r, out int b);
+        var input = PixelRect.FromLTRB(shapePx.X - l, shapePx.Y - t, shapePx.Right + r, shapePx.Bottom + b).Intersect(_window);
+        if ((long)input.Width * input.Height > RasterContext.MaxFilterLayerPixels || !FitsTexture(_window))
+        {
+            Degrade($"Backdrop filter larger than {RasterContext.MaxFilterLayerPixels} device pixels ignored.");
+            return;
+        }
+        var copyRect = input.Intersect(_target.Rect);
+        if (copyRect.IsEmpty) return;
+        var source = new FrameTarget(copyRect, null);
+        _graph.Layers.Add(source);
+        _target.Ops.Add(new FrameOp { Kind = FrameOpKind.CopyToLayer, Layer = source, CopyRect = copyRect });
+        _dstOp = null;
+        var result = RecordFilter(filter, ctm, source, _window);
+        if (result is null) return;
+        _target.Ops.Add(new FrameOp { Kind = FrameOpKind.RenderLayer, Layer = result });
+
+        // 形状作为裁剪：解析的圆角矩形或蒙版（与软件后端的覆盖率相同的算法）
+        var saved = _state;
+        if (c.Shape.IsRect) ClipRect(c.Shape.Rect, aa);
+        else if (!TryClipShape(c.Shape, aa)) ClipPath(VectorPath.FromRoundRect(c.Shape), aa);
+        var shapeClip = _state.Clip;
+        _state = saved;
+        var bounds = area.Intersect(shapeClip.Bounds).Intersect(result.Rect);
+        if (bounds.IsEmpty) return;
+        var q = new GpuQuadInstance
+        {
+            Bounds = Box(bounds),
+            Color = new Vector4(c.Opacity, 0, 0, 0),
+            Texture = new Vector4(-result.Rect.X, -result.Rect.Y, 0, 0),
+            Kinds = new QuadKinds { Shape = QuadShape.Layer },
+        };
+        Emit(ref q, result, null, BlendMode.Src, shapeClip);
     }
 }

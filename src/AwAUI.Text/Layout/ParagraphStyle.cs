@@ -32,6 +32,16 @@ public enum WhiteSpace : byte
     BreakSpaces,
 }
 
+/// <summary>CSS <c>text-wrap-style</c>。</summary>
+public enum TextWrapStyle : byte
+{
+    Auto,
+    /// <summary>均衡各行长度（标题等短文本）。</summary>
+    Balance,
+    /// <summary>与 <see cref="Auto"/> 相同的断行（<c>stable</c>、<c>pretty</c> 映射到它；<c>pretty</c> 的避免孤行未实现）。</summary>
+    Stable,
+}
+
 /// <summary>CSS <c>word-break</c>。</summary>
 public enum WordBreak : byte
 {
@@ -86,6 +96,39 @@ public sealed class ParagraphStyle
     public WhiteSpace WhiteSpace { get; init; }
     public WordBreak WordBreak { get; init; }
     public OverflowWrap OverflowWrap { get; init; }
+
+    /// <summary>
+    /// 首行缩进（CSS <c>text-indent</c> 的长度部分，逻辑像素；可为负）。与 <see cref="TextIndentPercent"/> 相加。
+    /// 缩进加在行的起始侧（从右到左的段落在右侧），并从该行的可用宽度中扣除。
+    /// </summary>
+    public float TextIndent { get; init; }
+
+    /// <summary><c>text-indent</c> 的百分比部分（0–1 的比例，相对 <see cref="TextLayout.Layout"/> 的可用宽度；不限宽度时为 0）。</summary>
+    public float TextIndentPercent { get; init; }
+
+    /// <summary><c>text-indent: … hanging</c>：反转缩进的行（除首行外的所有行缩进）。</summary>
+    public bool HangingIndent { get; init; }
+
+    /// <summary><c>text-indent: … each-line</c>：每个强制换行之后的第一行也缩进。</summary>
+    public bool IndentEachLine { get; init; }
+
+    /// <summary>
+    /// 制表符宽度（CSS <c>tab-size</c>）：<see cref="TabSizeIsLength"/> 为 false 时是空格宽度的倍数（默认 8），否则是逻辑像素。
+    /// 只在保留空白的模式（<c>pre</c>、<c>pre-wrap</c>、<c>break-spaces</c>）中生效；制表符按该宽度前进（不对齐到制表位）。
+    /// </summary>
+    public float TabSize { get; init; } = 8;
+
+    /// <summary><see cref="TabSize"/> 是长度（逻辑像素）。</summary>
+    public bool TabSizeIsLength { get; init; }
+
+    /// <summary>
+    /// 换行的均衡方式（CSS <c>text-wrap-style</c>）。<see cref="TextWrapStyle.Balance"/>：行数不超过 <see cref="MaxBalancedLines"/> 时
+    /// 选择保持行数不变的最小断行宽度，使各行长度接近（对齐仍按可用宽度）。
+    /// </summary>
+    public TextWrapStyle TextWrapStyle { get; init; }
+
+    /// <summary>均衡换行处理的最大行数（与 Chromium 相同：更多的行按普通换行）。</summary>
+    public const int MaxBalancedLines = 6;
 
     /// <summary>CSS <c>text-overflow: ellipsis</c> 使用的省略号。</summary>
     public const string HorizontalEllipsis = "…";

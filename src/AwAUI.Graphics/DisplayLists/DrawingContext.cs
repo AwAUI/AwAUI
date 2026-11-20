@@ -28,10 +28,18 @@ public sealed class DrawingContext : IDisposable
 
     readonly struct State
     {
-        public State(Matrix3x2 ctm, Rect? clip, bool isLayer) { Ctm = ctm; Clip = clip; IsLayer = isLayer; }
+        public State(Matrix3x2 ctm, Rect? clip, bool isLayer, Filter? filter = null, Rect outerBounds = default, Rect? outerClip = null)
+        {
+            Ctm = ctm; Clip = clip; IsLayer = isLayer; Filter = filter; OuterBounds = outerBounds; OuterClip = outerClip;
+        }
         public Matrix3x2 Ctm { get; }
         public Rect? Clip { get; }       // 根坐标系下的裁剪包围盒
         public bool IsLayer { get; }
+
+        /// <summary>带滤镜的图层：组内容的包围盒单独累计，弹出时按滤镜外扩、与外层裁剪求交后并入 <see cref="OuterBounds"/>。</summary>
+        public Filter? Filter { get; }
+        public Rect OuterBounds { get; }
+        public Rect? OuterClip { get; }
     }
 
     public DrawingContext(int initialCapacity = 256)
@@ -242,30 +250,81 @@ public sealed class DrawingContext : IDisposable
 
     // ---------------------------------------------------------------- 分组
 
+    /// <summary>
+    /// 开启隔离组（design/13 的 PushLayer）：组内容先画在透明表面上，再经可选的滤镜、以不透明度与混合模式合成回父表面。
+    /// 有滤镜时组内容不受外层裁剪限制（只受 <see cref="LayerOptions.Bounds"/> 限制），滤镜的结果再受外层裁剪。
+    /// </summary>
     public void PushLayer(in LayerOptions options)
     {
         _stack.Push(_state);
-        var clip = _state.Clip;
-        if (options.Bounds is { } b)
+        var filter = options.Filter;
+        Rect? bounds = options.Bounds is { } ob && ob.IsFinite ? ob : null;
+        if (filter is not null)
         {
-            var dev = b.TransformBounds(_state.Ctm);
-            clip = clip is { } c ? c.Intersect(dev) : dev;
+            // 组内容的包围盒单独累计：外层裁剪不限制滤镜的输入
+            var clip = bounds is { } b ? b.TransformBounds(_state.Ctm) : (Rect?)null;
+            _state = new State(_state.Ctm, clip, true, filter, _bounds, _state.Clip);
+            _bounds = Rect.Empty;
         }
-        _state = new State(_state.Ctm, clip, true);
+        else
+        {
+            var clip = _state.Clip;
+            if (bounds is { } b)
+            {
+                var dev = b.TransformBounds(_state.Ctm);
+                clip = clip is { } c ? c.Intersect(dev) : dev;
+            }
+            _state = new State(_state.Ctm, clip, true);
+        }
         Write(DrawOp.PushLayer, DrawFlags.None, new PushLayerCmd
         {
-            Bounds = options.Bounds ?? Rect.Empty,
-            HasBounds = options.Bounds.HasValue ? (byte)1 : (byte)0,
+            Bounds = bounds ?? Rect.Empty,
+            HasBounds = bounds.HasValue ? (byte)1 : (byte)0,
             Opacity = Clamp01(options.Opacity),
             BlendMode = options.BlendMode,
+            HasFilter = filter is null ? (byte)0 : (byte)1,
+            FilterRef = filter is null ? -1 : AddResource(filter),
         });
     }
 
     public void PopLayer()
     {
         if (!_state.IsLayer) throw new InvalidOperationException("PopLayer without matching PushLayer.");
+        var inner = _state;
         _state = _stack.Pop();
+        if (inner.Filter is { } filter)
+        {
+            // 组内容（设备坐标）按滤镜外扩（局部外扩量按当前变换的最大缩放换算），再受外层裁剪
+            var content = _bounds;
+            var merged = inner.OuterBounds;
+            if (content.Width > 0 || content.Height > 0)
+            {
+                filter.GetOutset(out float l, out float t, out float r, out float b);
+                float k = inner.Ctm.MaxScale();
+                var dev = Rect.FromLTRB(content.Left - l * k, content.Top - t * k, content.Right + r * k, content.Bottom + b * k);
+                if (inner.OuterClip is { } oc) dev = dev.Intersect(oc);
+                if (dev.IsFinite) merged = merged.Union(dev);
+            }
+            _bounds = merged;
+        }
         WriteEmpty(DrawOp.PopLayer);
+    }
+
+    /// <summary>
+    /// 背景滤镜（CSS <c>backdrop-filter</c>，design/13 操作码 38）：当前表面上已经画好的内容在 <paramref name="shape"/> 之内
+    /// 被替换为经 <paramref name="filter"/> 处理后的结果，按形状的覆盖率 × <paramref name="opacity"/> 与原内容插值。
+    /// 「当前表面」是最内层的离屏图层（不需要离屏的组不算），没有时是渲染目标——即 CSS 的 backdrop root。
+    /// 滤镜读取形状设备包围盒外扩滤镜范围之内的背景（不受裁剪限制），所以局部重绘时调用方要保证这个范围在重绘区域之内。
+    /// 空滤镜、空形状、不大于 0 或 NaN 的不透明度不录制；不透明度大于 1 按 1。
+    /// </summary>
+    public void DrawBackdrop(in RoundRect shape, Filter filter, float opacity = 1)
+    {
+        if (filter is null) throw new ArgumentNullException(nameof(filter));
+        if (filter.IsEmpty || shape.Rect.IsEmpty || !shape.Rect.IsFinite) return;
+        if (!(opacity > 0)) return;
+        if (opacity > 1) opacity = 1;
+        Include(shape.Rect);
+        Write(DrawOp.DrawBackdrop, DrawFlags.AntiAlias, new DrawBackdropCmd { Shape = shape, FilterRef = AddResource(filter), Opacity = opacity });
     }
 
     /// <summary>嵌入一个子 DisplayList（引用，不拷贝），在当前变换与裁剪下重放。</summary>
@@ -310,10 +369,10 @@ public sealed class DrawingContext : IDisposable
 
     // ---------------------------------------------------------------- 内部
 
-    void SetCtm(Matrix3x2 ctm) => _state = new State(ctm, _state.Clip, _state.IsLayer);
+    void SetCtm(Matrix3x2 ctm) => _state = new State(ctm, _state.Clip, _state.IsLayer, _state.Filter, _state.OuterBounds, _state.OuterClip);
 
     void IntersectClip(Rect deviceRect) =>
-        _state = new State(_state.Ctm, _state.Clip is { } c ? c.Intersect(deviceRect) : deviceRect, _state.IsLayer);
+        _state = new State(_state.Ctm, _state.Clip is { } c ? c.Intersect(deviceRect) : deviceRect, _state.IsLayer, _state.Filter, _state.OuterBounds, _state.OuterClip);
 
     void Include(Rect local)
     {

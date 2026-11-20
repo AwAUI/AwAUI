@@ -9,7 +9,8 @@ namespace AwAUI.Graphics;
 /// </summary>
 public sealed class DisplayList
 {
-    public const int FormatVersion = 1;
+    /// <summary>格式版本：2 = 第九批起 PushLayer 追加滤镜字段、新增 DrawBackdrop（操作码 38），见 design/13。</summary>
+    public const int FormatVersion = 2;
 
     readonly byte[] _commands;
     readonly object[] _resources;

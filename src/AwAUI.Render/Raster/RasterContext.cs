@@ -21,6 +21,7 @@ internal sealed partial class RasterContext
     readonly HashSet<string> _reportedThisFrame = new();
     readonly ShadowRasterizer _shadows;
     readonly GradientLutCache _luts = new();
+    readonly FilterExecutor _filters = new();
 
     Surface _surface = null!;
     State _state;
@@ -33,6 +34,7 @@ internal sealed partial class RasterContext
     int _layerDepth;
     long _commandBudget;
     long _workBudget;
+    long _filterWork;
     bool _budgetReported;
 
     /// <summary>嵌套 DisplayList 的最大深度；更深的部分忽略并上报降级（防止恶意构造的深嵌套耗尽栈）。</summary>
@@ -62,7 +64,13 @@ internal sealed partial class RasterContext
     [ThreadStatic] internal static long? WorkBudgetOverride;
 
     /// <summary>当前帧（或最近一帧）已消耗的工作量（诊断与测试）。</summary>
-    internal long FrameWork => _rasterizer.Work + _fillSink.Pixels;
+    internal long FrameWork => _rasterizer.Work + _fillSink.Pixels + _filterWork;
+
+    /// <summary>
+    /// 一个滤镜图层的最大面积（设备像素）。超出时不应用滤镜（按普通图层绘制）并上报降级：滤镜图层不受裁剪限制，
+    /// 恶意的巨大图层否则要分配与之成正比的内存。
+    /// </summary>
+    public const long MaxFilterLayerPixels = 1L << 24;
 
     public RasterContext(Action<string>? degraded = null, GlyphCache? glyphCache = null)
     {
@@ -107,6 +115,11 @@ internal sealed partial class RasterContext
         public float Opacity;
         public BlendMode BlendMode;
         public bool Offscreen;
+
+        /// <summary>滤镜图层：滤镜、录制时的变换、离屏范围与滤镜的范围上限（见 <see cref="FilterPlan"/>）。</summary>
+        public Filter? Filter;
+        public Matrix3x2 Ctm;
+        public PixelRect FilterLimit;
     }
 
     /// <summary>把 DisplayList 画到位图上。DisplayList 坐标乘以 scale 得到设备像素。</summary>
@@ -125,6 +138,7 @@ internal sealed partial class RasterContext
         _workBudget = WorkBudgetOverride ?? MaxWorkPerFrame;
         _rasterizer.Work = 0;
         _fillSink.Pixels = 0;
+        _filterWork = 0;
         _budgetReported = false;
         _reportedThisFrame.Clear();
         _state = new State(Matrix3x2.CreateScale((float)scale), new ClipState(area), false);
@@ -262,15 +276,22 @@ internal sealed partial class RasterContext
                 {
                     var c = reader.Read<PushLayerCmd>();
                     int index = layerIndex++;
-                    // 不透明度为 1 的 SrcOver 组只在组内有读目标的绘制时才需要离屏（见 LayerIsolation）
-                    bool isolate = c.Opacity < 1f || c.BlendMode != BlendMode.SrcOver
+                    var filter = c.HasFilter != 0 ? reader.GetResource<Filter>(c.FilterRef) : null;
+                    // 不透明度为 1 的 SrcOver 组只在组内有读目标的绘制时才需要离屏（见 LayerIsolation）；滤镜图层总是离屏
+                    bool isolate = filter is not null || c.Opacity < 1f || c.BlendMode != BlendMode.SrcOver
                         || (isolation ??= LayerIsolation.Analyze(list)).Needs(index);
-                    PushLayer(c, isolate);
+                    PushLayer(c, isolate, filter);
                     break;
                 }
                 case DrawOp.PopLayer:
                     PopLayer();
                     break;
+                case DrawOp.DrawBackdrop:
+                {
+                    var c = reader.Read<DrawBackdropCmd>();
+                    DrawBackdrop(c, reader.GetResource<Filter>(c.FilterRef), aa);
+                    break;
+                }
                 case DrawOp.DrawDisplayList:
                 {
                     var child = reader.GetResource<DisplayList>(reader.Read<DrawDisplayListCmd>().DisplayListRef);
@@ -483,11 +504,12 @@ internal sealed partial class RasterContext
 
     // ---------------------------------------------------------------- 图层
 
-    void PushLayer(in PushLayerCmd c, bool isolate)
+    void PushLayer(in PushLayerCmd c, bool isolate, Filter? filter)
     {
         _stack.Push(_state);
         var frame = new LayerFrame { Parent = _surface, Opacity = c.Opacity, BlendMode = c.BlendMode };
         _layers.Push(frame);
+        if (filter is not null && PushFilterLayer(c, frame, filter)) return;
 
         var clip = _state.Clip;
         if (c.HasBounds != 0) clip = clip.WithBounds(PixelRect.RoundOut(c.Bounds.TransformBounds(_state.Ctm)));
@@ -513,6 +535,47 @@ internal sealed partial class RasterContext
         _surface = frame.Layer;
     }
 
+    /// <summary>
+    /// 滤镜图层：内容画在不受外层裁剪限制的离屏表面上（范围 = 图层边界 ∩ 渲染目标按滤镜范围外扩，与裁剪无关，所以局部重绘与整帧重绘相同），
+    /// 弹出时执行滤镜，再以外层的完整裁剪（含蒙版）合成。返回 false 表示按普通图层处理（超出上限，已上报）。
+    /// </summary>
+    bool PushFilterLayer(in PushLayerCmd c, LayerFrame frame, Filter filter)
+    {
+        var ctm = _state.Ctm;
+        var parentClip = _state.Clip;
+        FilterPlan.DeviceOutset(filter, ctm, out int l, out int t, out int r, out int b);
+        var limit = PixelRect.FromLTRB(
+            _window.X - Math.Min(l, FilterPlan.MaxOutsideReach), _window.Y - Math.Min(t, FilterPlan.MaxOutsideReach),
+            _window.Right + Math.Min(r, FilterPlan.MaxOutsideReach), _window.Bottom + Math.Min(b, FilterPlan.MaxOutsideReach));
+        var rect = c.HasBounds != 0 ? PixelRect.RoundOut(c.Bounds.TransformBounds(ctm)).Intersect(limit) : limit;
+        // 滤镜输出的范围与外层裁剪不相交（或组不可见）：组内容什么都不用画
+        var reach = PixelRect.FromLTRB(rect.X - l, rect.Y - t, rect.Right + r, rect.Bottom + b);
+        if (rect.IsEmpty || parentClip.IsEmpty || reach.Intersect(parentClip.Bounds).IsEmpty || c.Opacity <= 0f && c.BlendMode == BlendMode.SrcOver)
+        {
+            _state = new State(ctm, new ClipState(default), true);
+            return true;
+        }
+        if ((long)rect.Width * rect.Height > MaxFilterLayerPixels)
+        {
+            _degraded?.Invoke($"Filter layer larger than {MaxFilterLayerPixels} device pixels drawn without its filter.");
+            return false;
+        }
+        if (_layerDepth >= MaxLayerDepth)
+        {
+            _degraded?.Invoke($"Layers nested deeper than {MaxLayerDepth} are drawn without an offscreen group (opacity, blend mode and filter ignored).");
+            return false;
+        }
+        _layerDepth++;
+        frame.Offscreen = true;
+        frame.Filter = filter;
+        frame.Ctm = ctm;
+        frame.FilterLimit = limit;
+        frame.Layer = new Surface(new Bitmap(rect.Size, _surface.Bitmap.Format), rect.X, rect.Y);
+        _surface = frame.Layer;
+        _state = new State(ctm, new ClipState(rect), true);
+        return true;
+    }
+
     void PopLayer()
     {
         if (_layers.Count == 0) return;
@@ -521,6 +584,11 @@ internal sealed partial class RasterContext
         _state = _stack.Count > 0 ? _stack.Pop() : _state;
         if (frame.Offscreen) _layerDepth--;
         if (frame.Layer == null) return;
+        if (frame.Filter is not null)
+        {
+            PopFilterLayer(frame);
+            return;
+        }
 
         _surface = frame.Parent!;
         var layer = frame.Layer;
@@ -531,12 +599,177 @@ internal sealed partial class RasterContext
             mode = BlendMode.SrcOver;
         }
         // 图层内部已经应用过裁剪，合成时只按矩形范围写回
+        if (mode == BlendMode.SrcOver && layer.Bitmap.Format == _surface.Bitmap.Format)
+        {
+            var layerRect = new PixelRect(layer.OffsetX, layer.OffsetY, layer.Bitmap.Width, layer.Bitmap.Height);
+            var area = layerRect.Intersect(inner.Clip.Bounds);
+            _fillSink.Pixels += (long)area.Width * area.Height;
+            if (frame.Opacity > 0 && !area.IsEmpty)
+            {
+                int srcX = (area.X - layer.OffsetX) * 4;
+                int dstX = (area.X - _surface.OffsetX) * 4;
+                int width = area.Width * 4;
+                for (int y = area.Y; y < area.Bottom; y++)
+                {
+                    var src = layer.Bitmap.GetRow(y - layer.OffsetY).Slice(srcX, width);
+                    var dst = _surface.Bitmap.GetRow(y - _surface.OffsetY).Slice(dstX, width);
+                    Kernels.SrcOverBitmapRow(dst, src, frame.Opacity);
+                }
+            }
+            layer.Bitmap.Dispose();
+            return;
+        }
         _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY,
             new ClipState(inner.Clip.Bounds), new BitmapRowShader(layer.Bitmap, layer.OffsetX, layer.OffsetY), mode);
         var cov = new float[layer.Bitmap.Width];
         for (int i = 0; i < cov.Length; i++) cov[i] = frame.Opacity;
         for (int y = 0; y < layer.Bitmap.Height; y++) _fillSink.Row(layer.OffsetY + y, layer.OffsetX, cov.AsSpan());
         layer.Bitmap.Dispose();
+    }
+
+    void PopFilterLayer(LayerFrame frame)
+    {
+        _surface = frame.Parent!;
+        var layer = frame.Layer!;
+        var layerRect = new PixelRect(layer.OffsetX, layer.OffsetY, layer.Bitmap.Width, layer.Bitmap.Height);
+        long budget = _workBudget - (_rasterizer.Work + _fillSink.Pixels);
+        Bitmap? result;
+        PixelRect rr;
+        try
+        {
+            result = _filters.Run(frame.Filter!, frame.Ctm, layer.Bitmap, layerRect, layerRect, frame.FilterLimit, _degraded, ref _filterWork, budget, out rr);
+        }
+        finally
+        {
+            layer.Bitmap.Dispose();
+        }
+        if (result is null) return;
+        try
+        {
+            var mode = frame.BlendMode;
+            if (!Blender.IsSupported(mode))
+            {
+                _degraded?.Invoke($"Blend mode {mode} is not supported by the software renderer; using SrcOver.");
+                mode = BlendMode.SrcOver;
+            }
+            // 滤镜的结果受外层的完整裁剪（含圆角 / 路径蒙版）
+            var clip = _state.Clip;
+            var area = rr.Intersect(clip.Bounds);
+            if (area.IsEmpty) return;
+            _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY, clip, new BitmapRowShader(result, rr.X, rr.Y), mode);
+            var cov = new float[area.Width];
+            for (int i = 0; i < cov.Length; i++) cov[i] = frame.Opacity;
+            for (int y = area.Y; y < area.Bottom; y++) _fillSink.Row(y, area.X, cov.AsSpan());
+        }
+        finally
+        {
+            result.Dispose();
+        }
+    }
+
+    // ---------------------------------------------------------------- 背景滤镜
+
+    /// <summary>
+    /// 背景滤镜（DisplayList 的 DrawBackdrop）：读取当前表面在「形状设备包围盒 + 滤镜范围」之内的像素（不受裁剪限制），执行滤镜，
+    /// 再在形状之内以 Src 写回（覆盖率 × 不透明度插值）。
+    /// </summary>
+    void DrawBackdrop(in DrawBackdropCmd c, Filter filter, bool aa)
+    {
+        var clip = _state.Clip;
+        if (clip.IsEmpty || filter.IsEmpty) return;
+        var ctm = _state.Ctm;
+        var shapeDev = c.Shape.Rect.TransformBounds(ctm);
+        var area = PixelRect.RoundOut(shapeDev).Intersect(clip.Bounds);
+        if (area.IsEmpty) return;
+        FilterPlan.DeviceOutset(filter, ctm, out int l, out int t, out int r, out int b);
+        var limit = _window;
+        var shapePx = PixelRect.RoundOut(shapeDev);
+        var input = PixelRect.FromLTRB(shapePx.X - l, shapePx.Y - t, shapePx.Right + r, shapePx.Bottom + b).Intersect(limit);
+        var surfaceRect = new PixelRect(_surface.OffsetX, _surface.OffsetY, _surface.Bitmap.Width, _surface.Bitmap.Height);
+        if ((long)input.Width * input.Height > MaxFilterLayerPixels)
+        {
+            _degraded?.Invoke($"Backdrop filter larger than {MaxFilterLayerPixels} device pixels ignored.");
+            return;
+        }
+        long budget = _workBudget - (_rasterizer.Work + _fillSink.Pixels);
+        var result = _filters.Run(filter, ctm, _surface.Bitmap, surfaceRect, input, limit, _degraded, ref _filterWork, budget, out var rr);
+        if (result is null) return;
+        try
+        {
+            // 形状的覆盖率（不含裁剪，裁剪由 FillSink 施加）× 不透明度
+            var mask = new float[area.Width * area.Height];
+            var maskSink = new MaskSink(mask, area, null);
+            if (c.Shape.IsRect && ctm.IsScaleTranslate())
+            {
+                var dev = shapeDev;
+                if (!aa) dev = Rect.FromLTRB(MathF.Round(dev.Left), MathF.Round(dev.Top), MathF.Round(dev.Right), MathF.Round(dev.Bottom));
+                var row = new float[area.Width];
+                for (int y = area.Y; y < area.Bottom; y++)
+                {
+                    float vy = Overlap(y, y + 1, dev.Top, dev.Bottom);
+                    for (int x = 0; x < area.Width; x++) row[x] = vy * Overlap(area.X + x, area.X + x + 1, dev.Left, dev.Right);
+                    maskSink.Row(y, area.X, row);
+                }
+            }
+            else
+            {
+                var path = c.Shape.IsRect ? VectorPath.FromRect(c.Shape.Rect) : VectorPath.FromRoundRect(c.Shape);
+                _poly.Clear();
+                Flattener.FlattenToPolygons(path, ctm, Flattener.DefaultTolerance, _poly, CullRect.FromPixels(_window, 1));
+                _rasterizer.Fill(_poly, FillRule.NonZero, aa, area, _window, maskSink);
+            }
+            if (c.Opacity < 1)
+                for (int i = 0; i < mask.Length; i++) mask[i] *= c.Opacity;
+            // 结果之外（被 limit 截掉）的像素按透明写回：与 GPU 后端相同
+            _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY, clip, new FilteredBackdropShader(result, rr), BlendMode.Src);
+            var cov = new float[area.Width];
+            for (int y = area.Y; y < area.Bottom; y++)
+            {
+                Array.Copy(mask, (y - area.Y) * area.Width, cov, 0, area.Width);
+                _fillSink.Row(y, area.X, cov);
+            }
+        }
+        finally
+        {
+            result.Dispose();
+        }
+    }
+
+    /// <summary>读取滤镜结果位图；范围外为透明黑。</summary>
+    sealed class FilteredBackdropShader : Shader
+    {
+        readonly Bitmap _bitmap;
+        readonly PixelRect _rect;
+
+        public FilteredBackdropShader(Bitmap bitmap, PixelRect rect)
+        {
+            _bitmap = bitmap;
+            _rect = rect;
+        }
+
+        public override void Shade(int x, int y, Span<Vector4> destination)
+        {
+            if (y < _rect.Y || y >= _rect.Bottom)
+            {
+                destination.Clear();
+                return;
+            }
+            var row = _bitmap.GetRow(y - _rect.Y);
+            bool bgra = _bitmap.Format == PixelFormat.Bgra8888;
+            const float k = 1 / 255f;
+            for (int i = 0; i < destination.Length; i++)
+            {
+                int px = x + i - _rect.X;
+                if ((uint)px >= (uint)_rect.Width)
+                {
+                    destination[i] = default;
+                    continue;
+                }
+                int o = px * 4;
+                float r = row[o] * k, g = row[o + 1] * k, b = row[o + 2] * k, a = row[o + 3] * k;
+                destination[i] = bgra ? new Vector4(b, g, r, a) : new Vector4(r, g, b, a);
+            }
+        }
     }
 
     static byte ToByte(float v) => (byte)(Math.Max(0f, Math.Min(1f, v)) * 255f + 0.5f);

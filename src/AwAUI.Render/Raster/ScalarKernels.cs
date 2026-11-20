@@ -45,6 +45,17 @@ internal static unsafe class ScalarKernels
         d[3] = ToByte(a + d[3] * ToFloat * inv);
     }
 
+    public static void SrcOverBitmapRow(Span<byte> destination, ReadOnlySpan<byte> source, float opacity)
+    {
+        fixed (byte* target = destination)
+        fixed (byte* pixels = source)
+        {
+            for (int i = 0; i < source.Length; i += 4)
+                SrcOverPixel(target + i, pixels[i] * ToFloat, pixels[i + 1] * ToFloat,
+                    pixels[i + 2] * ToFloat, pixels[i + 3] * ToFloat, opacity);
+        }
+    }
+
     public static void SrcOverSolid(Span<byte> dst, bool bgra, Vector4 color, ReadOnlySpan<float> coverage)
     {
         float r = bgra ? color.Z : color.X, g = color.Y, b = bgra ? color.X : color.Z, a = color.W;

@@ -74,6 +74,12 @@ internal sealed class FrameTarget
     public GpuTexture? Texture { get; set; }
 
     public List<FrameOp> Ops { get; } = new();
+
+    /// <summary>编码时：还有多少个绘制操作要读取本目标的纹理（为 0 时归还给纹理池）。</summary>
+    internal int Uses;
+
+    /// <summary>纹理已经渲染（或拷贝）完成：再次出现的 <see cref="FrameOpKind.RenderLayer"/> 跳过它。</summary>
+    internal bool Rendered;
 }
 
 internal enum FrameOpKind : byte
@@ -84,6 +90,11 @@ internal enum FrameOpKind : byte
     DstCopy,
     /// <summary>渲染图层 <see cref="FrameOp.Layer"/> 的内容（在它的合成之前），会打断已打开的渲染通道。</summary>
     RenderLayer,
+    /// <summary>
+    /// 把当前目标的 <see cref="FrameOp.CopyRect"/> 拷贝到新租用的纹理，作为 <see cref="FrameOp.Layer"/> 的内容（背景滤镜的输入，格式与当前目标相同），
+    /// 会打断渲染通道。
+    /// </summary>
+    CopyToLayer,
 }
 
 /// <summary>帧内的一个操作。</summary>
@@ -94,7 +105,7 @@ internal sealed class FrameOp
     public int Count;
     /// <summary>槽位 0 的纹理来源：<see cref="Atlas.AtlasPage"/>（掩码 / 字形）或 <see cref="FrameTarget"/>（图层）；null 时绑定占位纹理。</summary>
     public object? Coverage;
-    /// <summary>槽位 1：<see cref="Atlas.GradientLuts.LutPage"/> 或位图纹理（<see cref="Atlas.ImageTextures.Entry"/>）。</summary>
+    /// <summary>槽位 1：<see cref="Atlas.GradientLuts.LutPage"/>、位图纹理（<see cref="Atlas.ImageTextures.Entry"/>）或滤镜的第二输入（<see cref="FrameTarget"/>）。</summary>
     public object? Lut;
     /// <summary>槽位 2：裁剪蒙版所在的 <see cref="Atlas.AtlasPage"/>。</summary>
     public object? Clip;

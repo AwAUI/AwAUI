@@ -97,17 +97,32 @@ public readonly struct BoxShadow
     public bool Inset { get; }
 }
 
-/// <summary>离屏图层参数（组透明度、混合模式）。</summary>
+/// <summary>离屏图层参数（组透明度、混合模式、滤镜）。</summary>
 public readonly struct LayerOptions
 {
     public LayerOptions(float opacity, BlendMode blendMode = BlendMode.SrcOver, Rect? bounds = null)
     {
-        Opacity = opacity; BlendMode = blendMode; Bounds = bounds;
+        Opacity = opacity; BlendMode = blendMode; Bounds = bounds; Filter = null;
+    }
+
+    /// <summary>带滤镜的图层：组内容先经 <paramref name="filter"/> 处理，再以不透明度与混合模式合成。</summary>
+    public LayerOptions(float opacity, BlendMode blendMode, Rect? bounds, Filter? filter)
+    {
+        Opacity = opacity; BlendMode = blendMode; Bounds = bounds; Filter = filter is { IsEmpty: false } ? filter : null;
     }
 
     public float Opacity { get; }
     public BlendMode BlendMode { get; }
 
-    /// <summary>图层内容的范围提示（局部坐标）。为空表示不限制。</summary>
+    /// <summary>
+    /// 图层内容的范围提示（局部坐标）。为空表示不限制。有滤镜时它是滤镜的输入范围：范围之外的内容不参与滤镜
+    /// （滤镜的输出可以超出它，最多到 <see cref="Graphics.Filter.Inflate"/> 的范围）。
+    /// </summary>
     public Rect? Bounds { get; }
+
+    /// <summary>
+    /// 作用于组内容的滤镜（CSS <c>filter</c>；空链等于 null）。有滤镜的图层总是离屏：内容在不受外层裁剪限制的离屏表面上绘制
+    /// （模糊需要裁剪区之外的像素），滤镜之后再以外层裁剪合成。见 design/13 的 PushLayer。
+    /// </summary>
+    public Filter? Filter { get; }
 }

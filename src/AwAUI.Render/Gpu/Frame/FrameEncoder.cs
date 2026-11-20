@@ -50,11 +50,13 @@ internal sealed class FrameEncoder : IDisposable
     {
         DrawCalls = RenderPasses = DstCopies = 0;
         _commands = commands;
+        _mainTexture = mainTexture;
         _frame = frame;
         long uploaded = 0;
         Placeholder();
         graph.Main.Texture = mainTexture;
         PrepareDstTextures(graph, mainTexture.Format);
+        CountUses(graph);
 
         atlas.Upload(commands, ref uploaded);
         luts.Upload(commands, ref uploaded);
@@ -78,6 +80,41 @@ internal sealed class FrameEncoder : IDisposable
             _instances = _clipShapes = default;
         }
     }
+
+    /// <summary>
+    /// 统计每个离屏目标被多少个绘制操作读取（槽位 0 与 1）：最后一次读取编码之后纹理归还给纹理池。
+    /// 普通图层只被它的合成读取一次；滤镜的中间图像可能被读取两次（投影的原图）。
+    /// </summary>
+    static void CountUses(FrameGraph graph)
+    {
+        graph.Main.Uses = 0;
+        graph.Main.Rendered = true;
+        foreach (var l in graph.Layers)
+        {
+            l.Uses = 0;
+            l.Rendered = false;
+        }
+        static void Count(FrameTarget t)
+        {
+            foreach (var op in t.Ops)
+            {
+                if (op.Kind != FrameOpKind.Draw) continue;
+                if (op.Coverage is FrameTarget a) a.Uses++;
+                if (op.Lut is FrameTarget b && !ReferenceEquals(b, op.Coverage)) b.Uses++;
+            }
+        }
+        Count(graph.Main);
+        foreach (var l in graph.Layers) Count(l);
+    }
+
+    void Release(FrameTarget t)
+    {
+        if (--t.Uses > 0 || t.Texture is null || ReferenceEquals(t.Texture, _mainTexture)) return;
+        _pool.Return(t.Texture);
+        t.Texture = null;
+    }
+
+    GpuTexture? _mainTexture;
 
     /// <summary>为每种目标格式准备够大的目标拷贝纹理（同一帧内顺序复用同一张）。</summary>
     void PrepareDstTextures(FrameGraph graph, GpuTextureFormat mainFormat)
@@ -145,10 +182,29 @@ internal sealed class FrameEncoder : IDisposable
             {
                 case FrameOpKind.RenderLayer:
                 {
-                    EndPass(st);
                     var layer = op.Layer!;
+                    // 滤镜的中间图像可能被两个后续步骤引用：只渲染一次
+                    if (layer.Rendered) continue;
+                    EndPass(st);
+                    layer.Rendered = true;
                     layer.Texture = _pool.Rent(layer.Rect.Width, layer.Rect.Height, GpuTextureFormat.Rgba8Unorm, _frame);
                     EncodeTarget(layer, GpuLoadAction.Clear, default);
+                    continue;
+                }
+                case FrameOpKind.CopyToLayer:
+                {
+                    if (st.Pass is null && st.NextLoad == GpuLoadAction.Clear) st.Pass = BeginPass(texture, st);
+                    EndPass(st);
+                    var layer = op.Layer!;
+                    layer.Rendered = true;
+                    var r = op.CopyRect;
+                    layer.Texture = _pool.Rent(r.Width, r.Height, texture.Format, _frame);
+                    _commands.CopyTexture(texture, new PixelRect(r.X - target.Rect.X, r.Y - target.Rect.Y, r.Width, r.Height), layer.Texture, 0, 0);
+                    if (layer.Uses <= 0)
+                    {
+                        _pool.Return(layer.Texture);
+                        layer.Texture = null;
+                    }
                     continue;
                 }
                 case FrameOpKind.DstCopy:
@@ -185,12 +241,16 @@ internal sealed class FrameEncoder : IDisposable
             pass.DrawInstanced(GpuQuadUniforms.VertexCount, op.Count, op.First);
             DrawCalls++;
 
-            // 图层的合成已经编码：纹理可以给后面的图层复用
-            if (op.Coverage is FrameTarget composited && composited.Texture is { } layerTexture)
+            // 图层的合成（或滤镜的最后一次读取）已经编码：纹理可以给后面的图层复用
+            if (op.Coverage is FrameTarget composited)
             {
-                _pool.Return(layerTexture);
-                composited.Texture = null;
-                st.Coverage = null;
+                Release(composited);
+                if (composited.Texture is null) st.Coverage = null;
+            }
+            if (op.Lut is FrameTarget second && !ReferenceEquals(second, op.Coverage))
+            {
+                Release(second);
+                if (second.Texture is null) st.Lut = null;
             }
         }
         // 没有任何绘制的目标也要执行清屏

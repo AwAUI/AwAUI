@@ -65,7 +65,7 @@ public struct GpuQuadInstance
     /// <summary>种类相关参数：阴影种类中 x = 高斯 σ（设备像素）；双点锥形渐变中为 (cd.x, cd.y, r0, dr)。</summary>
     public Vector4 Extra;
 
-    /// <summary>x = <see cref="QuadShape"/>；y = <see cref="QuadPaint"/> | (扩展模式 &lt;&lt; 4) | (不抗锯齿 &lt;&lt; 8)；z = 保留；w = 0 或 混合模式 + 1（读目标）。</summary>
+    /// <summary>x = <see cref="QuadShape"/>；y = <see cref="QuadPaint"/> | (扩展模式 &lt;&lt; 4) | (不抗锯齿 &lt;&lt; 8)；z = <see cref="QuadShape.Filter"/> 的操作（<see cref="QuadFilterOp"/>），其他形状为 0；w = 0 或 混合模式 + 1（读目标）。</summary>
     public QuadKinds Kinds;
 
     public const int SizeInBytes = 176;
@@ -101,6 +101,37 @@ public static class QuadShape
     public const uint OuterShadow = 5;
     /// <summary>内阴影：（1 − 模糊的洞）× 原始形状覆盖率。</summary>
     public const uint InsetShadow = 6;
+
+    /// <summary>
+    /// 滤镜的一步（第九批，见 <see cref="QuadFilterOp"/>）：读槽位 0 的输入图像（与槽位 1 的第二输入），输出预乘颜色，覆盖率恒为 1、不读裁剪，
+    /// 以 Replace 写入离屏目标。<see cref="GpuQuadInstance.Kinds"/>.z = 操作；输入纹素 = floor(p) + Texture.xy（降采样为 floor(p)·k + Texture.xy），
+    /// RadiiY = 输入图像在纹理中的有效范围 (x0, y0, x1, y1)，范围外读作透明黑。
+    /// </summary>
+    public const uint Filter = 7;
+}
+
+/// <summary>
+/// <see cref="QuadShape.Filter"/> 的操作（<see cref="GpuQuadInstance.Kinds"/>.z）。语义与软件后端的滤镜执行器逐步相同（design/03「滤镜」）。
+/// </summary>
+public static class QuadFilterOp
+{
+    /// <summary>颜色矩阵：非预乘颜色 u = (rgb / a, a)，结果 = clamp(dot(行, u) + 偏移)，再预乘。行 R、G、B、A 在 Paint0、Paint1、Shape、RadiiX，偏移在 Extra。</summary>
+    public const uint ColorMatrix = 0;
+
+    /// <summary>k×k 方块平均（Extra.x = k）：输出纹素 i 读输入纹素 i·k + (0..k−1) + Texture.xy。</summary>
+    public const uint Downsample = 1;
+
+    /// <summary>水平高斯卷积：Extra = (1 / 2σ², 半径 r, 1 / 权重和)，权重 exp(−t²/2σ²)，t = −r..r。</summary>
+    public const uint BlurX = 2;
+
+    /// <summary>垂直高斯卷积，参数同 <see cref="BlurX"/>。</summary>
+    public const uint BlurY = 3;
+
+    /// <summary>双线性放大（Extra.x = k）：u = p / k − 0.5（p 为像素中心），读输入纹素 floor(u) + Texture.xy 及其右 / 下邻。</summary>
+    public const uint Upsample = 4;
+
+    /// <summary>投影合成：I = 输入（槽位 0），S = 第二输入（槽位 1，纹素 = floor(p) + Paint0.xy，有效范围 RadiiX），输出 I + Color × S.a × (1 − I.a)。</summary>
+    public const uint DropShadow = 5;
 }
 
 /// <summary><see cref="GpuQuadInstance.Kinds"/>.y 的低 4 位：画刷种类。</summary>

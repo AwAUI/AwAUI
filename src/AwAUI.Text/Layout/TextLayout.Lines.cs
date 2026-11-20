@@ -12,6 +12,8 @@ public sealed partial class TextLayout
         public int UnitStart, UnitEnd, ContentEnd, HangStart, LastContentUnit;
         public int StartOffset, EndOffset, EndNoBreak;
         public float Width, HangWidth, X, Top, Height, Baseline, Above, Below, JustifyExtra;
+        /// <summary>本行的缩进（text-indent，已从可用宽度中扣除，定位时加在起始侧）。</summary>
+        public float Indent;
         public int FragStart, FragCount;
         public byte ParaLevel;
         public bool HardBreak, LastInParagraph;
@@ -58,13 +60,23 @@ public sealed partial class TextLayout
         bool wrap = _style.Wraps && !float.IsPositiveInfinity(maxWidth);
         bool emergency = _style.OverflowWrap != OverflowWrap.Normal;
         int maxLines = _style.MaxLines > 0 ? _style.MaxLines : int.MaxValue;
+        float indent = ResolveIndent(maxWidth);
 
-        int u = 0, seg = 0;
-        while (u < _units.Length && _ranges.Count < maxLines)
+        int u = BreakLines(maxWidth, maxLines, wrap, emergency, indent);
+        // text-wrap: balance：保持行数不变、尽量缩小断行宽度（二分查找，次数固定），各行长度因此接近；对齐仍按原可用宽度
+        if (_style.TextWrapStyle == TextWrapStyle.Balance && wrap && u >= _units.Length && _ranges.Count >= 2
+            && _ranges.Count <= ParagraphStyle.MaxBalancedLines)
         {
-            int end = FindLineEnd(u, ref seg, maxWidth, wrap, emergency);
-            _ranges.Add((u, end));
-            u = end;
+            int lines = _ranges.Count;
+            float lo = 0, hi = maxWidth;
+            for (int iter = 0; iter < 16 && hi - lo > 0.5f; iter++)
+            {
+                float mid = (lo + hi) / 2;
+                int end = BreakLines(mid, lines + 1, wrap, emergency, indent);
+                if (end >= _units.Length && _ranges.Count <= lines) hi = mid;
+                else lo = mid;
+            }
+            u = BreakLines(hi, maxLines, wrap, emergency, indent);
         }
         _exceeded = u < _units.Length;
         // 文本为空或以强制换行结束：末尾还有一个空行（插入点可以停在那里）
@@ -76,9 +88,49 @@ public sealed partial class TextLayout
         {
             var (s, e) = _ranges[i];
             bool last = e == s || (_units[e - 1].Flags & UnitFlags.HardBreak) != 0 || e == _units.Length;
-            FinishLine(s, e, last, hasEllipsis && _exceeded && i == _ranges.Count - 1, maxWidth);
+            float ind = LineIndent(i, indent);
+            FinishLine(s, e, last, hasEllipsis && _exceeded && i == _ranges.Count - 1, maxWidth - ind);
+            _lines[_lines.Count - 1].Indent = ind;
         }
         PositionLines(maxWidth);
+    }
+
+    /// <summary>贪心断行，结果写入 <see cref="_ranges"/>（最多 <paramref name="maxLines"/> 行）；返回第一个没有放进任何行的单元。</summary>
+    int BreakLines(float width, int maxLines, bool wrap, bool emergency, float indent)
+    {
+        _ranges.Clear();
+        int u = 0, seg = 0;
+        while (u < _units.Length && _ranges.Count < maxLines)
+        {
+            int end = FindLineEnd(u, ref seg, width - LineIndent(_ranges.Count, indent), wrap, emergency);
+            _ranges.Add((u, end));
+            u = end;
+        }
+        return u;
+    }
+
+    /// <summary>
+    /// <c>text-indent</c>：第 <paramref name="index"/> 行（<see cref="_ranges"/> 中已有前面各行）的缩进。首行缩进；<c>each-line</c> 时
+    /// 强制换行之后的行也缩进；<c>hanging</c> 反转（其余各行缩进）。
+    /// </summary>
+    float LineIndent(int index, float indent)
+    {
+        if (indent == 0) return 0;
+        bool first = index == 0;
+        if (!first && _style.IndentEachLine)
+        {
+            var (s, e) = _ranges[index - 1];
+            first = e > s && (_units[e - 1].Flags & UnitFlags.HardBreak) != 0;
+        }
+        return first != _style.HangingIndent ? indent : 0;
+    }
+
+    float ResolveIndent(float maxWidth)
+    {
+        float v = TextStyle.Sanitize(_style.TextIndent, -MaxFiniteWidth, MaxFiniteWidth);
+        float pct = TextStyle.Sanitize(_style.TextIndentPercent, -1000, 1000);
+        if (pct != 0 && !float.IsInfinity(maxWidth)) v += pct * maxWidth;
+        return v;
     }
 
     void EnsureLayout()
@@ -410,9 +462,8 @@ public sealed partial class TextLayout
     void PositionLines(float maxWidth)
     {
         float widest = 0;
-        for (int i = 0; i < _lines.Count; i++) widest = Math.Max(widest, _lines[i].Width);
+        for (int i = 0; i < _lines.Count; i++) widest = Math.Max(widest, Math.Max(0, _lines[i].Width + _lines[i].Indent));
         _width = widest;
-        float alignWidth = float.IsInfinity(maxWidth) ? widest : maxWidth;
         float y = 0;
         for (int i = 0; i < _lines.Count; i++)
         {
@@ -422,6 +473,7 @@ public sealed partial class TextLayout
             y += l.Height;
 
             bool rtl = (l.ParaLevel & 1) != 0;
+            float alignWidth = (float.IsInfinity(maxWidth) ? widest : maxWidth) - l.Indent;
             var align = _style.TextAlign;
             if (align == TextAlign.Justify) align = TextAlign.Start;
             if (align == TextAlign.Start) align = rtl ? TextAlign.Right : TextAlign.Left;
@@ -436,7 +488,7 @@ public sealed partial class TextLayout
                     TextAlign.Center => free / 2,
                     _ => 0,
                 };
-            l.X = left - (rtl ? l.HangWidth : 0);
+            l.X = left - (rtl ? l.HangWidth : 0) + (rtl ? 0 : l.Indent);
             float x = 0;
             for (int f = l.FragStart; f < l.FragStart + l.FragCount; f++)
             {

@@ -19,6 +19,21 @@ internal static partial class Kernels
         }
     }
 
+    /// <summary>按组透明度混合两个具有相同通道顺序的预乘位图行。</summary>
+    public static void SrcOverBitmapRow(Span<byte> destination, ReadOnlySpan<byte> source, float opacity)
+    {
+        if (source.Length % 4 != 0 || destination.Length < source.Length)
+            throw new ArgumentException("Malformed pixel row.");
+#if NET8_0_OR_GREATER
+        if (s_active == SimdTier.Vector128)
+        {
+            Vector128Kernels.SrcOverBitmapRow(destination, source, opacity);
+            return;
+        }
+#endif
+        ScalarKernels.SrcOverBitmapRow(destination, source, opacity);
+    }
+
     /// <summary>纯色（预乘 RGBA）按覆盖率 SrcOver 到目标行。</summary>
     public static void SrcOverSolid(Span<byte> dst, bool bgra, Vector4 color, ReadOnlySpan<float> coverage)
     {

@@ -25,13 +25,21 @@ public sealed partial class TextLayout
 
     readonly struct DecorationOp
     {
-        public DecorationOp(Rect rect, VectorPath? wave, float thickness, Paint paint)
+        public DecorationOp(Rect rect, VectorPath? wave, float thickness, Paint paint, float dx = 0, float dy = 0)
         {
             Rect = rect;
             Wave = wave;
             Thickness = thickness;
             Paint = paint;
+            Dx = dx;
+            Dy = dy;
         }
+
+        /// <summary>绘制时的平移（阴影层；<see cref="Rect"/> 与 <see cref="Wave"/> 不含它）。</summary>
+        public float Dx { get; }
+        public float Dy { get; }
+
+        public DecorationOp WithShadow(float dx, float dy, Paint paint) => new(Rect, Wave, Thickness, paint, Dx + dx, Dy + dy);
 
         public Rect Rect { get; }
         /// <summary>波浪线（坐标相对布局原点）；为 null 时填充 <see cref="Rect"/>。</summary>
@@ -47,6 +55,30 @@ public sealed partial class TextLayout
         public DecorationOp[] Under = Array.Empty<DecorationOp>();
         /// <summary>删除线：在文字之后绘制。</summary>
         public DecorationOp[] Through = Array.Empty<DecorationOp>();
+        /// <summary>阴影层（text-shadow）：在一切之前按顺序绘制（已按「最后一项在最下」排好）。</summary>
+        public ShadowOp[] Shadows = Array.Empty<ShadowOp>();
+    }
+
+    /// <summary>阴影层中的一项：字形串（<see cref="Run"/> 非空）或装饰线。</summary>
+    readonly struct ShadowOp
+    {
+        public ShadowOp(GlyphRunOp run)
+        {
+            Run = run;
+            Decoration = default;
+            IsRun = true;
+        }
+
+        public ShadowOp(DecorationOp decoration)
+        {
+            Run = default;
+            Decoration = decoration;
+            IsRun = false;
+        }
+
+        public GlyphRunOp Run { get; }
+        public DecorationOp Decoration { get; }
+        public bool IsRun { get; }
     }
 
     /// <summary>
@@ -59,6 +91,11 @@ public sealed partial class TextLayout
         if (dc is null) throw new ArgumentNullException(nameof(dc));
         EnsureLayout();
         var data = _paintData ??= BuildPaintData();
+        foreach (var sh in data.Shadows)
+        {
+            if (sh.IsRun) dc.DrawGlyphRun(sh.Run.Run, new Point(origin.X + sh.Run.X, origin.Y + sh.Run.Y), sh.Run.Paint);
+            else DrawDecoration(dc, origin, sh.Decoration);
+        }
         foreach (var d in data.Under) DrawDecoration(dc, origin, d);
         foreach (var r in data.Runs) dc.DrawGlyphRun(r.Run, new Point(origin.X + r.X, origin.Y + r.Y), r.Paint);
         foreach (var d in data.Through) DrawDecoration(dc, origin, d);
@@ -69,11 +106,11 @@ public sealed partial class TextLayout
         if (d.Wave is { } wave)
         {
             dc.Save();
-            dc.Translate(origin.X, origin.Y);
+            dc.Translate(origin.X + d.Dx, origin.Y + d.Dy);
             dc.StrokePath(wave, d.Paint, new Stroke(d.Thickness));
             dc.Restore();
         }
-        else dc.FillRect(d.Rect.Offset(origin.X, origin.Y), d.Paint);
+        else dc.FillRect(d.Rect.Offset(origin.X + d.Dx, origin.Y + d.Dy), d.Paint);
     }
 
     PaintData BuildPaintData()
@@ -81,6 +118,7 @@ public sealed partial class TextLayout
         var runs = new List<GlyphRunOp>();
         var under = new List<DecorationOp>();
         var through = new List<DecorationOp>();
+        List<ShadowOp>[]? shadowLayers = null;
         var glyphs = new List<ushort>();
         var positions = new List<Point>();
         int decorationBudget = MaxDecorationPiecesPerLayout;
@@ -149,8 +187,9 @@ public sealed partial class TextLayout
                     }
                 }
 
-                float baseline = line.Baseline;
+                float baseline = line.Baseline - TextStyle.Sanitize(info.Style.BaselineShift, -TextStyle.MaxFontSize, TextStyle.MaxFontSize);
                 float originX = line.X + groupX;
+                int runIndex = runs.Count, underIndex = under.Count, throughIndex = through.Count;
                 if (glyphs.Count > 0 && size > 0)
                     runs.Add(new GlyphRunOp(new GlyphRun(face, size, glyphs.ToArray(), positions.ToArray(), synthetic, info.Style.Variation),
                         originX, baseline, info.Paint));
@@ -158,10 +197,48 @@ public sealed partial class TextLayout
                 var deco = info.Style.Decoration;
                 if (deco != TextDecorationLine.None && !float.IsNaN(decoStart) && decoEnd > decoStart)
                     AddDecorations(info, face, size, line.X + decoStart, line.X + decoEnd, baseline, under, through, ref decorationBudget);
+                if (info.Style.Shadows is { Count: > 0 } shadows)
+                    AddShadows(shadows, runs, runIndex, under, underIndex, through, throughIndex, ref shadowLayers);
                 f = g;
             }
         }
-        return new PaintData { Runs = runs.ToArray(), Under = under.ToArray(), Through = through.ToArray() };
+        var data = new PaintData { Runs = runs.ToArray(), Under = under.ToArray(), Through = through.ToArray() };
+        if (shadowLayers is not null)
+        {
+            // CSS：第一个阴影在最上面，所以从最后一层画起
+            var all = new List<ShadowOp>();
+            for (int k = shadowLayers.Length - 1; k >= 0; k--)
+                if (shadowLayers[k] is { } layer) all.AddRange(layer);
+            data.Shadows = all.ToArray();
+        }
+        return data;
+    }
+
+    /// <summary>
+    /// 一个字形串组（及其装饰线）的阴影：每层把同样的形状以阴影色、偏移后加入该层。模糊半径没有模糊滤镜可用，
+    /// 按「颜色透明度随模糊半径降低」近似（半径 r 时乘以 1 / (1 + r / 4)）。
+    /// </summary>
+    static void AddShadows(IReadOnlyList<TextShadow> shadows, List<GlyphRunOp> runs, int runIndex, List<DecorationOp> under, int underIndex,
+        List<DecorationOp> through, int throughIndex, ref List<ShadowOp>[]? layers)
+    {
+        int count = Math.Min(shadows.Count, TextStyle.MaxShadows);
+        layers ??= new List<ShadowOp>[TextStyle.MaxShadows];
+        for (int k = 0; k < count; k++)
+        {
+            var sh = shadows[k];
+            var color = sh.Color;
+            if (sh.Blur > 0) color = color.WithAlpha(color.A / (1 + sh.Blur / 4));
+            if (color.A <= 0) continue;
+            var paint = new Paint(color);
+            var layer = layers[k] ??= new List<ShadowOp>();
+            for (int i = underIndex; i < under.Count; i++) layer.Add(new ShadowOp(under[i].WithShadow(sh.OffsetX, sh.OffsetY, paint)));
+            for (int i = runIndex; i < runs.Count; i++)
+            {
+                var r = runs[i];
+                layer.Add(new ShadowOp(new GlyphRunOp(r.Run, r.X + sh.OffsetX, r.Y + sh.OffsetY, paint)));
+            }
+            for (int i = throughIndex; i < through.Count; i++) layer.Add(new ShadowOp(through[i].WithShadow(sh.OffsetX, sh.OffsetY, paint)));
+        }
     }
 
     float UnitWidth(in LineInfo line, int u)
@@ -214,7 +291,11 @@ public sealed partial class TextLayout
         if ((s.Decoration & TextDecorationLine.Underline) != 0)
         {
             float t = Thickness(m.UnderlineThickness);
-            AddLine(under, x0, x1, baseline - m.UnderlinePosition * scale, t, 1, s.DecorationStyle, paint, ref budget);
+            // text-underline-position: under 放在下伸部之下；text-underline-offset 给出时从基线（under 时从下伸部）起算
+            float top = s.UnderlinePosition == UnderlinePosition.Under ? baseline + Math.Abs(m.Descender) * scale : baseline - m.UnderlinePosition * scale;
+            if (!float.IsNaN(s.UnderlineOffset) && !float.IsInfinity(s.UnderlineOffset))
+                top = (s.UnderlinePosition == UnderlinePosition.Under ? baseline + Math.Abs(m.Descender) * scale : baseline) + s.UnderlineOffset;
+            AddLine(under, x0, x1, top, t, 1, s.DecorationStyle, paint, ref budget);
         }
         if ((s.Decoration & TextDecorationLine.Overline) != 0)
         {
