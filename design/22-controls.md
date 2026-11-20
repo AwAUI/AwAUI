@@ -97,7 +97,7 @@
 | **类型前缀查找** | 在列表、菜单、下拉中键入字符跳到匹配项 |
 | **表单** | `Form` 上下文：字段注册、校验（同步与异步）、提交、错误汇总与聚焦首个错误 |
 | **图标** | `Icon` 组件渲染 SVG 路径，颜色随 `currentColor`。**已在 `AwAUI.UI` 实现**（第六批）：基于 `Svg` 内建元素（见 [05](05-ui-core.md)）的小组件，属性 `Document / Size / Label / Class`，渲染 `<svg class="aw-icon">`（默认样式表中 1em × 1em、`flex-shrink: 0`）；给了 `Label` 时角色为 Image 并带可访问名称，否则 `aria-hidden`。`SvgDocument` 解析一次，`CurrentColor` 取计算后的 CSS `color`，按尺寸缓存录制结果，文档用到 currentColor 时颜色才进入缓存键。控件库可以包装或直接复用它。第七批起内联 `<svg>` 可以直接写在 `.awaui` 里（编译期序列化，见 [17](17-awaui-grammar.md)），`Svg` 元素也应用 `object-fit` / `object-position` |
-| **文本编辑基础**（第七批） | 内建 `Input` 已实现光标、选区、输入法（经平台 `TextInputMethod` / `ITextInputClient`）、剪贴板、按字素簇与按词编辑、指针选择与水平滚动（见 [05](05-ui-core.md)「文本输入」）。`TextField`、`SearchField`、`PasswordField`、`NumberField` 可直接包装它；`TextArea`（多行）、撤销 / 重做与光标闪烁仍缺 |
+| **文本编辑基础**（第七批） | 内建 `Input` 已实现光标、选区、输入法（经平台 `TextInputMethod` / `ITextInputClient`）、剪贴板、按字素簇与按词编辑、指针选择与水平滚动（见 [05](05-ui-core.md)「文本输入」）。`TextField`、`SearchField`、`PasswordField`、`NumberField` 可直接包装它；9c 增加多行 `TextArea` 和基础的 `TextBox.AcceptsReturn`；撤销 / 重做与光标闪烁仍缺 |
 | **图片** | `Image` 第七批起画出位图像素，`object-fit` / `object-position` / `image-rendering` 只由 CSS 提供；元素有 `border-radius` 时内容裁成圆角（圆形头像）。加载中与失败时没有占位图或替代文本渲染，`Avatar` 的回退需要控件自己根据 `LoadState` 实现 |
 
 ## 控件清单（早期草案）

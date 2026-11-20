@@ -75,7 +75,7 @@ public interface IWindowEvents                   // 只由框架实现，平台�
 
 | 平台 | 实现 | 验证 |
 |---|---|---|
-| macOS | `scrollingDeltaX/Y`、`hasPreciseScrollingDeltas`、`phase` 与 `momentumPhase`；非精确的行增量每行 40 px（系统已加速，WebKit 约定）；纯逻辑在 `MacWheel`（暂放在 `KeyMap.cs` 末尾以沿用已有的源码链接） | 普通与精确滚轮经真实 `NSEvent`（`eventWithCGEvent` 后直接调用视图的 `scrollWheel:`）验证；手势相位与惯性相位只有单元测试，没有注入过真实触控板手势 |
+| macOS | `scrollingDeltaX/Y`、`hasPreciseScrollingDeltas`、`phase` 与 `momentumPhase`；非精确的行增量每行 40 px（系统已加速，WebKit 约定）；纯逻辑在 `Input/MacWheel.cs`（`Platform.UnitTests` 链接 macOS 的 `KeyMap.cs` 与 `Input/**`） | 普通与精确滚轮经真实 `NSEvent`（`eventWithCGEvent` 后直接调用视图的 `scrollWheel:`）验证；手势相位与惯性相位只有单元测试，没有注入过真实触控板手势 |
 | Win32 | `WM_MOUSEWHEEL`（正值向上）/ `WM_MOUSEHWHEEL`（正值向右，取反），屏幕坐标经 `ScreenToClient`；每格行数来自 `SystemParametersInfo`，`WM_SETTINGCHANGE` 后重读；非 120 整数倍的增量（高分辨率滚轮、精确式触控板）按精确处理、没有相位；`WHEEL_PAGESCROLL`（一次一屏）累加满一格才发一页；没用 DirectManipulation | **只编译、纯逻辑测试与逐行阅读**，没有在 Windows 上运行；触摸以模拟鼠标到达，框架的触摸拖动滚动在这里不适用 |
 | X11 | 按钮 4–7 的按下，每格 100 px；XInput2 平滑滚动未做（原因写在代码注释里） | **只编译与纯逻辑测试** |
 | Browser | `deltaMode` 映射为 Pixel / Line / Page，每行 40 px | 单元测试（`WheelModeTests`） |
@@ -145,7 +145,7 @@ public abstract class Clipboard                  // 全异步
 | Browser | 见下文 Web 一节 | `KeyboardEvent.key` | 浏览器事件 | 真实无头 Chromium |
 | Headless | `HeadlessTextInput`（见上） | `HeadlessKeyboardLayout` | `HeadlessClipboard` | 单元测试 |
 
-与系统 API 无关的逻辑放在各平台的 `Input/` 目录（macOS 是 `KeyMap.cs`），在 `tests/AwAUI.Platform.UnitTests`（第八批从 `Browser.Tests/Platforms/` 拆出）以源码链接方式编译，任何系统（含 net48）都能跑；第八批的滚轮换算（`WheelInputTests`）也在这里。`Browser.Tests` 只保留 `Translation/` 的测试。
+与系统 API 无关的逻辑放在各平台的 `Input/` 目录（macOS 还有 `KeyMap.cs`），在 `tests/AwAUI.Platform.UnitTests`（第八批从 `Browser.Tests/Platforms/` 拆出）以源码链接方式编译，任何系统（含 net48）都能跑；第八批的滚轮换算（`WheelInputTests`）也在这里。`Browser.Tests` 只保留 `Translation/` 的测试。
 
 **未验证 / 已知限制**：
 

@@ -95,7 +95,7 @@ public partial class Counter : Component
 | `Button` | 原生按钮元素（标签 `button`，有 `Disabled`、Enter/Space 激活）；[22](22-controls.md) 的控件 `Button` 组件包装它，或包装 `role=button` 的 `div` |
 | `Image` | 位图（替换元素，标签 `img`）：来源、异步解码、缓存、按自然尺寸与宽高比布局、CSS object-fit / object-position / image-rendering、GIF / WebP 动画；第七批起经 `DrawImage` 画出位图像素。`ImageElement.AccessibleName` = `aria-label`，否则 `Alt`。细节见 [03](03-renderer.md)「图片」 |
 | `Svg` | 矢量图（替换元素，标签 `svg`），见下 |
-| `Input` / `TextArea` | 文本编辑（实现 `ITextInputClient`）。第七批 `Input` 已有光标、选区、输入法与剪贴板（见下文「文本输入」）；`TextArea` 未做 |
+| `Input` / `TextArea` | 文本编辑（实现 `ITextInputClient`）。第七批 `Input` 已有光标、选区、输入法与剪贴板（见下文「文本输入」）；9c 加入基础多行 `TextArea` |
 | `Canvas` | 自定义绘制：`OnPaint(DrawingContext)` |
 | `VirtualList` | 虚拟化长列表（项构建器 + 回收） |
 | `Portal` | 把子树挂到顶层 Overlay（弹层、菜单、Toast） |
@@ -137,6 +137,7 @@ public partial class Counter : Component
 
 `RenderPipeline : FramePipeline` 在 UI 线程上依次跑样式 → 布局 → 文本 → 绘制，并提供命中测试；`UIHost` 把它接到窗口（见 [01](01-architecture.md) 组合根）。与上表的目标相比的简化与实际规则：
 
+- **布局后的组件更新**：依赖视口测量的组件可在 `LayoutCompleted` 中调用 `InvalidateFromLayout()`。标准管线在绘制前有限次重建这些组件并补做样式和布局，让虚拟列表的大幅滚动与行挂载出现在同一帧。普通 `State` 写入仍按下一帧处理。
 - **样式**：每个元素一个惰性创建的 `StyleElement` 适配对象，伪状态位按位强转；`::part()` 的宿主是最近的、属于另一个组件的祖先。启动时扫描样式表，找出用在祖先或兄弟位置的 class / id / 属性 / 状态选择器：这些值变化时重算整棵子树（`+` / `~` 时重算兄弟），其他变化只重算元素自身；继承值变化时重算子元素；样式表含结构伪类时，子元素增删移动会重算该父元素的全部子元素（偏保守）。样式差异只含绘制类属性时只标重绘，含布局或结构类属性时标重排 + 重绘；管线自身在帧内造成的变化不再请求新帧。
 - **文本**：容器里的裸字符串（如按钮标签）成为使用父元素样式的匿名文本叶子；`Text`、`Input` 和 `Text` 之外的 `Span` 各自是一个段落，`Text` 里的 `Span` 是段落内的样式 run。每元素复用一个段落对象，只改颜色时替换段落但不使尺寸缓存失效；max-content 宽度加 0.01 px 余量，避免最后一个词被折行。
 - **绘制是增量的**（第六批，细节见下文「增量绘制」）：只重录变化的元素，每帧报告一个损伤矩形；没有变化时复用上一帧，宿主跳过光栅。录制前自下而上算出每棵子树的可见范围（墨迹：含阴影、轮廓、溢出的文字），整棵在视口外的子树跳过 —— 1000 行列表的悬停帧因此从 7001 条命令降到 103 条（M1），增量后只剩 4 条顶层命令。
@@ -201,7 +202,8 @@ public partial class Counter : Component
 - **指针**：点击定位光标、拖动选择（捕获指针）、双击选词、三击全选（只按真实时间戳判断）。
 - **绘制**（`Input/RenderPipeline.Input.cs`）：预编辑文本加下划线，转换中的文节加粗；选区高亮；文本超宽时水平滚动并裁剪。`PaintParagraph` 里有一处转交给输入框绘制的钩子，旧的文末光标代码已删除。
 - **测试**：无头端到端（`TextInputTests` 与评审补的 `TextInputReviewTests`）：中文组合 / 提交 / 取消、组合替换选区、失焦提交、受控值变化放弃组合、自动更正式的 `ReplaceRange`、粘贴 / 复制 / 剪切（Ctrl 与 Cmd 两种约定、剪贴板拒绝写入、抛异常）、德语 AltGr 输入 @ € { |、逻辑键快捷键、小键盘、编辑键、光标矩形、滚动、指针。
-- **未做**：撤销 / 重做；多行 `TextArea`；光标闪烁；双向文本的视觉光标移动（左右键按逻辑顺序移动）；输入法重新转换；失焦时的非活动选区显示；没有调度器且剪贴板任务没有同步完成时这次粘贴被丢弃；`GetText` 的范围切开代理对时返回的字符串比请求的长 1。
+- **多行（9c）**：`TextArea` 复用编辑器与输入法客户端，支持换行、自动折行、选区、剪贴板和保持光标可见的垂直滚动。`Enter` 插入换行；单行 `Input` 仍用 `Enter` 提交。
+- **未做**：撤销 / 重做；光标闪烁；双向文本的视觉光标移动（左右键按逻辑顺序移动）；输入法重新转换；失焦时的非活动选区显示；没有调度器且剪贴板任务没有同步完成时这次粘贴被丢弃；`GetText` 的范围切开代理对时返回的字符串比请求的长 1。
 
 ## 动画
 

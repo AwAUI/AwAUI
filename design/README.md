@@ -122,6 +122,8 @@ AwAUI 是一个用 C# 实现的跨平台自绘 UI 引擎：**声明式组件（`
 | D47 | 默认整形器 | `OpenTypeShaper` 按 HarfBuzz 的 hb-ot 模型实现（GSUB / GPOS / GDEF、阿拉伯联接、希伯来、标记重排），是 `DefaultTextEngine` 的默认；`BasicTextShaper` 保留为测试引擎的默认与非 OpenType 字型的回退。保留逐词整形缓存：跨词字距在词边界用 `TextShaper.GetBoundaryKerning` 补上（LTR），阿拉伯类文字把至多 5 个码点的联接上下文交给整形器、邻字的联接类进入缓存键；`ScriptShaper` 插件接口暂不公开（[19](19-text-api.md)） | ✅ |
 | D48 | Grid 对不可信输入的上限 | 线号钳制到 ±10000、显式轨道至多 9999 条、`repeat()` 次数至多 10000、至多记录 131072 个线名；自动放置的占用表内存与跨度无关；起止相同的项目合并分配。最坏开销 O(项目数 × 轨道数)（[08](08-css.md)） | ✅ |
 | D49 | 逻辑属性 | 在解析时作为别名映射到左到右横排下的物理属性（与该情形下的级联完全一致）；代价是逻辑属性名按简写序列化（计算值文本为空），rtl 与竖排要等 `direction` / `writing-mode`（[16](16-css-properties.md)） | ✅ |
+| D50 | 原语的纯逻辑与 UI 接入分离 | `AwAUI.Controls.Primitives` 的定位、选择、导航、关闭层栈、焦点作用域、Presence、虚拟化先实现为不访问元素树的纯计算：元素是泛型参数（UI 接入时为 `Element`），几何与时间由宿主测量或传入；Popper 以 Floating UI 1.7 为语义基准并做差分测试；浮层 CSS 变量用 `--aw-popper-*`；Virtualizer 的偏移用 double（[23](23-component-library.md)） | ✅ |
+| D51 | Tailwind 的基准与依赖 | `AwAUI.Tailwind` 以 Tailwind v4.3.5 逐函数移植、输出逐字节一致，不依赖任何 AwAUI 程序集（只输出 CSS 文本，源生成器以源码链接方式编入）；运行时补全基于逐条规则与排序下标，不直接改写构建期合并后的样式表（[23](23-component-library.md)） | ✅ |
 
 ## 当前状态
 

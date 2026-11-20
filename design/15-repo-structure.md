@@ -19,10 +19,10 @@ AwAUI/
 │  ├─ AwAUI.Layout/                 布局算法（Flex / Block / 定位），输入为 LayoutStyle
 │  ├─ AwAUI.Scene/                  层树、帧调度、脏区、合成器
 │  ├─ AwAUI.UI/                     组件、State、协调器、元素树、事件、手势、语义树
-│  ├─ AwAUI.Controls/               Avalonia 风格基础控件（Button、TextBox、ComboBox、ListBox、TreeView ...），含 Primitives/ 行为原语（见 23）
+│  ├─ AwAUI.Controls/               Avalonia 风格基础控件（Button、TextBox、ComboBox、ListBox、TreeView ...），含 Primitives/ 行为原语（见 23；第九批已有原语的纯逻辑）
 │  ├─ AwAUI.Controls.DataGrid/      DataGrid（与 Avalonia 相同，独立包）
 │  ├─ AwAUI.Themes.Fluent/          基础控件的 Fluent 主题（纯 CSS 与令牌）
-│  ├─ AwAUI.Tailwind/               Tailwind v4 兼容工具类引擎（构建期与运行时共用）、Cn、Cva
+│  ├─ AwAUI.Tailwind/               Tailwind v4 兼容工具类引擎（构建期与运行时共用）、Cn、Cva（第九批：Internal/ Ast/ Theme/ Candidates/ Utilities/ Variants/ Compilation/ Resources/ Scanning/ Merge/，按 v4.3.5 的模块对应）
 │  ├─ AwAUI.Shadcn/                 shadcn/ui 组件（.awaui + Tailwind 类），含官方注册表 registry/
 │  ├─ AwAUI.Shadcn.Extensions/      基于 shadcn 的扩展组件（高级 DataTable、MultiSelect、TagInput ...）
 │  ├─ AwAUI.Icons.Lucide/           Lucide 图标（由 SVG 生成）
@@ -93,9 +93,11 @@ AwAUI/
 │  ├─ AwAUI.Tailwind.UnitTests/     含与 Tailwind v4 官方输出的快照比对
 │  ├─ AwAUI.Shadcn.UnitTests/
 │  ├─ AwAUI.Markup.UnitTests/       .awaui → C# 的快照测试
-│  ├─ AwAUI.RenderTests/            黄金图像测试（软件 / GPU 各跑一遍）；第七批的 DrawImage 黄金图暂存在本项目的 Golden/
+│  ├─ AwAUI.RenderTests/            黄金图像测试（软件 / GPU 各跑一遍）；黄金图都在 TestFiles/Golden（第八批起含 DrawImage 的 4 张）
+│  ├─ AwAUI.Rhi.Metal.Tests/        Metal 后端与软件后端的对照（含第八批的 UI 图片对照，因此引用 AwAUI.UI）；没有 Metal 时跳过
 │  ├─ AwAUI.DevTools.Tests/         DevTools 面板的端到端测试（第七批；名字不符合 .UnitTests 约定，csproj 里单独声明 InternalsVisibleTo）
-│  ├─ AwAUI.Browser.Tests/          Browser 的 Translation/ 源码测试；Platforms/ 下以源码链接方式测 Win32 / X11 / macOS 输入的纯逻辑（暂放，计划拆出 AwAUI.Platform.UnitTests）
+│  ├─ AwAUI.Browser.Tests/          Browser 的 Translation/ 源码测试
+│  ├─ AwAUI.Platform.UnitTests/     以源码链接方式测 Win32 / X11 / macOS 输入的纯逻辑（含滚轮换算；第八批拆出，含 net48）
 │  ├─ AwAUI.Css.ConformanceTests/   由 Web Platform Tests 子集转换
 │  ├─ AwAUI.Text.ShapingTests/      整形一致性测试
 │  ├─ AwAUI.IntegrationTests/       经 DevTools 协议驱动的端到端测试
@@ -103,7 +105,7 @@ AwAUI/
 │  ├─ AwAUI.AotSmokeTests/          NativeAOT 发布并运行
 │  ├─ AwAUI.Benchmarks/
 │  ├─ Shared/                       测试项目以链接方式共享的源码（如 ThreadCpuClock.cs，命名空间 AwAUI.Tests.Shared；由 Markup、Imaging、DevTools 测试链接）
-│  └─ TestFiles/                    黄金图像、测试字体、整形数据、CSS 用例
+│  └─ TestFiles/                    黄金图像、测试字体（第八批的 CC0 字体 AwATest-*.otf / AwATest-Layout.ttf 及生成脚本）、整形数据、CSS 用例；Tailwind/ 为 Tailwind v4.3.5 与 tailwind-merge 的参考输出（含 tools/ 生成脚本与 VERSION.txt）
 ├─ tooling/
 │  └─ vscode-awaui/                 .awaui 语法高亮（TextMate 语法），后续语言服务器
 ├─ build/                           共享的 MSBuild 属性

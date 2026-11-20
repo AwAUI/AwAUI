@@ -66,6 +66,8 @@ public sealed class GlyphRun
 }
 ```
 
+`OpenTypeFace.GetOutline` 支持 glyf、CFF（含 CID 字体的 FDArray / FDSelect）与 CFF2（默认实例），第八批起 macOS 的 Hiragino 等 CFF 中日韩字体可以显示；CFF 的 `FontMatrix` 忽略，advance 仍取自 hmtx，字形包围盒含曲线极值。解释器上限：参数栈 48（CFF）/ 513（CFF2）、子程序深度 10、每字形 2^17 次操作、65 536 个点，失败的字形不向路径写任何东西；Private DICT 按（偏移，长度）缓存，解析总量至多 4 × 表长 + 64 KB，超出时整张 CFF 表按损坏处理。
+
 `GlyphRun.Bounds` 依赖字体声明的 'head' 包围盒；墨迹超出声明框的字体会被低估，缓存路径的像素对齐还可能再超出至多 0.5 设备像素（见 [03](03-renderer.md)）。
 
 - 系统字体由平台层的 `SystemFontProvider` 枚举（返回文件路径或数据），`FontManager` 按需解析，只读取用到的表。
@@ -78,7 +80,13 @@ public sealed class GlyphRun
 public abstract class TextShaper
 {
     public abstract ShapedRun Shape(in ShapeRequest request);
+
+    // 第八批：词边界的额外间距（前一词最后一个可见字形与后一词第一个字形之间），由逐词整形的布局调用；默认 0
+    public virtual float GetBoundaryKerning(in ShapeRequest request, ushort first, ushort second) => 0;
 }
+
+// 第八批：DefaultTextEngine 的默认整形器（单例 OpenTypeShaper.Instance）；BasicTextShaper 也覆盖 GetBoundaryKerning
+public sealed class OpenTypeShaper : TextShaper { public static OpenTypeShaper Instance { get; } }
 
 public readonly ref struct ShapeRequest
 {
@@ -125,7 +133,17 @@ public abstract class ScriptShaper
 }
 ```
 
-整形器注册在 `TextEngine` 上，可按需裁剪（未注册的文字落到通用整形引擎或默认整形器）。此接口属于 P2，目前只有 P1 的 `BasicTextShaper`。
+整形器注册在 `TextEngine` 上，可按需裁剪（未注册的文字落到通用整形引擎或默认整形器）。此接口属于 P2，**仍未公开**。
+
+**现状（第八批，决策 D47）**：`OpenTypeShaper` 按 HarfBuzz 的 hb-ot 整形器实现，是 `DefaultTextEngine` 的默认；`BasicTextShaper`（P1：cmap + hmtx + 'kern'）保留，仍是 `TestTextEngine` 的默认，不是 `OpenTypeFace` 的字型也退回它。文字整形器只有内部的 `ScriptShaperKind { Default, Arabic, Hebrew }`。
+
+- **GSUB** 查找类型 1–8（上下文与链式上下文的格式 1–3、扩展）；**GPOS** 查找类型 1–9；全部查找标志（含标记附着类型与标记过滤集）。算法照搬 HarfBuzz 以便逐项对照：输入 / 输出缓冲与 `move_to` 回退、`apply_lookup` 的位置修正、连字组件跟踪、带 last-base 缓存与 `accept()` 的标记—基字查找、草书链反转；标记的垂直偏移在附着时确定，传播阶段只加水平偏移与中间的 advance（前缀和，线性）。查找按各阶段内的索引顺序执行，阿拉伯有阶段暂停。
+- **特性**：默认集 `rvrn ltra ltrm rtla ccmp locl rlig calt clig liga rclt curs dist kern mark mkmk abvm blwm`；`TextStyle` 的特性支持开 / 关 / 替代值与范围（「后设置者胜」的并查集，O((n + 设置数)·α)，`BasicTextShaper` 的同类二次方问题一并修复）；字体没有 GPOS kern 时退回旧 'kern' 表。
+- **阿拉伯类**：用已有的 Joining_Type 数据跑联接状态机（init / medi / fina / isol）；字体的阿拉伯文字没有这几个特性时（如只有 AAT 'morx' 的 Geeza Pro）退回 Unicode 表现形式与 lam-alef 连字（表由 Python unicodedata 的单字符分解生成）。**希伯来**：标记在 GPOS 之前置零宽。**标记重排**：按 HarfBuzz 的修正组合类（`AwAUI.Unicode` 新增生成的 `Canonical_Combining_Class` 与公开的 `UnicodeData.GetCombiningClass`）把组合标记排成规范顺序，含阿拉伯的 MCM 重排。
+- **未做**：印度系、USE、泰文、高棉、缅甸等走默认路径，没有音节重排；Unicode 分解 / 组合与希伯来表现形式组合；没有 GPOS 时的标记回退只做水平居中；AAT（morx / kerx / trak）；FeatureVariations 与可变字体的非默认实例；竖排。
+- **整形计划**按字型缓存（至多 64 个，另有最近一个的线程静态快路径）；子表与缓冲各有字形摘要，跳过不可能命中的查找；抛 `InvalidFontException` 的查找标为损坏，此后跳过。
+- **对照**：22 个 HarfBuzz 15.1 的期望输出（测试字体 `AwATest-Layout.ttf` 等）在单元测试中核对；一次性的 686 例、18 个系统字体的 hb-shape 对比除分解 / 组合、New York 的 'trak'、Abel 的 .notdef 标记与一处隐藏 ZWNJ 外一致。
+- **速度**：整段一次整形比 `BasicTextShaper` 慢 5 倍（拉丁 / Noto）到 14 倍（SF Arabic）；布局有词级缓存，热缓存下构建 + 首次布局只多约 20%（拉丁 +19%、CJK +7%、阿拉伯持平）。
 
 ## 段落布局
 
@@ -142,7 +160,7 @@ public abstract class TextEngine
     public ShapeCacheStatistics ShapeCacheStatistics { get; }
     public void ClearCaches();
 }
-// DefaultTextEngine(FontManager fonts, TextShaper? shaper = null, ...)：默认整形器为 BasicTextShaper
+// DefaultTextEngine(FontManager fonts, TextShaper? shaper = null, ...)：默认整形器为 OpenTypeShaper.Instance（第八批；此前为 BasicTextShaper）
 
 public sealed class ParagraphBuilder
 {
@@ -223,7 +241,20 @@ Layout(width)（可反复）
   截断        超出行数或宽度时在行的视觉末端插入省略号（无 '…' 时回退字体或 "..."）
 ```
 
-逐词整形意味着跨断点的字距（kerning）会丢失，词内保留。缓存键为文本 + 字型 + 字号 + 方向 + 文字 + 语言 + 可变轴；超过 96 字符或带字体特性的词不入缓存。文本哈希每进程随机化（.NET 上 Marvin，netstandard2.0 上加种子的 FNV-1a + 末端混合），防止哈希碰撞攻击。
+逐词整形（第八批修订）：词仍一个一个整形并缓存。同一 run 内的每个词边界，布局把 `TextShaper.GetBoundaryKerning`（前一词最后一个可见字形与后一词第一个字形；用 GPOS 'kern' 的 PairPos 第一个字形的 XAdvance，没有 GPOS kern 时用 'kern' 表）加到左边的单元上，只做 LTR —— RTL 的字距通常写成「位置 + advance」，不能当作单纯的间隙；每次调用至多尝试 4096 个子表。词之间的上下文 GSUB（如 calt）仍会丢失。连字的 advance 平分到它覆盖的各个字素（RTL 中字形归视觉上最左的单元），所以光标与命中可以落在连字内部；`overflow-wrap: anywhere` 在连字内部紧急断开时整个连字画在第一行。
+
+阿拉伯类文字的联接上下文：`TextLayout` 向内部的 `TextEngine.ShapeWord` 传入词前后各至多 5 个码点（同 HarfBuzz），整形器把词与上下文放进一个缓冲、以 `Range` 限定整形范围，再把簇偏移移回词首。上下文不跨过整形文本中被替换为 ZWSP 的字符（控制字符、换行、折叠的空白），所以不会跨硬换行联接；真正的 ZWSP 照常透过。`ArabicShaping.ContextKey`（两侧最近的非透明邻字的联接类）进入缓存键，邻字都不能联接时为 0、不传上下文 —— 以空格分隔的词走与以前完全相同的路径与缓存键。公开 API 不变。
+
+letter-spacing ≠ 0 时，在样式自己的特性之前加入 `liga / clig / dlig / calt = 0`（CSS Text 3 §8.2），显式的 `font-feature-settings` 仍然生效（后设置者胜）；`rlig` 不动，阿拉伯的必需连字保留。
+
+缓存键为文本 + 字型 + 字号 + 方向 + 文字 + 语言 + 可变轴 + 字体特性 + 联接上下文键（第八批起带特性的词也入缓存）；超过 96 字符的词不入缓存。文本哈希每进程随机化（.NET 上 Marvin，netstandard2.0 上加种子的 FNV-1a + 末端混合），防止哈希碰撞攻击。
+
+**不可信字体的上限**（第八批）：
+
+- 整形的操作预算为每字符 8192 步，至少 65 536、至多 `int.MaxValue`；跳读迭代器的每一步与每次子表尝试（不只是成功）都计数（比 HarfBuzz 严，但有界）。10 种真实字体实测每字符最多约 1668 步（DecoType Nastaleeq Urdu），约有 5 倍余量。
+- GSUB / GPOS 查找的解析预算为 max(65 536, 8 × 表长)，每个子表引用计 1，超出的查找标为损坏；覆盖表摘要按偏移缓存，预算用完时摘要退化为「可能包含任何字形」（只影响速度，不影响结果）；查找解析在锁内进行。
+- 嵌套深度 8、上下文长度 64、缓冲至多 max(4096, 8n) 个字形、附着链至多 64 层。
+- CFF 的上限见上文「字体」。没有 GPOS 时的标记回退对每个标记调用 `TryGetGlyphBounds`，CFF 字体每次都解码轮廓（有界，但恶意字体可以很贵）。线程静态缓存（CFF 解释器、最近的整形计划）让每个线程最近用过的字体保持存活。
 
 **为布局引擎服务的两点**：
 

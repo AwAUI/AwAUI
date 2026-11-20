@@ -133,6 +133,8 @@ netstandard2.0 下缺失的基础类型通过微软官方的纯托管兼容包�
 
 `AwAUI.Browser.Tests` 是另一类例外：普通的 net10.0 项目不能引用 `net10.0-browser` 的库，所以它直接编译库里 `Translation/` 下的纯 C# 源码（事件翻译、派发队列、附着结果解码等），照常以 net10.0 / net11.0（及 net48）运行；依赖浏览器的部分只由 `tests/AwAUI.Browser.Tests/node` 下的 Node 冒烟（DOM 垫片）与真实无头浏览器冒烟覆盖，不在 `dotnet test` 内。
 
+`AwAUI.Platform.UnitTests`（第八批从 `Browser.Tests/Platforms/` 拆出）同理：Win32、X11、macOS 后端只面向各自的系统与 TFM，它以源码链接方式编译 Win32、X11、macOS 的 `Input/` 目录和 macOS 的 `KeyMap.cs`（只依赖 `AwAUI.Platform`、只用 netstandard2.0 可用的 API），照常以 net10.0 / net11.0（及 net48）运行，任何系统上都能测按键表、逻辑键、UTF-16 组装、输入法组合解析、X11 选择协议与滚轮换算等纯逻辑。新的平台纯逻辑放进对应后端的 `Input/` 目录并在这里加测试；`Browser.Tests` 只保留 `Translation/` 的测试。
+
 
 | 运行时 | 操作系统 | 内容 |
 |---|---|---|

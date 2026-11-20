@@ -2,13 +2,11 @@
   <Configurations>
     <BuildType Name="Debug" />
     <BuildType Name="Release" />
-    <BuildType Name="B8Scroll" />
-    <BuildType Name="B8Layout" />
-    <BuildType Name="B8Text" />
-    <BuildType Name="B8Polish" />
-    <BuildType Name="B9Tailwind" />
-    <BuildType Name="B9Prim" />
-    <BuildType Name="B8Int" />
+    <BuildType Name="B9Css" />
+    <BuildType Name="B9Paint" />
+    <BuildType Name="B9Content" />
+    <BuildType Name="B9Prims" />
+    <BuildType Name="B9Markup" />
   </Configurations>
   <Folder Name="/src/">
     <Project Path="src/AwAUI.Controls/AwAUI.Controls.csproj" />
@@ -17,13 +15,16 @@
     <Project Path="src/AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
     <Project Path="src/AwAUI.Foundation/AwAUI.Foundation.csproj" />
     <Project Path="src/AwAUI.Graphics/AwAUI.Graphics.csproj" />
+    <Project Path="src/AwAUI.Icons.Lucide/AwAUI.Icons.Lucide.csproj" />
     <Project Path="src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
     <Project Path="src/AwAUI.Layout/AwAUI.Layout.csproj" />
     <Project Path="src/AwAUI.Platform/AwAUI.Platform.csproj" />
     <Project Path="src/AwAUI.Render/AwAUI.Render.csproj" />
+    <Project Path="src/AwAUI.Shadcn/AwAUI.Shadcn.csproj" />
     <Project Path="src/AwAUI.Svg/AwAUI.Svg.csproj" />
     <Project Path="src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
     <Project Path="src/AwAUI.Text/AwAUI.Text.csproj" />
+    <Project Path="src/AwAUI.Themes.Fluent/AwAUI.Themes.Fluent.csproj" />
     <Project Path="src/AwAUI.UI/AwAUI.UI.csproj" />
     <Project Path="src/AwAUI.Unicode/AwAUI.Unicode.csproj" />
   </Folder>
@@ -56,9 +57,12 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/BrowserDemo/BrowserDemo.csproj" />
+    <Project Path="samples/ControlCatalog/ControlCatalog.csproj" />
     <Project Path="samples/Counter/Counter.csproj" />
     <Project Path="samples/GpuDemo/GpuDemo.csproj" />
     <Project Path="samples/RenderDemo/RenderDemo.csproj" />
+    <Project Path="samples/ShadcnGallery/ShadcnGallery.csproj" />
+    <Project Path="samples/TailwindDemo/TailwindDemo.csproj" />
     <Project Path="samples/WasmProbe/Native/WasmProbe.Native.csproj" />
     <Project Path="samples/WasmProbe/WasmProbe.csproj" />
   </Folder>

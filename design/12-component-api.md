@@ -4,7 +4,7 @@
 
 > 实现现状（M1 第四批）：运行时在 `src/AwAUI.UI`，源生成器在 `src/tools/AwAUI.Generators`（netstandard2.0，Roslyn 4.14），胶水的发射逻辑在 `src/Shared/CodeGen/ComponentGlue.cs`（不含 Roslyn 类型，输出可按 C# 7.3 解析，供 `.awaui` 编译器共用）。
 > - **所有运行时类型都在命名空间 `AwAUI.UI`**，而不是 `AwAUI`：`AwAUI.Text` 已是文本栈的命名空间，`Text` 元素只能是 `AwAUI.UI.Text`。应用代码（`namespace MyApp; using AwAUI.UI;`）不受影响；但位于其他 `AwAUI.*` 命名空间的代码里简单名 `Text` 会解析成命名空间，须写 `UI.Text` 或用别名。
-> - 尚未实现：`TextArea / Canvas / Path` 元素，`WheelEvent / ScrollEvent / PinchEvent / DragEvent / CompositionEvent` 与对应的 `OnDoubleClick / OnContextMenu / OnWheel / OnScroll` 等处理器属性，`Resource<T>`，退出动画，组件 Ref，DevTools 组件元数据与源映射表，分析器 AW1002–AW1004。`OnTap / OnPan` 已声明但还没有手势识别器触发它们。样式、布局、绘制、命中测试与窗口宿主已在 M1 接入（`RenderPipeline`、`UIHost`，见 [05](05-ui-core.md)「M1 帧管线」）；第六批加入 `Svg` 元素、`Icon` 组件、图片来源与缓存、增量绘制（见下文「图片、SVG 与增量绘制」）；第七批 `Image` 画出位图像素，`Input` 有了光标、选区、输入法与剪贴板（见下文「文本输入」）。
+> - 尚未实现：`Canvas / Path` 元素，`PinchEvent / DragEvent / CompositionEvent` 与对应的 `OnDoubleClick / OnContextMenu` 等处理器属性（`WheelEvent / ScrollEvent` 与 `OnWheel / OnScroll / ScrollController` 第八批已实现，见 [21](21-gesture-scroll-api.md)），`Resource<T>`，退出动画，组件 Ref，DevTools 组件元数据与源映射表，分析器 AW1002–AW1004。`OnTap / OnPan` 已声明但还没有手势识别器触发它们。样式、布局、绘制、命中测试与窗口宿主已在 M1 接入（`RenderPipeline`、`UIHost`，见 [05](05-ui-core.md)「M1 帧管线」）；第六批加入 `Svg` 元素、`Icon` 组件、图片来源与缓存、增量绘制（见下文「图片、SVG 与增量绘制」）；第七批 `Image` 画出位图像素，`Input` 有了光标、选区、输入法与剪贴板（见下文「文本输入」）。9c 增加 `AwAUI.UI.TextArea` 与 `.awaui` 的 `<textarea>` 映射。
 
 ## 一个完整的例子
 

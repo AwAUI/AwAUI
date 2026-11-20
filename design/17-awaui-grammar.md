@@ -33,7 +33,8 @@ directive     = "@using" cs-name [ "=" cs-name ] NEWLINE
 
 code-block    = "@code" "{" cs-class-members "}" ;
 style-block   = "<style" [ WS "global" ] ">" css-text "</style>" ;
-comment       = "@*" { ANY } "*@" ;
+comment       = "@*" { ANY } "*@"
+              | "<!--" { ANY } ( "-->" | "--!>" ) ;   (* 第八批：HTML 注释，与 @* *@ 等价 *)
 
 markup-node   = element | fragment | text | expression | control | stmt-block | comment ;
 
@@ -204,11 +205,14 @@ namespace MyApp
 - 默认 using（Razor 式，放在命名空间内）：`global::System`、`System.Collections.Generic`、`System.Linq`、`AwAUI.UI`，所以 `@code` 可以直接写 `State<T>`、`List<T>`，`<Button>` 解析为 `AwAUI.UI.Button`。
 - 内建元素按运行时实际存在的成员映射（`CodeGen/RuntimeElements.cs`，与语言层的 `Analysis/IntrinsicElements` 分开）：`div / span / text / img / input / svg` 及其属性与事件（`svg` 第七批加入）。语言允许但运行时缺少的元素或事件报 **AW4012** 错误并跳过（C# 仍可编译），行为未实现的属性报 AW4012 警告并作为自定义属性透传；组件上没有可写成员时的 `@ref / @attributes` 也报 AW4012。AW4012 由代码生成步骤（`MarkupCompiler.Compile`）报告，不在 `Analyze` 中，所以解析与格式化不依赖运行时。`button` 没有加为小写内建元素；解析为 `ElementNode` 子类的大写标签（如 `AwAUI.UI.Button`）按元素类型处理：HTML 式的小写属性（class、aria-\*、data-\*、role、tabindex）照内建元素映射，并带组件的作用域。
 - 属性值：类型为字符串的已知属性若只有单一表达式，直接赋值（由 C# 检查类型，null 即不设置），这与上表「字符串类型做拼接」略有不同 —— `id="@intValue"` 会在该属性处报 CS0029；字面量与表达式混合时拼接；`Attributes` 中总是字符串；HTML 式布尔透传属性为 `""` / 不设置，表达式写成 `(expr) ? "" : null`；`role` 字面量映射到 `Role` 枚举（ARIA 小写名加别名 img、none、gridcell），未知值报 AW4004。`style` 不做编译期解析（编译器不能依赖 `AwAUI.Css`），按文本交给运行时。
+- **HTML 注释**（第八批）：`<!-- -->` 与 `@* *@` 等价，可以出现在顶层、元素内容中、控制流块里和代码块的语句位置；`<!-->`、`<!--->` 是空注释，`--!>` 也结束注释，注释内的 `--` 无妨，扫描对输入线性。不配对时报 **AW4006**；出现在开始标签内（属性之间）时报 **AW4001** 并跳过；属性值与 C# 字符串字面量里的 `<!--` 照原样保留。格式化器原样保留 HTML 注释（语法树 `CommentSyntax.IsHtml`）；内联 svg 中的注释与 `@* *@` 一样在序列化时丢弃。注意：`@if {}` 与 `else` 之间的注释会切断 else 分支（与那里的任何非空白内容相同）。
+- **`draggable`**（第八批）：语言层是取值 `true / false` 的枚举属性（此前误为布尔属性，`"false"` 也生成 `""`），字面量原样输出；单一表达式生成 `Convert.ToString((object)(expr), InvariantCulture).ToLowerInvariant()`，bool 与字符串都可用、只求值一次（HTML 的枚举关键字不区分大小写）。运行时仍未实现拖放，按 AW4012 警告透传。`spellcheck` 同样改为枚举属性（true / false / 空串，空串即 true，`spellcheck="false"` 与不写不同；整合时修正），运行时仍不支持它。
 - **`img` 的尺寸**（第七批）：`width` / `height` 设置 `Image.Width / Height`，属于新的数值属性种类（内部的 `RuntimeAttrKind.Number`）：字面量生成 float 常量（钳制到 float 范围），表达式由 C# 检查类型。编译器仍接受负数字面量，运行时把负数、NaN、无穷的提示当作没有给出。
-- **内联 `svg`**（第七批）：`svg` 映射到 `global::AwAUI.UI.Svg`。根元素上的宿主属性（`RuntimeElements.IsSvgHostAttribute`：通用属性 `id class style role tabindex title lang dir hidden draggable` 与 `aria-*`、`data-*`）与 `@` 指令落在元素节点上 —— 所以 `class` 与 `style` 是宿主元素的 CSS（例如图标的 `color`），不是文档内部的样式；其余根属性与整个子树在编译期序列化为 SVG 文本。每个内联 svg 生成一个 `private static SvgDocument __svgN` 字段，第一次构建时 `__svgN ?? (__svgN = SvgDocument.Parse("..."))`，之后共享；字段放在 `#nullable disable` 下，可空项目加警告即错误也能编译。解析异常（只可能超出 `SvgParseOptions` 的上限）在 `Build` 时抛出，由错误边界处理。序列化保留空白文本、丢弃注释，属性值转义 `& < > "` 与制表符 / 换行（字符引用）；嵌套受标记解析器的 `MarkupParser.MaxNesting`（200）约束。
+- **内联 `svg`**（第七批）：`svg` 映射到 `global::AwAUI.UI.Svg`。根元素上的宿主属性（`RuntimeElements.IsSvgHostAttribute`：通用属性 `id class style role tabindex title lang dir hidden draggable` 与 `aria-*`、`data-*`）与 `@` 指令落在元素节点上 —— 所以 `class` 与 `style` 是宿主元素的 CSS（例如图标的 `color`），不是文档内部的样式；其余根属性与整个子树在编译期序列化为 SVG 文本。每个内联 svg 生成一个 `private static SvgDocument __svgN` 字段，第一次构建时 `__svgN ?? (__svgN = SvgDocument.Parse("...", global::AwAUI.UI.ImagingSvgImageResolver.DefaultOptions))`，之后共享（第八批起带解析器，`<image>` 的 data: 位图可以显示；编译器本身不引用任何程序集，生成代码只经 UI 访问 Imaging，符合依赖规则）；字段放在 `#nullable disable` 下，可空项目加警告即错误也能编译。解析异常（只可能超出 `SvgParseOptions` 的上限）在 `Build` 时抛出，由错误边界处理。序列化保留空白文本、丢弃注释，属性值转义 `& < > "` 与制表符 / 换行（字符引用）；嵌套受标记解析器的 `MarkupParser.MaxNesting`（200）约束。
   - 内联 svg 中的动态内容报 **AW4012** 错误且不设置文档：表达式、控制流、组件、子元素上的指令、含表达式的属性值；动态文档请改用 `<Svg Document="@doc" />`（组件位于 `AwAUI.*` 命名空间时也解析为 `AwAUI.UI.Svg` 类型，有集成测试）。
   - 校验器接受 svg 内任意小写元素与未知属性，但仍对已知属性做类型检查；序列化出的 SVG 在编译期**不**校验（编译器不引用 `AwAUI.Svg`）。
-  - 不支持：内联 svg 里的 `<style>`（标记解析器只允许顶层 `<style>`）；属性名不像 HTML 解析器那样修正大小写（`ViewBox` 不会变成 `viewBox`）；编译出的文档不带 `ImagingSvgImageResolver`，其中 `data:` 图片被忽略（需要时在运行时用 `ImagingSvgImageResolver.DefaultOptions` 自己解析）。
+  - 第八批：svg 子树里允许 `<style>`，它属于 SVG 文档（语法树 `StyleBlockSyntax.IsSvg`，原样序列化，由 `AwAUI.Svg` 处理），不能带 `global` 或指令属性（AW4010），不参与作用域样式；元素名与属性名按 HTML 处理 SVG 外来内容的规则修正大小写（HTML 标准的「adjust SVG attributes」表与 SVG 标签名表，先转 ASCII 小写再查表：`viewbox` / `VIEWBOX` → `viewBox`、`lineargradient` → `linearGradient`、`Fill` → `fill`），根元素上的宿主属性不受影响。
+  - 不支持：`<style><![CDATA[…]]></style>` 被序列化为转义文本，CSS 解析器会看到 `<![CDATA[`（HTML 在外来内容中把它当 CDATA）。
 - `@bind`：目标是 `State<T>` 时生成 `Binding.Get / Set`（由 Roslyn 推测绑定判断；没有 Roslyn 时只认 `@code` 中 `State<T>` 成员的简单名），否则生成 `x = v`；`input` 上的目标必须是字符串（不像 Blazor 那样转换）；支持 `@bind:event` 与组件的 `@bind-X / XChanged`。组件的 `@onX` 只有在属性类型是 `Action<AwAUI.UI.*Event>` 时才用 `EventHandlers.Wrap<TEvent>` 包装，否则直接赋值。
 - 组件的子节点用新建的 `NodeList` 赋给 `Children`（组件的 `Children` 可能为 null），缺少 `Children` 成员时经 `#line` 在标签处报错。模板的 `Context` 必须是合法的 C# 标识符，否则报 AW4004 并使用 `context`。`@foreach` 内的子节点必须有 `@key`（AW4008），对应的纯 C# 写法也应设置 `Key`。
 - 泛型组件目前只支持显式的 `<Grid<int>>` 标签写法；`<Grid T="int">` 与类型实参推断、嵌套类型标签（`<Outer.Inner>`）尚未实现。
@@ -222,12 +226,12 @@ namespace MyApp
 
 | 代码 | 含义 |
 |---|---|
-| AW4001 | 标签未闭合 / 结束标签不匹配 |
+| AW4001 | 标签未闭合 / 结束标签不匹配；开始标签内的 `<!-- -->`（第八批） |
 | AW4002 | 未知的内建元素（提示最接近的名称，或提示组件应大写开头） |
 | AW4003 | 内建元素上的未知属性 |
 | AW4004 | 属性值无法转换为目标类型 |
 | AW4005 | 重复的属性 |
-| AW4006 | 表达式或代码块定界符不配对 |
+| AW4006 | 表达式或代码块定界符不配对；`<!--` 缺少配对的 `-->`（第八批） |
 | AW4007 | 未知指令或指令位置错误 |
 | AW4008 | 循环内的元素或组件缺少 `@key`（警告） |
 | AW4009 | `@bind` 目标不支持或与显式的值/事件属性冲突 |

@@ -24,7 +24,7 @@
 | `AwAUI.Controls.Primitives`（在 `AwAUI.Controls` 程序集内） | 行为原语，相当于 Radix Primitives + Floating UI + 若干 Avalonia 内部机制。无视觉，只输出结构、状态属性（`data-state` 等）、无障碍与键盘 | `AwAUI.UI` |
 | `AwAUI.Controls` | Avalonia 控件集的对应物，`ContentControl` / `ItemsControl` 模型、.NET 命名 | `AwAUI.UI` |
 | `AwAUI.Themes.Fluent` | `AwAUI.Controls` 的默认外观：Fluent 2 设计令牌（明 / 暗 / 高对比、强调色、紧凑密度）与每个控件部件的样式。只有 CSS 与令牌，无代码逻辑 | `AwAUI.Controls` |
-| `AwAUI.Tailwind` | 工具类引擎，构建期与运行时共用（netstandard2.0，不依赖 UI，源生成器可引用） | `AwAUI.Css` |
+| `AwAUI.Tailwind` | 工具类引擎，构建期与运行时共用（netstandard2.0，源生成器以源码链接方式编入） | 无（只输出 CSS 文本，由 AwAUI.Css 解析） |
 | `AwAUI.Shadcn` | shadcn/ui 组件的移植，组合式 API；默认样式即 shadcn 的 Tailwind 类 | `AwAUI.Controls`、`AwAUI.Tailwind` |
 | `AwAUI.Icons.Lucide` | shadcn 使用的 Lucide 图标（ISC 许可），由 SVG 生成静态 `SvgDocument` | `AwAUI.UI` |
 | `src/tools/AwAUI.Cli` 的 `add / init / diff` | shadcn 式源码复制与注册表 | — |
@@ -60,6 +60,10 @@
 - 原语只输出状态属性，不带 class：`data-state="open|closed|checked|unchecked|indeterminate|active|inactive"`、`data-side / data-align`（浮层实际方位）、`data-orientation`、`data-disabled`、`data-highlighted`、`data-placeholder`，加上 `data-slot="..."`（标记部件，Tailwind 的 `has-data-[slot=...]` 依赖它）。
 - 受控与非受控：`Open + OnOpenChange` / `DefaultOpen`，`Value + OnValueChange` / `DefaultValue`，与 [22](22-controls.md) 的约定一致。
 - 所有原语的状态机可脱离渲染测试（输入事件序列，断言状态与属性）。
+
+> 实现现状（第九批 9a）：`src/AwAUI.Controls/Primitives` 已有各原语的纯逻辑部分：`PopperEngine` / `PopperLayout`（Floating UI 1.7.5 语义，中间件 offset / flip / shift + limitShift / size / arrow / hide / autoPlacement / transformOrigin；引擎与 Floating UI 本体做 1500 例差分测试，`PopperLayout` 与 Radix Popper 的中间件组合做 800 例差分测试）、`SelectionModel<T>` + `SelectionGestures`（Avalonia 语义，与参考模型做随机测试）、`ControllableState<T>`、`ItemCollection<TKey>` + `TypeAhead`、`RovingFocus` / `RovingFocusGroup<TKey>`、`SubmenuGraceArea`、`Virtualizer`（定高 O(1)、变高用树状数组、滚动锚定、粘性项、lanes）、`DismissableLayerStack<TNode>`、`FocusScopeModel<T>` / `FocusScopeStack<T>`、`Presence`。元素以泛型参数表示、几何与时间由调用方传入（D50）。Portal / 覆盖层栈、真实的焦点移动、元素几何、CSS 动画事件、滚动时关闭等 UI 接入依赖 AwAUI.UI 补充的公开接口，列在 [07](07-roadmap.md)「组件库路线」。
+
+> 实现现状（第九批 9b）：`Portal`、覆盖层与焦点 API 已接入帧管线；`Popper`、`DismissableLayer`、`FocusScope`、`RovingFocusGroup`、`Slot`、`ScrollLock` 和 `VisuallyHidden` 已有组件实现。首批复合原语是 `Popover` 与 `Dialog`。它们的浮层使用窗口坐标，锚点滚动或变换后在同一帧重新放置。`PresenceGate` 跟踪关闭时在内容根元素上启动的有限 CSS 动画和过渡；重新打开会取消待卸载，无时钟时立即卸载。`Virtualizer`、`SelectionModel` 与 `TypeAhead` 的纯逻辑可以使用，其成品控件仍按后续批次接入。
 
 ## 第 2 层：Avalonia 风格基础控件 `AwAUI.Controls`
 
@@ -106,6 +110,12 @@ Avalonia 的核心概念在 AwAUI 组件模型（[12](12-component-api.md)）里
 - `ThemeVariant`：`Light / Dark / HighContrast`，默认跟随系统（见「系统集成」）；子树局部切换用 `ThemeVariantScope`（设置 `data-theme` 属性，令牌按属性选择器切换）。
 - 交付：样式表在构建期预编译为 `StyleSheet`（CSS 预编译生成器已规划，见 [15](15-repo-structure.md)），应用通过 `app.UseFluentTheme(options)` 加入。不需要 Tailwind。
 
+9c 的首批落地：`AwAUI.Themes.Fluent` 内嵌 CSS，首次使用时解析，之后共享 `StyleSheet`。用 `host.UseFluentTheme()` 启用，再用 `SetVariant` / `SetCompact` 切换单个窗口。`System` 读取 CSS 媒体环境；原生窗口暂未提供系统明暗外观变更通知。macOS 的「减少动态效果」已通过 `UIHost` 同步到 CSS 媒体环境。`samples/ControlCatalog` 提供首批标准控件和三套外观的示例，其中 `ItemsRepeater` 使用定高行与预渲染范围，支持在滚动发生的同一帧更新挂载内容。普通 `ItemsControl`、`ListBox` 和 `TreeView` 暂不虚拟化。完整的 Controls A 清单见上表。
+
+Controls 的 `Slider` 和 Shadcn 的 `Slider` 复用 `Primitives.SliderBehavior`，目前支持水平单值。`TabStrip` 与 `TabControl` 复用标签导航；独立 `TabStrip` 的面板和 ARIA 关联由调用方提供。`SplitView` 可内联或覆盖显示侧栏，也可在折叠时保留窄栏。覆盖模式在控件区域内定位，无默认进出场动画。
+
+`MenuFlyout`、`Popup` 与 `ToolTip` 分别是扁平操作菜单、应用控制的显式锚点浮层和非交互说明提示。它们复用 `Popper` / `Portal` / `DismissableLayer` 等原语，但由 `MenuFlyout` 自行管理其菜单焦点与定向键盘导航。ToolTip 的目标必须是一个受支持的直接子元素，避免为了附加属性额外改变目标尺寸和 Tab 顺序。`SelectableTextBlock` 复用只读多行输入和原有选区绘制；`TransitioningContentControl` 按内容 key 立即替换旧内容，并只动画新内容的进入。
+
 ## 第 3 层：Tailwind 兼容工具类 `AwAUI.Tailwind`
 
 ### 范围
@@ -124,19 +134,22 @@ Avalonia 的核心概念在 AwAUI 组件模型（[12](12-component-api.md)）里
 ### 机制
 
 1. **候选提取**：与 Tailwind 一样按文本扫描源文件中的候选类名，不解析语义：`.awaui` 的 `class` 属性与其中的字符串字面量、`.cs` 文件里的字符串字面量（`Class = "..."`、`Cn(...)`、`Cva(...)`）。范围由 `@source` 与项目项 `<AwAUITailwindSource Include="..." />` 控制。
-2. **生成**：候选 → 解析（变体链 + 工具名 + 值 + 修饰）→ 工具注册表展开为 CSS 声明 → 按 v4 的顺序规则排序（层、变体顺序、属性数量）→ 输出样式表。生成发生在**构建期**（`AwAUI.Markup.Generator` 调用 `AwAUI.Tailwind`，结果预编译为 `StyleSheet`，运行时零解析开销）。
-3. **运行时补全（可选）**：`TailwindRuntime` 在遇到构建期未生成的类名时即时生成规则并追加到工具层，用于热重载、DevTools 中编辑 class、来自数据的动态类名。默认在 Debug 开启、Release 关闭；关闭时未知类名经诊断报告一次。
-4. **诊断**：编译器为不认识或 AwAUI 尚不支持的工具与变体报告警告（AW5xxx），DevTools 的元素面板显示每个类名生成的规则与「未生成」标记。
-5. **辅助 API**：
+2. **生成**：候选 → 解析（变体链 + 工具名 + 值 + 修饰）→ 工具注册表展开为 CSS 声明 → 按 v4 的顺序规则排序（层、变体顺序、属性数量）→ 输出样式表。生成发生在**构建期**。9b 中，`AwAUI.Markup.Generator` 调用 `AwAUI.Tailwind`，把 CSS 文本和候选列表写入生成代码；模块初始化器登记样式表，`AppStyleSheets` 在首次使用时把它解析为 `StyleSheet` 并缓存。预编译样式树是后续工作。
+3. **运行时补全（计划，可选）**：`TailwindRuntime` 在遇到构建期未生成的类名时即时生成规则并追加到工具层，用于热重载、DevTools 中编辑 class、来自数据的动态类名。默认在 Debug 开启、Release 关闭；关闭时未知类名经诊断报告一次。
+4. **诊断**：入口样式表的编译错误报告 AW5001；扫描范围内的未知工具类字面量报告 AW5002。DevTools 显示每个类名对应规则的功能留待后续。
+5. **基准与一致性**（第九批 9a 实现）：以 Tailwind CSS **v4.3.5** 为基准逐函数移植，输出与官方逐字节一致——shadcn new-york-v4 S1 语料 492 个类名、按工具族的 804 个、全部 23506 个类名加变体的全量语料，以及整份样式表（主题、preflight、`@layer`、`@property`、`@keyframes`）；另有 38768 个随机组合候选的模糊比对。参考输出由固定版本的 npm 包生成，入库在 `tests/TestFiles/Tailwind`（含生成脚本与 `VERSION.txt`），测试时不依赖 Node。`Cn` 对齐 tailwind-merge **v3.7.0**（1277 个官方用例），`Cva` 对齐 class-variance-authority 0.7.1。preflight 默认用 AwAUI 版（可选原版）；主题根选择器可配置（`TailwindOptions.ThemeRootSelector`，AwAUI.Css 支持 `:host` 之前设为 `:root`）。不可信输入有上限：候选长度、变体深度、选择器扇出、`@apply` / `@custom-variant` / `@import` 的扇出与循环、`theme()` 互相引用。
+6. **运行时补全的流程**：用同一份入口 CSS 创建 `TailwindCompiler`，先 `Build([])` 得到主题、preflight 等不依赖候选的样式；再 `AddCandidates(构建期候选)` 得到逐条的基线规则（每条带排序下标 `Index`）；之后遇到未知类名调用 `AddCandidates`，按 `Index` 把新规则插入逐条规则列表，`ThemeCss` 进 theme 层，`GlobalCss`（`@property`、`@keyframes`）追加。`Build` 的输出会合并相邻的同条件 at 规则，下标与它不对应，所以运行时的 utilities 层用逐条规则而不是构建期合并后的样式表。
+7. **辅助 API**：
    - `Cn(params ClassValue[])`：条件拼接 + **tailwind-merge** 语义的冲突消解（后者覆盖前者：`Cn("px-2 py-1", "p-3")` → `"p-3"`），供组件把调用方的 `Class` 合并到默认类上。
    - `Cva`：class-variance-authority 的移植，按变体表生成类名（`base`、`variants`、`compoundVariants`、`defaultVariants`），源生成器可为它生成强类型的变体枚举。
 
 ### 引擎前置条件
 
-工具类最终都要落到 AwAUI.Css 支持的属性与值上。shadcn v4 的默认主题与组件实际用到、而目前缺失或在第 2 期的能力（实现计划见 [07](07-roadmap.md)）：
+工具类最终要由 CSS 引擎解析并在布局与绘制中生效。下表列出 shadcn v4 默认主题与组件使用的能力。9b 已通过 shadcn 语料的解析差距检查（`CssGapReportTests`），这一检查不测布局、绘制或交互；验收仍以组件示例为准。`samples/TailwindDemo` 演示了构建期生成、明暗令牌、工具类与属性转发。
 
 | 能力 | 用途 |
 |---|---|
+| 选择器 `:host`（无 Shadow DOM 时永不匹配） | v4 的主题规则是 `:root, :host`，不支持时整条规则被丢弃、全部令牌丢失（临时办法见上文 `ThemeRootSelector`） |
 | `oklch()` / `oklab()` 颜色、`color-mix()` | shadcn v4 令牌全部是 oklch；`bg-primary/90` 这类透明度修饰经 `color-mix(in oklab, ...)` 实现 |
 | 过渡与 `@keyframes` 动画引擎（第 2 期 → 第 1 期） | `transition-*`、`animate-in / fade-in-0 / zoom-in-95 / slide-in-from-top-2`（tw-animate-css）、`Presence` 的退出动画 |
 | `@property` 注册自定义属性（初始值、可动画） | v4 用它给 `--tw-ring-shadow`、`--tw-translate-x` 等提供默认值 |
@@ -146,6 +159,8 @@ Avalonia 的核心概念在 AwAUI 组件模型（[12](12-component-api.md)）里
 | 独立变换属性 `translate / scale / rotate` | v4 变换工具 |
 | CSS Grid（第八批）、`order`、`aspect-ratio` | 布局类工具 |
 | `backdrop-filter`、`filter` | 遮罩层 `backdrop-blur`、`blur-*` |
+| 其余属性 | `content`（`before:` / `after:`）、`transform` / `transform-origin`、`fill`、`letter-spacing`、`vertical-align`、`font-feature-settings` / `font-variation-settings`、`text-decoration-line`、`text-underline-offset`、`text-wrap`、`text-indent`、`tab-size`、`list-style`、`border-collapse` / `caption-side`、`clip-path`、`field-sizing`、`scroll-margin-*`、`touch-action`、`user-select`、`-webkit-line-clamp` / `-webkit-box-orient`、`display: table*` 与 `-webkit-box` |
+| 其余选择器与条件 | `::file-selector-button`、`@media (forced-colors: active)`；范围更广的语料另需 `@supports`、`@starting-style`、表单伪类（`:invalid :required :read-only :indeterminate` 等）、`::marker`、`::backdrop` |
 
 ## 第 4 层：shadcn 组件库 `AwAUI.Shadcn`
 
@@ -153,6 +168,14 @@ Avalonia 的核心概念在 AwAUI 组件模型（[12](12-component-api.md)）里
 
 - 移植 shadcn/ui（MIT）的 **new-york v4** 样式：组件结构、`data-slot` 命名、Tailwind 类原样保留，只把 React 写法换成 `.awaui`。版权与许可声明随包发布（`THIRD-PARTY-NOTICES`）。
 - 令牌与 shadcn 完全一致：`--background --foreground --card --popover --primary --secondary --muted --accent --destructive --border --input --ring --chart-1…5 --sidebar-*`、`--radius`；基础色预设 `neutral / zinc / stone / gray / slate`，明暗两套。应用可直接粘贴 shadcn 主题编辑器导出的 CSS 变量。
+
+9c 首批已实现 `AwAUI.Shadcn` 的 Button、Card 与 Dialog。Button 支持变体、尺寸、`AsChild` 和未匹配属性转发；Card 有 Header、Title、Description、Action、Content、Footer 部件；Dialog 包装现有行为原语，默认提供 Portal、模态遮罩和带可访问名称的关闭按钮。库构建时生成组件的工具 CSS，使用方无需扫描库源码。首批提供 neutral 明暗令牌；把 `data-aw-theme="dark"` 设在 `UIRoot.RootElement` 上可同时切换普通内容与覆盖层。`samples/ShadcnGallery` 演示原生窗口、可编辑的 Dialog 与明暗截图。
+
+9c 第二组新增 Input、Label 与 Badge。Input 包装单行编辑器，支持 `Value` / `ValueChanged` 和属性透传；Label 的 `For` 关联同一窗口里的输入框，点击后聚焦，`aria-labelledby` 由调用方设置；Badge 支持变体与 `AsChild`。`Input` 专用于单行，不提供文件选择。
+
+9c 第三组新增 Checkbox、Switch 与 Separator。Checkbox 和 Switch 复用按钮的键盘激活与焦点，并用 `ControllableState` 实现受控和非受控绑定。Checkbox 可以显示混合状态，Switch 支持两种尺寸，Separator 支持横向和纵向，可选择是否暴露语义。
+
+9c 已将 S1 的其余组件接入库，Gallery 展示 `Textarea`、Select、Tabs、DropdownMenu（含子菜单）、浮层、表格等。`Textarea` 包装 UI 的多行编辑器；Form 与 InputOTP 属于 S2。常用图标由 `AwAUI.Icons.Lucide` 提供，按图标延迟解析并缓存。这里记录的是组件入口与示例覆盖；移动端 Select 形态、系统外观联动、完整的交互和视觉验收仍各有待办。
 
 ### API：组合式（D40）
 
@@ -185,7 +208,7 @@ Avalonia 的核心概念在 AwAUI 组件模型（[12](12-component-api.md)）里
 @code {
     static readonly Cva<ButtonVariant, ButtonSize> Variants = new(
         "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        variant: new() {
+        first: new() {        // 变体（实际签名 Cva<T1, T2>(base, first, second, compound)）
             [ButtonVariant.Default]     = "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
             [ButtonVariant.Destructive] = "bg-destructive text-white shadow-xs hover:bg-destructive/90",
             [ButtonVariant.Outline]     = "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground",
@@ -193,7 +216,7 @@ Avalonia 的核心概念在 AwAUI 组件模型（[12](12-component-api.md)）里
             [ButtonVariant.Ghost]       = "hover:bg-accent hover:text-accent-foreground",
             [ButtonVariant.Link]        = "text-primary underline-offset-4 hover:underline",
         },
-        size: new() {
+        second: new() {       // 尺寸
             [ButtonSize.Default] = "h-9 px-4 py-2 has-[>svg]:px-3",
             [ButtonSize.Sm]      = "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
             [ButtonSize.Lg]      = "h-10 rounded-md px-6 has-[>svg]:px-4",

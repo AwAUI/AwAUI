@@ -254,7 +254,7 @@ M0 剩余：
 - **布局：Grid、`order`、aspect-ratio 后续、CSS 小项**（细节见 [08](08-css.md)、[16](16-css-properties.md)）：
   - CSS：`grid-template-columns / rows / areas`、`grid-auto-columns / rows / flow`、`grid-row / column-start / end`、`justify-items`、`justify-self` 与 `order` 进入第 1 期，简写 `grid-row`、`grid-column`、`grid-area`、`grid-template`（两种形式）、`grid`、`place-items / self / content`。轨道列表完整解析（线名、`fr`、`minmax()`、`fit-content()`、计数或 auto-fill / auto-fit 的 `repeat()` 及其固定尺寸规则），区域字符串按规范校验，解析对输入线性，序列化与 Chromium 一致。`CssPropertyGen` 增加新的值类型与关键字别名表（`--check` 最新）。
   - 布局（`LayoutEngine.Grid.cs`）：显式与隐式网格、按线号 / 线名 / 区域放置、自动放置（行 / 列、稀疏 / 稠密）、完整的轨道尺寸算法（§11.5）、gap、对齐、rtl、百分比轨道、min/max、以网格区域为包含块的绝对定位子元素、基本的容器基线。`LayoutMapper` 映射 grid / inline-grid（按计算值实例缓存、按值比较）。上限见 [08](08-css.md)「Grid 的上限」（决策 D48）。实测（优化构建）：1 万个自动放置的项目 13–16 ms，改宽度后重排 6–10 ms；稠密放置原为二次方（1000 项 76 ms），跳过已满的行后接近线性。
-  - `order`：整数，第 1 期；flex 与 grid 项目按（order，文档顺序）稳定排序后布局。**绘制与命中测试尚未按 `order`**（`LayoutMapper.PaintOrder` 已提供，见后续事项）。
+  - `order`：整数，第 1 期；flex 与 grid 项目按（order，文档顺序）稳定排序后布局；实现者提供了 `LayoutMapper.PaintOrder`，绘制与命中测试在整合时接上（见下）。
   - aspect-ratio：新增 `LayoutStyle.IsReplaced`；`ComputeLeaf` 在宽高都为 auto 时用自身 min/max 与跨比例传来的 min/max-height 钳制宽度，再由宽度推出高度（第七批的 `min-width:10%` 案例现为 100×50）；非替换元素由比例推出高度时不小于内容高度（CSS Sizing 4，`width:100px; aspect-ratio:4` 内含 100px 子元素现为 100×100）；替换元素的叶子不再把固有尺寸报告为可滚动溢出。
   - `image-rendering` 接受 `optimizeSpeed` / `optimizeQuality`（解析时转为 `crisp-edges` / `smooth`）；42 个逻辑属性在解析时映射为左到右横排下的物理属性（决策 D49）。
   - 对照：实现者 32 个布局场景、评审 19 个场景与约 120 个解析值在 headless Chromium 中逐一核对。
@@ -267,7 +267,7 @@ M0 剩余：
   - 评审修复：**恶意 GSUB/GPOS 解析无界**（共享子表与覆盖表，180 KB 的表整形 10 个字符 53 s）—— 按表长的解析预算、覆盖摘要按偏移缓存；**应用阶段只在子表成功时计数** —— 每次尝试都计数；**操作预算对真实字体太小**（DecoType Nastaleeq Urdu 每字符约 1200–1600 次，超过约 860 字符的整形静默截断）—— 改为每字符 8192、下限 2^16；**CFF2 的 Private DICT 重复解析**（4000 个 FD 共享 200 KB，载入 20 s）—— 按（偏移，长度）缓存并限总量；样式拆开的阿拉伯词丢失联接（传入至多 5 个码点的上下文，不跨硬换行等被替换为 ZWSP 的字符）；letter-spacing ≠ 0 时关闭可选连字（CSS Text 3 §8.2）；词边界字距的子表扫描上限 4096。评审另对 CFF 解释器做了 60 s 模糊测试（14 万个变异表、460 万次字形解码），只出现 `InvalidFontException`。
   - 三张段落黄金图（paragraph-align / styles / truncation）因 Noto Sans 有了 GPOS 字距与连字而变化（只有小的水平位移），整合时重新生成。
 - **整理：第七批的后续事项**（细节见 [05](05-ui-core.md)、[03](03-renderer.md)「图片」、[17](17-awaui-grammar.md)、[11](11-compatibility.md)、[15](15-repo-structure.md)）：
-  - 拆出 `tests/AwAUI.Platform.UnitTests`：以源码链接方式编译 Win32 与 X11 的 `Input/` 目录和 macOS 的 `KeyMap.cs`，原 `Browser.Tests/Platforms/` 下的测试移入（拆分时 130 + 250 = 原来的 380）；新的平台纯逻辑（如滚动这批的 `WheelInputTests`）也放在这里。
+  - 拆出 `tests/AwAUI.Platform.UnitTests`：以源码链接方式编译 Win32 与 X11 的 `Input/` 目录和 macOS 的 `KeyMap.cs`（整合时另加 macOS 的 `Input/**`），原 `Browser.Tests/Platforms/` 下的测试移入（拆分时 130 + 250 = 原来的 380）；新的平台纯逻辑（如滚动这批的 `WheelInputTests`）也放在这里。
   - 4 张 DrawImage 黄金图移到 `tests/TestFiles/Golden`，`RenderTests/Golden` 与 `Golden.LocalGoldenDir` 删除。
   - UI 图片的 GPU 对照进仓库：`Rhi.Metal.Tests` 的 `UiImageParityTests`（该项目改为引用 `AwAUI.UI`；用独立的 `GpuRenderBackend`，共享后端的图集状态会改变 `GpuBackendTests` 的绘制调用数）。场景：object-fit 五种取值加 object-position、最近邻与双线性、512² 条纹大比例缩小、圆角头像、作为图片的 SVG、内联 SVG 图标、透明度、失败占位；1x / 2x 最大差 19/255 与 14/255，差值超过 8 的像素不到 0.005%。没有 Metal 时跳过，另有一项不需要 Metal 的场景自检。
   - 图片：加载失败时画「图片损坏」图标与替代文本（`alt=""` 不画，失败的图片由 0×0 变为 16×16）；`ImageCache.NotifyChanged(ImageSource)`；PNG 头部也在分配之前检查尺寸，新增 `ImageDecoder.Decode(data, maxPixels)`，SVG 嵌入位图每张至多 64M 像素（细节见 [05](05-ui-core.md)、[03](03-renderer.md)「图片」）。
@@ -277,6 +277,12 @@ M0 剩余：
 - **整合（主任务）**（本节只记已在代码中确认的部分）：
   - 根视口的可滚动溢出不再计入 `position: fixed` 后代（`LayoutEngine.Absolute.cs` 的 `LayoutOutOfFlow`；absolute 仍计入）。此前 300 px 窗口里 `top:250px; height:100px` 的 fixed 元素会让根视口能滚 50 px 却永远露不出它。
   - `RenderPipeline.MapLayoutStyle` 对替换元素调用 `LayoutMapper.ForReplaced`（设置 `IsReplaced` 与使用的宽高比），删除「display 映射为 InlineFlex」的规避；`ReplacedMeasure.Measure` 只保留 CSS 2.1 §10.4 的约束表，不再猜「确定宽度是可用宽度还是钳制结果」；引擎里的过渡判断（`LooksNatural`、网格 normal 对齐）只看 `IsReplaced`。
+  - 绘制顺序跟随 `order`（CSS Display 3）：`PaintElement` 的非分层子元素循环与 `CollectLayered` 都改用 `LayoutMapper.PaintOrder`（临时列表按递归租用；只有 flex / grid 容器且有子元素 `order ≠ 0` 时才重排，否则原样返回 `Children`、不分配），z-index 相同的层叠项也按这个顺序；命中测试按绘制记录的逆序回放，随之一致。`ZIndexOf` 的过时注释已改。
+  - `UIRoot.NeedsFrame` 包含 `RenderPipeline.NeedsAnimationFrame`，`UIHost` 以外的宿主也经 `FrameRequested` 得到平滑滚动、惯性与滚动条淡出的后续帧。
+  - 触控板手势的兜底超时：有相位的手势在最后一个滚轮事件 0.3 s（`ScrollManager.GestureTimeoutSeconds`）后仍没有 Ended / Cancelled 就强制结束，由时钟定时器唤醒（没有时钟时随帧推进的时间判定，不单独请求帧）；手指停在板上不动之后继续滑动，会开始新的一段「滚动中」，仍锁定在同一个容器上。
+  - 标记：`RuntimeElements` 映射 `scroll` → `OnScroll`（`ScrollEvent`）与 `wheel` → `OnWheel`（`WheelEvent`）；`spellcheck` 在语言层改为枚举属性（true / false / 空串，`spellcheck="false"` 与不写不同；运行时仍标为不支持）。
+  - `MacWheel` 移到 `src/MacOS/AwAUI.MacOS/Input/MacWheel.cs`，`Platform.UnitTests` 同时链接 macOS 的 `Input/**`。
+  - Counter 示例的中日韩回退在 Arial Unicode 之后加入 `/System/Library/Fonts/Hiragino Sans GB.ttc` 与 `ヒラギノ角ゴシック W3.ttc`（CFF），没有 Arial Unicode 的 Mac 也能显示中文。
   - 三张段落黄金图重新生成。`ScrollInputTests` 不再用 `^1` 索引语法（此前 UI 测试项目的 net48 编译失败）。
 
 ### M2 GPU 渲染
@@ -317,11 +323,38 @@ M0 剩余：
 - 主题、热重载、进出场动画
 - `.awaui` 语言服务器（补全、诊断、跳转）
 - DevTools 其余面板、自动化测试 API、面向 AI 的检查接口
-- Vulkan / WebGPU、3D transform、`:has()`、`@container` 等后置特性视需求
+- Vulkan / WebGPU、完整 3D transform 等后置特性视需求
 
 ### 组件库路线（决策 D38–D42，2026-11 确定）
 
-按 [23](23-component-library.md)「实施顺序」分五步，预计各占一到两批：
+按 [23](23-component-library.md)「实施顺序」分五步，预计各占一到两批。
+
+进展（第九批 9a）：`AwAUI.Tailwind` 的编译器、`Cn` / `Cva` 与一致性语料已入库；行为原语先完成与 UI 解耦的状态机与差分测试（见 [23](23-component-library.md)，D50、D51）。
+
+进展（第九批 9b）：
+
+- CSS 前置：`:host`、`:has()`、表单状态伪类、宽色域颜色与 `color-mix()`、`@property`、条件规则。shadcn v4 语料生成的样式表从 56 项解析缺口降到 0；默认全量工具语料从 163 项降到 16。解析无缺口不等于全部布局和绘制行为与浏览器一致。
+- 帧管线：CSS 过渡、`@keyframes` 与动画事件；二维变换、`clip-path`、软件和 Metal 的滤镜及背景滤镜；生成内容、占位文字和选区；容器尺寸查询和容器单位。帧请求与重绘标记分开，采样后由样式差异决定是否重绘。伪元素参与祖先的绘制范围、滤镜输入和滚动几何。
+- 原语：覆盖层根、`Portal`、焦点和预览输入 API、`Popper` / `DismissableLayer` / `FocusScope` / `RovingFocusGroup` / `Slot`，以及 `Popover`、`Dialog`。浮层定位读取本帧的变换和滚动坐标，布局完成后在同一帧绘制新位置。关闭时 `PresenceGate` 让浮层的有限动画和过渡结束或取消后再卸载，Dialog 遮罩和内容可分别退场。
+- `.awaui`：属性展开与未匹配属性捕获，Tailwind 样式表构建期生成、通过模块初始化器登记，提供 AW5001/AW5002 和 `samples/TailwindDemo`。
+
+进展（第九批 9c，第一组）：`AwAUI.Shadcn` 已有 Button、Card、Dialog 三组组件及 neutral 明暗主题；`samples/ShadcnGallery` 直接引用库，演示主题切换、通过 `AsChild` 打开对话框和编辑工作区名称。
+
+进展（9c，第二组）：新增 Input、Label、Badge。工作区表单验证 `@bind-Value`、标签聚焦、回车提交、`aria-invalid` 和错误提示。
+
+进展（9c，第三组）：新增 Checkbox、Switch、Separator。Gallery 的偏好设置使用 `@bind-Checked`、可点击标签和分隔线。macOS 窗口优先用 Metal，可用 `--software --open-dialog --timings` 和 `--open-dialog --timings` 比较；无头截图仍用软件渲染。`--bench-render` 对同一份 Dialog DisplayList 测量软件和 Metal 离屏绘制。在 Apple M5 的 Release 构建中，1024×650 逻辑像素、2× 缩放时，软件光栅化中位数为 62.45 ms，Metal 提交为 0.14 ms，GPU 执行为 2.08 ms。这些数字来自单一场景的离屏渲染，未与 Avalonia 做同场景对照。
+
+进展（9c，组件与示例）：Shadcn S1 清单中的组件都已有入口；Gallery 有多行编辑、选择、浮层、表格与布局示例。DropdownMenu 新增键盘和指针可进入的子菜单。`AwAUI.Icons.Lucide` 提供一组从固定版本 SVG 生成的常用图标，Shadcn 的关闭、勾选、箭头和 Spinner 已改用该包。S1 的逐组件交互验收与官网对照图还未完成。
+
+进展（9c，Controls A 首批）：`ContentControl`、`HeaderedContentControl`、`Border`、`TextBlock`、`Label`、`Button`、`ToggleButton`、`CheckBox`、`ToggleSwitch`、`TextBox`、`StackPanel`、`WrapPanel`、`Grid`、`UniformGrid`、`ScrollViewer`、`ItemsControl`、`ListBox`、`TabControl`、`Expander`、`Flyout` 与 `DialogHost` 已接入 `AwAUI.Themes.Fluent` 和 `samples/ControlCatalog`。Fluent 提供窗口级明、暗、高对比与紧凑密度；系统外观跟随仍读取 CSS 媒体环境。后续增加的面板、选择控件、菜单与弹层见本节各批进展；`ItemsControl`、`ListBox` 和 `TreeView` 仍未虚拟化。底层 `TextArea` 已接入 `.awaui`；撤销 / 重做、光标闪烁、通用运行时 Tailwind 补全与双精度滚动偏移仍待做。
+
+进展（9c，选择控件与动效）：Controls A 增加选择式 `ComboBox` 和 `TreeView`，已加入 ControlCatalog。Shadcn Select、DropdownMenu（包括子菜单）、Popover 与 Tooltip 使用按浮层实际方向滑入的淡入和缩放动效；退场期间菜单已退出输入和焦点栈。Sheet 使用 500 ms 进、300 ms 出的边缘滑动，Accordion 使用 200 ms 的内容高度与箭头转动过渡。Collapsible 保持上游默认的即时开合。Gallery 可用 `--motion-frames` 捕捉关键帧，并可加 `--reduced-motion` 查看关闭动效后的效果。Sheet 的捕捉流程会在滑入结束后移动指针并检查面板位置；运行时在样式重算时按当前时钟取 CSS 动画值，避免旧位移启动意外的过渡。
+
+进展（9c，面板、定高虚拟化与平台偏好）：Controls A 增加 `DockPanel`、`Canvas`、`RadioButton` 和垂直定高的 `ItemsRepeater`。ControlCatalog 的 10,000 行示例直接跳到末尾时，在同一帧挂载末行及相邻可见行。`ListBox` 和 `TreeView` 仍按原方式挂载，变高列表与网格虚拟化尚未接入成品控件。macOS 窗口通过 `UIHost` 把系统「减少动态效果」同步到 CSS，包含运行中变更；其他平台尚未接线。键盘 / 触摸与官网实机对照仍待完整验收。
+
+进展（9c，面板切换与输入）：增加 `TabStrip`、`SplitView`、`RepeatButton`、`HyperlinkButton` 和水平单值 `Slider`，均接入 Fluent 与 ControlCatalog。`TabStrip` 与 `TabControl` 共用标签导航；Controls 和 Shadcn 两层的 Slider 共用按键、指针、值计算与无障碍属性。SplitView 支持内联、覆盖和带窄栏的布局；链接激活把目标地址交给应用处理。其余 Controls A 项见本节的菜单、弹层与内容呈现进展；仍待补齐 ContextMenu、独立 Menu/MenuItem、更多按钮、布局面板及轮播。
+
+进展（9c，菜单、弹层与内容呈现）：增加扁平操作菜单、`DropDownButton`、显式锚点的 `Popup`、悬停 / 焦点 `ToolTip`、文本选区 `SelectableTextBlock`、按内容键切换的 `TransitioningContentControl`、CSS 布局 `Decorator` 和 uniform / natural-size 的 `Viewbox`。三个浮层都使用现有 Popper / Portal 原语，菜单提供上下键与 Home / End 导航；工具提示的计时由 UI 时钟安排。Gallery 的无头预览可以指定 `--overlay menu|popup|tooltip`，并在同一页显示打开状态。剩余 Controls A 缺项集中在 ContextMenu、独立 Menu/MenuItem、更多按钮与布局面板、Carousel，以及 Viewbox 按测量尺寸向父布局反馈。
 
 | 步 | 内容 | 验收 |
 |---|---|---|
@@ -348,24 +381,24 @@ M0 剩余：
 | **自定义格式的工具成本** | `.awaui` 的编译器不难，难的是编辑器体验（Razor 工具链的教训） | 语法贴近 Razor 降低学习成本；工具分期；始终保留纯 C# 写法作为不依赖工具的退路 |
 | **范围整体过大** | 渲染器 + 文本 + CSS + 六平台 + 控件库 + DevTools | 严格按窄路径推进；每阶段写明不做什么 |
 
-## 当前测试数（第八批整合之前，待主任务整合后确认）
+## 当前测试数（第九批 9b）
 
-下表取各项评审报告中最新的数字（评审的数字优先于实现者的）；`dotnet test AwAUI.slnx` 的整体结果与合计在整合后填写。net48 只做编译检查（本机无法运行）。只在 Apple M5 / macOS 27.2 上运行过。
+macOS Apple Silicon 上，`dotnet build AwAUI.slnx -c Release -p:IncludeNetFx=true` 构建成功，0 警告、0 错误。`dotnet test AwAUI.slnx -c Release --no-build -m:1` 中，net10.0 和 net11.0 各通过 **5,994** 项，无失败或跳过；net48 只编译。另以 `AWAUI_UI_DIFF_SEEDS=200` 跑过动画、普通增量绘制、效果和生成内容的差分用例，以及滚动和相关定向回归，合计 875 项通过。
 
 | 测试项目 | 数量 | 测试项目 | 数量 |
 |---|---|---|---|
-| ArchitectureTests | 60 | Markup.UnitTests | 440 |
-| Browser.Tests | 251 | Markup.IntegrationTests | 7 |
-| Controls.UnitTests | 202 | **Platform.UnitTests**（新） | 144 |
-| Css.UnitTests | 1089 | RenderTests | 224 |
-| DevTools.Tests | 30 | Rhi.Metal.Tests | 147 |
-| Diagnostics.UnitTests | 365 | Samples.Tests | 4 |
-| Graphics.UnitTests | 49 | Svg.UnitTests | 248 |
-| Imaging.UnitTests | 300 | Tailwind.UnitTests | 未统计 |
-| Layout.UnitTests | 231 | Text.UnitTests | 310 |
-| UI.UnitTests | 472 | Unicode.UnitTests | 78 |
+| ArchitectureTests | 63 | Markup.UnitTests | 472 |
+| Controls.UnitTests | 271 | Tailwind.UnitTests | 66 |
+| Browser.Tests | 251 | Markup.IntegrationTests | 10 |
+| Css.UnitTests | 1967 | Platform.UnitTests | 144 |
+| DevTools.Tests | 30 | RenderTests | 281 |
+| Diagnostics.UnitTests | 365 | Rhi.Metal.Tests | 164 |
+| Graphics.UnitTests | 49 | Samples.Tests | 4 |
+| Imaging.UnitTests | 300 | Svg.UnitTests | 248 |
+| Layout.UnitTests | 234 | Text.UnitTests | 316 |
+| UI.UnitTests | 681 | Unicode.UnitTests | 78 |
 
-第七批之后每个运行时 3985 项。变化：Platform.UnitTests 是拆出的新项目（130 项来自原 Browser.Tests，另有滚动这批的 `WheelInputTests` 14 项），Browser.Tests 因此从 380 变为 251（含 `WheelModeTests` 1 项）；Imaging 加 `DecodePixelLimitTests` 与 `HostileHeaderTests`；Markup 加 `HtmlCommentAndEnumTests`；Rhi.Metal 加 `UiImageParityTests` 3 项；RenderTests 的项数不变（三张段落黄金图已重新生成）。Controls.UnitTests 与 Tailwind.UnitTests 属于组件库路线（不在第八批的报告范围内，Controls 的数字取自文本评审的旁路运行，Tailwind 没有报告）。Diagnostics、Graphics、Svg 本批没有改动，沿用第七批的数字。
+历史基线（每个运行时）：第七批 3985 项、第八批 4474 项、第九批 9a 4760 项。
 
 另有 `tests/AwAUI.Browser.Tests/node` 下的 Node 冒烟 57 项与真实无头浏览器冒烟 48 项（不在 `dotnet test` 内），以及只在 scratchpad 里手动运行的 macOS AppKit 输入、遮挡与滚轮探针（不在仓库内）。`Rhi.Metal.Tests` 中的 Metal 测试（含 UI 图片对照）与 `Samples.Tests` 中的 `GpuCounterTests` 只在有 Metal 设备的 macOS 上运行，其他系统跳过；`Browser.Tests` 直接编译库的 `Translation/` 源码，`Platform.UnitTests` 以源码链接方式测试 Win32 / X11 / macOS 输入的纯逻辑（见 [11](11-compatibility.md)）。`Text.UnitTests` 中依赖系统字体的测试在字体缺失时跳过。较长的模糊与差分测试可加大规模：`AWAUI_FUZZ_SEEDS=N`（RenderTests 的 `SoftwareFuzz`、Metal 的 `GpuFuzzTests`）、`AWAUI_CLIP_SEEDS=N`（`ClipIndependenceTests`）、`AWAUI_UI_DIFF_SEEDS=N`（`IncrementalDifferentialTests`）、`AWAUI_SCROLL_DIFF_SEEDS=N`（`ScrollDifferentialTests` 与评审的几何一致性测试）。
 
@@ -406,11 +439,11 @@ M0 剩余：
 - ~~**`UIHost` 的滚轮与滚动系统**~~（第八批）：滚动系统落地，元素有 `OnWheel / OnScroll`；DevTools 面板的 `PanelWindowEvents` 已删除。
 - ~~**删除 macOS「重新可见时 `OnResized`」变通**~~（第八批，已在真实 Metal 窗口里验证最小化后恢复与遮挡后移开；丢帧路径在真实窗口里仍未触发过）：`UIHost` 已按 `LastFramePresented` 重画丢掉的帧，这个变通可以删除，但还没有删；删除后在真实窗口里验证一次「最小化再恢复后显示最新内容」（丢帧路径本身也只用模拟的假目标做了无头测试）。
 - ~~**UI 图片的 GPU 对照进仓库**~~（第八批，`Rhi.Metal.Tests` 的 `UiImageParityTests`，1x / 2x 最大差 19/255 与 14/255）：目前只用 scratchpad 的一次性程序验证过（最大差 9/255）；需要让 `tests/AwAUI.UI.UnitTests` 引用 `AwAUI.Rhi.Metal`，或把 UI 图片场景加入 `tests/AwAUI.Rhi.Metal.Tests`。也可以把 `ImageDrawTests.Overview_sheet`（`AWAUI_IMAGE_SHEET=路径`）的输出审核后存为黄金图。
-- **图片的其余缺口**：~~失败时的占位图与 alt 文本渲染~~（第八批；加载中按设计仍不画）；~~`image-rendering` 的旧别名被拒~~（第八批，`optimizeSpeed` / `optimizeQuality` 为别名，`-webkit-optimize-contrast` 仍拒）；`Image` / `Svg` 的 `Width / Height` 是自然尺寸提示而不是 CSS 表现提示（`<img width=100 height=50 style="width:200px">` 得到高 100，浏览器 50；需要 Css 的表现提示层级，见第八批后续事项）；~~`FromBitmap` 的位图被改写时框架察觉不到~~（第八批，`ImageCache.NotifyChanged`）；~~Markup 内联 svg 不带 `ImagingSvgImageResolver`；内联 svg 不支持 `<style>`、不修正属性名大小写~~（第八批）；~~`ImageDecoder` 对 PNG 头声明的超大尺寸可能 OOM~~（第八批，各格式都在分配之前检查头部尺寸，另有 `Decode(data, maxPixels)`）。
+- **图片的其余缺口**：~~失败时的占位图与 alt 文本渲染~~（第八批；加载中按设计仍不画）；~~`image-rendering` 的旧别名被拒~~（第八批，`optimizeSpeed` / `optimizeQuality` 为别名，`-webkit-optimize-contrast` 仍拒）；~~`Image` / `Svg` 的 `Width / Height` 按自然尺寸提示处理~~（第九批 9b 接入 CSS 表现提示与 `aspect-ratio`）；~~`FromBitmap` 的位图被改写时框架察觉不到~~（第八批，`ImageCache.NotifyChanged`）；~~Markup 内联 svg 不带 `ImagingSvgImageResolver`；内联 svg 不支持 `<style>`、不修正属性名大小写~~（第八批）；~~`ImageDecoder` 对 PNG 头声明的超大尺寸可能 OOM~~（第八批，各格式都在分配之前检查头部尺寸，另有 `Decode(data, maxPixels)`）。
 - **Render 图片的性能与缓存**：没有优化构建的软件 DrawImage 吞吐量基准，`ImageShader` 没有 SIMD；mip 级别之间不混合（三线性）；GPU 动画图片每换一个版本新建纹理（不复用、不原地更新）；一帧需要的 mip 超过 64 MB 时每帧淘汰重建（可考虑按窗口面积调整预算）；缓存条目不计被引用的位图本身、最长持有 300 帧；GPU 后端不是与裁剪无关的（掩码仍按裁剪区）。
-- **输入的其余缺口**：撤销 / 重做；多行 `TextArea`；光标闪烁；双向文本的视觉光标移动；输入法重新转换；macOS 的 `flagsChanged:` 与 Cocoa Emacs 键绑定、`characterIndexForPoint:`；X11 在没有客户端或密码框时没有 `XUnsetICFocus`（与 Win32 不一致）、没有 PRIMARY 选择；Win32 的假左 Ctrl（AltGr）未过滤、`ToUnicodeEx` flags = 4 需要 Windows 10 1607+；剪切在写入尚未完成时照常删除（之后失败仍丢文本）；没有调度器时异步粘贴被丢弃；Browser 的组合重置保护是否必要未被证明，Firefox / Safari / 真实 Windows 浏览器未测。
+- **输入的其余缺口**：撤销 / 重做；光标闪烁；双向文本的视觉光标移动；输入法重新转换；macOS 的 `flagsChanged:` 与 Cocoa Emacs 键绑定、`characterIndexForPoint:`；X11 在没有客户端或密码框时没有 `XUnsetICFocus`（与 Win32 不一致）、没有 PRIMARY 选择；Win32 的假左 Ctrl（AltGr）未过滤、`ToUnicodeEx` flags = 4 需要 Windows 10 1607+；剪切在写入尚未完成时照常删除（之后失败仍丢文本）；没有调度器时异步粘贴被丢弃；Browser 的组合重置保护是否必要未被证明，Firefox / Safari / 真实 Windows 浏览器未测。
 - **DevTools 面板的其余缺口**：应用内停靠形态与独立的远程 DevTools 应用；搜索（协议的 `Tree.search` 未实现）、强制伪状态与属性 / class 编辑的界面、样式表编辑、源码跳转、组件页；面板不处理重连；任何结构或文本事件都刷新选中元素的样式（每帧改文本的应用每帧 3 个请求）；事件日志先序列化后截断；超过 1 万节点后的「全部展开」未测；没有真实窗口截图或输入注入；Windows、Linux 未运行。
-- ~~**标记编译器的已有问题**~~（第八批完成；评审另发现 `spellcheck` 的同类问题，见第八批后续事项）：`IntrinsicElements` 把 `draggable` 当布尔属性，`draggable="true" / "false"` 都生成 `""`；HTML 注释 `<!-- -->` 报 AW4001（只支持 `@* *@`）。
+- ~~**标记编译器的已有问题**~~（第八批完成；评审另发现的 `spellcheck` 同类问题在整合时修正）：`IntrinsicElements` 把 `draggable` 当布尔属性，`draggable="true" / "false"` 都生成 `""`；HTML 注释 `<!-- -->` 报 AW4001（只支持 `@* *@`）。
 
 第八批留下的后续事项：
 
@@ -420,13 +453,10 @@ M0 剩余：
   - 未实现：通用手势竞技场与 Tap / Pan / Pinch 等识别器（只有内建的滚动拖动）、`NestedScrollConnection`、`scroll-snap`、`position: sticky`、滚动锚定、Stretch / Glow 越界效果（声明了，画成钳制）、经典滚动条的箭头按钮与按住轨道连续翻页、macOS 触控板的越界回弹（桌面物理在边缘钳制）。
   - 帧开销：滚动帧把容器视口整块重新光栅化；「搬移已有像素 + 重画新条带」与离线程合成都未做（见 [18](18-scene-compositor.md)）。
   - 行为差异：`wheel` 的目标是 `captured ?? hit`，指针被捕获时发给捕获者（浏览器的 wheel 不受捕获影响）；不是层叠上下文的滚动容器，其 z-index 为正的定位后代画在滚动条之上；`ScrollController.Physics` 只影响触摸拖动与惯性，滚轮总用桌面的平滑动画（`RenderPipeline.SmoothScrolling = false` 关闭）；没有焦点时键盘滚动作用于最近一次按下所在的滚动容器，否则作用于视口。
-  - 触控板手势收不到 Ended / Cancelled 时（手势中途失焦、平台丢事件），控制器一直处于 `IsScrolling`：覆盖式滚动条不淡出、`ScrollEnd` 不触发，直到下一次手势；需要用时钟定时器加兜底超时。
-  - `UIRoot.NeedsFrame` 不含 `RenderPipeline.NeedsAnimationFrame`：只有 `UIHost.RunFrame` 检查它，自己驱动帧的宿主收不到滚动动画的后续帧请求（经 `FrameRequested`），应把它并入 `NeedsFrame`。
-  - 标记：`RuntimeElements` 没有映射 `scroll` / `wheel` 事件（`IntrinsicElements.EventNames` 里已有，`.awaui` 中写 `@onscroll` 报 AW4012），也没有 `ScrollController` 属性。
-  - 平台：Win32（`WM_MOUSEWHEEL / WM_MOUSEHWHEEL`、`SystemParametersInfo`、`WM_SETTINGCHANGE`）与 X11（按钮 4–7）的原生滚轮代码从未在对应系统上运行；X11 没有 XInput2 平滑滚动；Windows 精确式触控板以小数 `WM_MOUSEWHEEL` 到达、直接跟随但没有相位，未用 DirectManipulation；Win32 的触摸以模拟鼠标到达，触摸拖动滚动不适用。macOS 触控板的相位与惯性映射只有单元测试；`preferredScrollerStyle` 只在宿主创建时读一次。`MacWheel` 暂放在 `KeyMap.cs` 末尾以借用已有的源码链接，可把 `src/MacOS/AwAUI.MacOS/Input/**` 也链接进 `Platform.UnitTests`。`MacWindow` 的类文档注释仍写着「重新可见时调用一次 `OnResized`」，与已删除的代码不符。
+  - 标记：没有 `ScrollController` 属性（`@onscroll` / `@onwheel` 已在整合时映射），需要时经 `@ref` 取元素的 `ScrollController`。
+  - 平台：Win32（`WM_MOUSEWHEEL / WM_MOUSEHWHEEL`、`SystemParametersInfo`、`WM_SETTINGCHANGE`）与 X11（按钮 4–7）的原生滚轮代码从未在对应系统上运行；X11 没有 XInput2 平滑滚动；Windows 精确式触控板以小数 `WM_MOUSEWHEEL` 到达、直接跟随但没有相位，未用 DirectManipulation；Win32 的触摸以模拟鼠标到达，触摸拖动滚动不适用。macOS 触控板的相位与惯性映射只有单元测试；`preferredScrollerStyle` 只在宿主创建时读一次。`MacWindow` 的类文档注释仍写着「窗口从不可见恢复可见时调用一次 `OnResized`」，与已删除的代码不符，应改掉。
   - 丢帧重画路径（`nextDrawable` 超时后下一个节拍整帧重画）在真实窗口里仍未复现过，只有第七批的无头假目标测试。
 - **布局**（见 [08](08-css.md)）：
-  - 绘制与命中测试还不按 `order`：`RenderPipeline.Paint` 的非分层子元素循环与 `CollectLayered` 应改用 `LayoutMapper.PaintOrder`（递归安全的临时列表；它只在 flex / grid 容器且有子元素 `order ≠ 0` 时才重排，否则原样返回 `Children`），命中测试按绘制的逆序回放，随之正确；同时把 `ZIndexOf` 中「grid 目前按 flex 布局」的过时注释改掉。
   - Grid 未实现：基线对齐（baseline 按 start，容器基线取网格顺序中的第一个项目）、subgrid、masonry、§11.1 第 3、4 步（按行尺寸重算列尺寸）；`safe / unsafe`、`first / last baseline` 与 `legacy left / right` 组合（`legacy` 接受但按 normal）；`repeat()` 次数与网格线号不接受 `calc()`。
   - Grid 的最坏开销仍是 O(项目数 × 轨道数)：起止各不相同、贡献递增的项目每个做一次 O(span log span) 的分配（5000 个项目约 1.5 s CPU），更好需要线段树之类的结构。
   - 与 Chrome 不同、保留规范行为：spanning 项目跨 fit-content 轨道时按 §11.5.1 分配超上限的空间（两条 `fit-content(50px)` 列、跨两列的 300px 项目：规范与本引擎 250/50，Chrome 0/300）。
@@ -436,28 +466,27 @@ M0 剩余：
   - 印度系、USE、泰文、高棉、缅甸等走默认路径，没有音节重排；AAT（morx / kerx / trak）忽略（Geeza Pro 靠表现形式回退，New York 的 'trak' 不生效）；FeatureVariations、可变字体的非默认实例与 CFF 的 `FontMatrix` 忽略；竖排不在范围内。
   - 词边界字距只做 LTR；词间的上下文 GSUB（如 calt）仍会丢失；`overflow-wrap: anywhere` 在连字内部紧急断开时整个连字画在第一行。
   - 低优先级差异：词边界字距可能取到词尾的零宽标记（字体的 IgnoreMarks 查找会对基字形）；在加了字距的边界断行时字距留在行尾单元上；RTL 下旧 'kern' 表按视觉顺序取对（HarfBuzz 按逻辑顺序）；`ArabicFallback` 在全部 GSUB 阶段之后执行而不是在 rlig 暂停处；全局关闭 init/medi/fina/isol 时仍走表现形式回退；默认可忽略字符的判断不看 'substituted'；超过 64 的草书链与 HarfBuzz 截断方式不同；词内被替换为 ZWSP 的控制字符不打断阿拉伯联接（行为与以前相同）。
-  - 性能：`OpenTypeShaper` 整段一次整形比 `BasicTextShaper` 慢 3–14 倍（布局有缓存，整体只多约 20%）；没有 GPOS 时 `FallbackMarkPositions` 对每个标记调用 `TryGetGlyphBounds`，CFF 字体每次都解码轮廓（有界，但恶意字体可以很贵）；线程静态缓存（CFF 解释器、最近的整形计划）让每个线程最近用过的字体保持存活。
+  - 性能：`OpenTypeShaper` 整段一次整形比 `BasicTextShaper` 慢约 2–14 倍（CJK 1.8 倍、拉丁 5 倍、SF Arabic 14 倍；布局有缓存，整体只多约 20%）；没有 GPOS 时 `FallbackMarkPositions` 对每个标记调用 `TryGetGlyphBounds`，CFF 字体每次都解码轮廓（有界，但恶意字体可以很贵）；线程静态缓存（CFF 解释器、最近的整形计划）让每个线程最近用过的字体保持存活。
   - 没有在本批复跑 686 例的 hb-shape 对比（评审环境没有 HarfBuzz 工具）；`GlyphRun.Bounds` 未改。
-  - Counter 示例的中日韩回退仍只找 Arial Unicode；CFF 字体可用之后应在其后加 `/System/Library/Fonts/Hiragino Sans GB.ttc`（可选 `ヒラギノ角ゴシック W3.ttc`），没有 Arial Unicode 的 Mac 也能显示中文（`CffFallbackLayoutTests` 已验证这两个 .ttc 的注册与回退）。
 - **图片与标记**：
   - `<img>` / `<svg>` 的 `width / height` 作为 CSS 表现提示：Css 增加表现提示层级（例如 `StyleElement.PresentationalHints`，位于普通 UA 与普通作者之间、特异性 0），`ReplacedElement` 提供 `width:Wpx; height:Hpx; aspect-ratio:auto W / H`（宽高都给出时才带比例），之后 `ReplacedMeasure.Update` 不再把提示当作固有尺寸。目标：`<img width=100 height=50 style="width:200px">` 得到 200×50，`img { height:auto }` 仍按比例。
   - `ImageCache` 解码普通图片时不传 `maxPixels`，合法的高压缩比图片可以分配到 2 GB 的位图上限；可考虑 `ImageCache.MaxDecodedPixels`。
   - 替代文本只用测试字体 Ahem 验证过；截到 1000 个 UTF-16 单元时可能切开代理对；颜色变化时会重建一次段落。
-  - 标记：`IntrinsicElements` 把 `spellcheck` 当布尔属性（HTML 中是 true / false / "" 的枚举，`spellcheck="false"` 被当作没有给出；运行时目前标为不支持，没有可见影响）；内联 svg 的 `<style><![CDATA[…]]></style>` 被序列化为转义文本；`@if {}` 与 `else` 之间的注释会切断 else 分支（与其他非空白内容相同）。
+  - 标记：`spellcheck` 运行时仍不支持（语言层已在整合时改为枚举）；内联 svg 的 `<style><![CDATA[…]]></style>` 被序列化为转义文本；`@if {}` 与 `else` 之间的注释会切断 else 分支（与其他非空白内容相同）。
 - **验证**：net48 只编译未运行；Metal 只在 Apple M5 上运行；性能数字都在负载 13–65 下测得。
 
 待做（按模块，只列影响后续工作的）：
 
 - **DevTools**：~~独立窗口前端~~（第七批）；应用内停靠与远程独立应用；源映射表与元素源码位置；协议中未实现的 `Tree.search / scrollIntoView / focus`、`Css.getVariables`、`Layout.getLayoutInfo`、`Overlay.setShowOptions`；内联编辑目前在内联层级而不是 DevTools 来源（见 [06](06-devtools.md)）。
-- **布局**：~~grid、`order`~~（第八批，`order` 的绘制顺序见上面的第八批后续事项）；`sticky`（目前的回退见 [08](08-css.md)）；布局边界（`MarkDirty` 总是走到根）；网格基线对齐 / subgrid / masonry；按行尺寸重算列尺寸（§11.1 第 3、4 步）；rtl 与竖排下的逻辑属性（需要 `direction` / `writing-mode`）；~~替换元素与 aspect-ratio 的三项~~（第八批）。
+- **布局**：~~grid、`order`~~（第八批）；`sticky`（目前的回退见 [08](08-css.md)）；布局边界（`MarkDirty` 总是走到根）；网格基线对齐 / subgrid / masonry；按行尺寸重算列尺寸（§11.1 第 3、4 步）；rtl 与竖排下的逻辑属性（需要 `direction` / `writing-mode`）；~~替换元素与 aspect-ratio 的三项~~（第八批）。
 - **Platform 补齐**（Browser 提出）：~~`TextInputMethod / ITextInputClient`、逻辑键（含 AltGr）、全异步剪贴板、小键盘的 `PhysicalKey`~~ —— 第七批完成（决策 D34），五个平台都已实现，但 Win32 / X11 只验证了编译与纯逻辑、macOS 只用探针部分验证。仍未做：笔的倾角 / 旋转 / 橡皮擦与预测采样、`IFramebufferSurface` 的脏矩形、生命周期回调。
 - **Web 的真实环境验证**：Firefox、Safari、移动浏览器与软键盘、真实系统输入法、真实 DPR 变化。
 - **CI**：macOS 作业运行 `tests/AwAUI.Rhi.Metal.Tests` 与 `tests/AwAUI.Samples.Tests`（托管 arm64 macOS 运行器的半虚拟化 Metal 设备是否可用未验证；没有 Metal 设备时测试跳过）；发布 `samples/BrowserDemo` 后运行 `node-smoke.mjs`（可选再在有 Chrome 的运行器上跑 `browser-smoke.mjs`）。
 - ~~SVG 与图片接入 UI~~：第六批完成；~~`DrawImage`、CSS 映射与标记映射~~ 第七批完成。
-- **`.awaui`**：运行时缺的 `TextArea / Canvas / Path` 与若干事件（AW4012），~~`Svg` 的映射~~（第七批完成）；捕获阶段处理器的写法；`<Grid T="int">` 泛型写法与嵌套类型标签；CLI；热重载与开发期样式推送；编译期 CSS 校验。手写 C# 组件派生自 `.awaui` 组件时拿不到 Props 胶水（生成器互相不可见，Razor 同样如此）。
-- **UI**：~~`Input` 的光标、选区、IME、剪贴板~~（第七批完成）；仍缺撤销 / 重做、多行 `TextArea`、光标闪烁、双向文本的视觉光标移动、输入法重新转换；`::before / ::after` 渲染；double / groove / ridge / inset / outset 边框目前画成实线；命中测试只精确处理最内层圆角裁剪；`Computed` 长链刷新仍是递归；没有焦点修正；退出动画、组件 Ref、分析器 AW1002–AW1004。
-- **文本**：~~CFF 轮廓~~（第八批，Hiragino 等 CID 字体可以显示；Counter 的回退列表还没加，见上）；彩色字形、hinting / 网格对齐、可变字体；~~逐词整形丢失跨词 kerning~~（第八批，只做 LTR）；~~`BasicTextShaper.IsKerningEnabled` 按 span 传特性时为二次方~~（第八批）；字形缓存按渲染目标独立；`GlyphRun.Bounds` 可能比墨迹小（UI 的损伤跟踪目前绕开它，用按 em 的字形溢出估计；第八批未改，属于 Graphics）；其余整形缺口见上面的第八批后续事项。
-- **CSS**：相同样式的元素不共享 `ComputedStyle`（匹配属性缓存未做）；动画 / 过渡没有 API；`@import` 的样式表要由宿主加载；ex / ch 按 0.5em 近似；`DefaultFontSize` 固定为 16。
-- **GPU**：D3D11、GLES / WebGL2（`MetalRenderBackend` 的回退包装可泛化后移入 `AwAUI.Render/Gpu`）；~~图片~~（第七批完成）、滤镜与 backdrop、彩色字形；保留层与合成器集成；路径裁剪蒙版缓存；macOS 窗口之外的 GPU 呈现；只在 Apple Silicon 上测过。
+- **`.awaui`**：运行时缺的 `Canvas / Path` 与若干事件（AW4012），~~`Svg` 的映射~~（第七批完成）；捕获阶段处理器的写法；`<Grid T="int">` 泛型写法与嵌套类型标签；CLI；热重载与开发期样式推送；编译期 CSS 校验。手写 C# 组件派生自 `.awaui` 组件时拿不到 Props 胶水（生成器互相不可见，Razor 同样如此）。
+- **UI**：~~`Input` 的光标、选区、IME、剪贴板~~（第七批完成）；仍缺撤销 / 重做、光标闪烁、双向文本的视觉光标移动、输入法重新转换；double / groove / ridge / inset / outset 边框目前画成实线；命中测试只精确处理最内层圆角裁剪；`Computed` 长链刷新仍是递归；没有焦点修正；组件 Ref、分析器 AW1002–AW1004。
+- **文本**：~~CFF 轮廓~~（第八批，Hiragino 等 CID 字体可以显示，Counter 在没有 Arial Unicode 时回退到 Hiragino）；彩色字形、hinting / 网格对齐、可变字体；~~逐词整形丢失跨词 kerning~~（第八批，只做 LTR）；~~`BasicTextShaper.IsKerningEnabled` 按 span 传特性时为二次方~~（第八批）；字形缓存按渲染目标独立；`GlyphRun.Bounds` 可能比墨迹小（UI 的损伤跟踪目前绕开它，用按 em 的字形溢出估计；第八批未改，属于 Graphics）；其余整形缺口见上面的第八批后续事项。
+- **CSS**：相同样式的元素不共享 `ComputedStyle`（匹配属性缓存未做）；伪元素上的动画与过渡尚未接入；`@import` 的样式表要由宿主加载；ex / ch 按 0.5em 近似；`DefaultFontSize` 固定为 16。
+- **GPU**：D3D11、GLES / WebGL2（`MetalRenderBackend` 的回退包装可泛化后移入 `AwAUI.Render/Gpu`）；~~图片~~（第七批完成）、~~滤镜与 backdrop~~（第九批 9b）、彩色字形；保留层与合成器集成；路径裁剪蒙版缓存；macOS 窗口之外的 GPU 呈现；只在 Apple Silicon 上测过。
 - **图片**：WebP 没有 SIMD；没有色彩管理（ICC、WebP 的 EXIF 方向被忽略）；解码上限偏宽松（每输入字节 4096 像素，比 PNG 宽 4–12 倍），是否收紧待定（第八批起调用方可经 `ImageDecoder.Decode(data, maxPixels)` 给出更严的上限，`ImageCache` 尚未使用）。
 - **M0 遗留**：见 M0 一节的「M0 剩余」。

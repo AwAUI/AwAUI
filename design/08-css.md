@@ -89,26 +89,33 @@ M1 已实现：全部绝对单位（px、cm、mm、q、in、pt、pc）、em/rem/
 | 特性 | 状态 |
 |---|---|
 | `display: flex / inline-flex` | 完整 Flexbox |
-| `display: grid` | 轨道、`fr`、`repeat()`、`minmax()`、`auto-fill/auto-fit`、区域命名、`gap`；`subgrid` 后置 |
+| `display: grid / inline-grid` | 第八批实现：轨道、`fr`、`repeat()`、`minmax()`、`fit-content()`、`auto-fill/auto-fit`、线名与区域命名、自动放置（含 dense）、`gap`、对齐；`subgrid`、masonry、基线对齐未做 |
 | `display: block` | **简化版**：块级子元素纵向堆叠、宽度撑满；不做外边距折叠与浮动 |
 | `display: none / contents` | 支持 |
+| 逻辑属性（`margin-inline`、`padding-block-start`、`inset-inline`、`border-block` 等 42 个） | 第八批：解析时映射为左到右横排下的物理属性（决策 D49）；不支持 `direction` / `writing-mode`，所以 rtl 与竖排下的映射不对 |
 | 行内排版 | 仅在 `Text` 元素内部（`Span` 嵌套、行内图片） |
 | `position: relative / absolute / fixed / sticky`、`inset`、`z-index` 与层叠上下文 | 支持 |
 | 盒模型：`width/height/min-*/max-*`、`margin`、`padding`、`border`、`aspect-ratio`、`box-sizing` | 支持 |
-| `overflow: visible / hidden / clip / scroll / auto`、`scroll-snap-*`、`overscroll-behavior`、`scroll-behavior` | 支持 |
+| `overflow: visible / hidden / clip / scroll / auto`、`scroll-snap-*`、`overscroll-behavior`、`scroll-behavior` | `overflow` 支持（第八批起 auto / scroll / hidden 可滚动，见 [21](21-gesture-scroll-api.md)）；其余是计划中的属性 |
 | `float`、`display: table*`、多栏 | **不做** |
 
 #### 布局实现现状（`AwAUI.Layout`，M1）
 
 - **Flexbox** 按 Flexbox L1 §9 实现：基础与假设尺寸、§4.5 自动最小尺寸（惰性计算）、带 gap 的分行、容器主尺寸（收缩适应时为 fit-content）、伸缩长度的 min/max 冻结循环、交叉尺寸、stretch、单行基线对齐（含嵌套容器基线）、auto 外边距、justify-content / align-content 及负剩余空间的规范回退、wrap / wrap-reverse / *-reverse、rtl、按书写方向解释 `start / end`、百分比 gap。
+- **Grid**（第八批，`LayoutEngine.Grid.cs`）：显式与隐式网格（隐式轨道可在第 1 条线之前，`grid-auto-*` 在显式网格前后都循环使用，与 Chromium 一致）；按线号、线名、区域放置；自动放置（行 / 列、稀疏 / 稠密，占用表按放置方向分带存储，碰撞检查直接跳过阻挡的区间；稠密放置的起始行只前进）；轨道尺寸算法 §11.5 第 2–5 步（计划增量与项目增量、按容量 / 权重排序的注水分配、「可无限增长」标记、按伸缩因子分给 fr 轨道、不确定空间下的 fr 尺寸、容器 min/max 参与 fr 计算；贡献在任何分配之前全部算完，因为计算贡献可能递归布局共享临时状态的嵌套网格）；gap、对齐、rtl、百分比轨道、min/max；绝对定位子元素以网格区域为包含块；基本的容器基线。列方向的内容分布在行尺寸之前施加，网格区域因此包含额外的间距；自动高度网格的行按 max-content 约束计算，`min-height` 确定时 auto 行拉伸到它。
+  - 项目的自动最小尺寸按 §6.6：有指定尺寸用它，否则用 min-content（与 flexbox 的 min(指定, 内容) 不同）；滚动容器、以及跨多条轨道且含 fr 轨道的项目为 0；只跨「最大尺寸函数固定」的轨道时钳制到这些轨道与其间 gap 之和（fit-content 不算固定；只作用于 auto 最小值）。
+  - normal 对齐按 §6.2：没有宽高比的项目拉伸；有宽高比的非替换元素在行内轴撑满、块轴高度由比例推出；替换元素（`IsReplaced`）两轴都按 start。
+  - **Grid 的上限**（不可信 CSS，决策 D48）：线号钳制到 ±10000（`GridLine.MaxLine`），显式轨道至多 9999 条，自动放置不越过第 10000 条线（越界的项目被钳制，可能重叠），`repeat()` 次数钳制到 10000，至多记录 131072 个线名；占用表的内存与跨度数值无关。轨道尺寸算法对起止相同的项目合并分配（同一阶段项目增量随贡献单调不减，计划增量取最大值，所以只用最大贡献分配一次，结果不变），最坏开销仍是 O(项目数 × 轨道数)：5000 个起止各不相同、贡献递增的项目跨 5000 到 10000 列约 1.5 s CPU（高负载下）。实测（优化构建，负载 13–40）：`repeat(auto-fill, minmax(100px, 1fr))` 下 1 万个自动放置的项目首次布局 13–16 ms、改宽度后 6–10 ms；`grid-row: 1 / 100000000`、`repeat(INT_MAX, 1px)`、2000 个各跨 5000 列的项目、50 万格的区域字符串都有 CPU 时间或线性测试守护；嵌套 40 层的开销与深度成正比。
+  - 已知差异：spanning 项目跨 fit-content 轨道时按 §11.5.1（超出上限的空间分给仍「开放」的 fit-content 轨道）：两条 `fit-content(50px)` 列、一个 min-content 为 300 的跨两列项目、第 1 列另有一个空项目时，这里是 250/50，Chrome 是 0/300。
+- **`order`**（第八批，第 1 期）：flex 与 grid 项目按（order，文档顺序）稳定排序后布局；绘制顺序同样按 order 修正后的文档顺序（CSS Display 3，`LayoutMapper.PaintOrder`，z-index 相同的层叠项也按它排序），命中测试按绘制的逆序，随之一致。
 - **Block**（简化）：子元素纵向堆叠，auto 宽度填满包含块减外边距，水平 auto 外边距居中，rtl 靠右；不做外边距折叠与浮动。
 - **定位**：relative 在放置时偏移；absolute 相对最近定位祖先的内边距盒（没有则为视口），fixed 总是相对视口；支持所有 inset 组合、auto 外边距居中、收缩适应、过约束（ltr 忽略 right，rtl 忽略 left）与静态位置（flex 父元素下按「唯一 flex 项」计算）。左右 inset 都为 auto 时在「静态位置到包含块远端」的范围内收缩适应（css-position-3 §4.1）。
 - **固有尺寸**：block、行/列 flex 容器的 min-content / max-content / fit-content 贡献；关键字可用于 width / min-width / max-width（用在高度上按 auto / none 处理）。行 flex 容器的固有尺寸按 Chromium 而非 §9.9.1 的 flex 分数算法：max-content = 各项 max-content 贡献之和加 gap；min-content = 各项 min-content 贡献之和（nowrap）或最大值（wrap）；此时忽略 flex-basis。收缩适应的行 flex 容器在求固有尺寸时把项目的百分比视为不确定，最终布局再按容器最终内宽解析（与浏览器一致）。
-- `display: none` 整棵子树为零盒；`display: contents` 把子节点提升到父节点，自身为 (0,0) 处的零盒；`aspect-ratio`、`box-sizing` 已支持（第七批起 CSS `aspect-ratio` 是第 1 期属性，`LayoutMapper` 对所有元素映射；替换元素与自然比例的合并见 [05](05-ui-core.md)）；`inline-flex` 在 block 中像 block 一样堆叠但宽度为 fit-content（没有行内格式化上下文）。
+- `display: none` 整棵子树为零盒；`display: contents` 把子节点提升到父节点，自身为 (0,0) 处的零盒；`aspect-ratio`、`box-sizing` 已支持（第七批起 CSS `aspect-ratio` 是第 1 期属性，`LayoutMapper` 对所有元素映射；替换元素与自然比例的合并见 [05](05-ui-core.md)）。第八批：宽高都为 auto 时，`ComputeLeaf` 用自身 min/max-width 与经比例传来的 min/max-height 的交集钳制宽度，再由宽度推出高度；替换元素（`LayoutStyle.IsReplaced`，UI 经 `LayoutMapper.ForReplaced` 设置）按测量尺寸的比值作用于内容盒、不加自动最小高度，块布局与 left + right 的绝对定位都不拉伸其 auto 宽度；非替换元素（block / flex / grid 容器与文本叶子）按样式比值与 box-sizing，由比例推出的高度不小于内容高度（CSS Sizing 4，再受 max-height 约束；flex 与 grid 容器把它变成「带内容高度的 min-height」，代价是子元素的百分比高度变为不确定，block 容器保持比例高度确定）；`inline-flex` 在 block 中像 block 一样堆叠但宽度为 fit-content（没有行内格式化上下文）。
 - `RoundToPixels` 对齐的是盒的边而不是尺寸，相邻盒之间不留缝。
 - 实测（10 101 个节点，50 段 × 4 行 × 49 个文本叶子，net10.0，机器同时有其他负载，故为上界）：视口宽度变化后全量重排约 10 ms（约 6 667 次算法运行、每次约 13 字节分配）；视口不变的干净重排 0.001–0.004 ms；一个叶子变脏 0.15–0.3 ms。尚未用 BenchmarkDotNet 在空闲机器上复测。
-- 尚未实现：`order`（第 2 期）、`sticky`、`fit-content(<length>)` 函数、Grid、逻辑属性、竖排、aspect-ratio 经 min/max 的尺寸传递（`ComputeLeaf` 在按 min/max 钳制宽度后不按比例重推高度，替换元素的测量函数因此要猜「确定宽度是可用宽度还是钳制结果」）及自动最小尺寸中的 transferred size、非替换元素 aspect-ratio 的自动最小尺寸（例如 `width:100px; aspect-ratio:4`、内含 100px 高子元素的 div 这里得到 100×25，Chrome 得到 100×100）、「替换元素」标记（块布局与绝对定位都会拉伸替换元素的 auto 宽度，UI 把它们的 display 映射为 InlineFlex 规避，绝对定位且 left、right 都给出时仍被拉伸）、last-baseline；列容器与 wrap-reverse 的基线对齐回退为 flex-start；没有布局边界。
-- **UI 映射时的回退**（`AwAUI.UI` 把 `ComputedStyle` 映射为 `LayoutStyle` 时；M1 没有行内格式化上下文）：`display: inline` 与 `inline-block` 都按收缩适应（shrink-to-fit）的盒子布局，`inline-block` 像 block 一样纵向堆叠子元素；`grid` / `inline-grid` 回退为 flex（z-index 仍按 grid 项生效）；`position: sticky` 按 relative 布局（但总是建立层叠上下文）；`order` 被忽略。负的百分比 padding 在映射 / 布局时截断为 0。
+- 尚未实现：`sticky`、宽度上的 `fit-content(<length>)` 函数（网格轨道中的已支持）、竖排、rtl 下的逻辑属性、flex 自动最小尺寸中的 transferred size、last-baseline；列容器与 wrap-reverse 的基线对齐回退为 flex-start；网格的基线对齐、subgrid、masonry 与 §11.1 第 3、4 步；`safe / unsafe` 对齐关键字与 `legacy left / right`；没有布局边界。
+- **UI 映射时的回退**（`AwAUI.UI` 把 `ComputedStyle` 映射为 `LayoutStyle` 时；M1 没有行内格式化上下文）：`display: inline` 与 `inline-block` 都按收缩适应（shrink-to-fit）的盒子布局，`inline-block` 像 block 一样纵向堆叠子元素；`grid` / `inline-grid` 第八批起映射为网格（轨道等计算值按实例缓存转换、按值比较，相同的样式不触发重排）；`position: sticky` 按 relative 布局（但总是建立层叠上下文）；`order` 同时作用于布局与绘制顺序。负的百分比 padding 在映射 / 布局时截断为 0。
 - 已知差异：交叉轴上的百分比 gap 在容器交叉尺寸不确定时按 0 处理且之后不重新解析（flex 下与 Chromium 一致）；auto 宽度、收缩适应语境中的列向换行 flex 容器取最宽项的宽度而不是各列之和（Chromium 同样如此）；space-around / space-evenly 在负剩余空间时回退为 center（Flexbox L1），未采用 Box Alignment 3 的 safe center。
 
 ### 视觉

@@ -116,7 +116,7 @@ public sealed class ScrollController
 }
 ```
 
-用法：`new Div { Style = "overflow:auto", ScrollController = controller }`（节点属性 `ElementNode.ScrollController`；不给时元素按需自建，经 `Element.ScrollController` 取得）。`OnScroll` 事件属性等价于订阅 `Scrolled`；`OnWheel` 收到可取消的 `WheelEvent`（`DeltaX / DeltaY / DeltaMode / IsPrecise / ScrollPhase / MomentumPhase`），`PreventDefault` 后不再滚动。滚动位置跨重建保留；内容变小时偏移钳制到新范围并发出 scroll 事件。`ScrollAnimation`：`Default`、`Instant`、`Duration`、`Easing`（`ScrollEasing`）。`.awaui` 里的 `@onscroll / @onwheel` 与 `ScrollController` 属性尚未映射（见 [07](07-roadmap.md) 第八批后续事项）。
+用法：`new Div { Style = "overflow:auto", ScrollController = controller }`（节点属性 `ElementNode.ScrollController`；不给时元素按需自建，经 `Element.ScrollController` 取得）。`OnScroll` 事件属性等价于订阅 `Scrolled`；`OnWheel` 收到可取消的 `WheelEvent`（`DeltaX / DeltaY / DeltaMode / IsPrecise / ScrollPhase / MomentumPhase`），`PreventDefault` 后不再滚动。滚动位置跨重建保留；内容变小时偏移钳制到新范围并发出 scroll 事件。`ScrollAnimation`：`Default`、`Instant`、`Duration`、`Easing`（`ScrollEasing`）。`.awaui` 里用 `@onscroll` / `@onwheel`（整合时映射到 `OnScroll` / `OnWheel`）；标记中没有 `ScrollController` 属性，需要时经 `@ref` 取元素的 `ScrollController`。
 
 ### 滚动物理
 
@@ -196,7 +196,7 @@ public abstract class NestedScrollConnection
 第八批的实现：
 
 - **增量换算**（`AwAUI.Platform.WheelDeltas`）：Win32、X11、Headless 每格 3 行 = 100 px（Chromium 约定），macOS 行模式每行 40 px（系统已加速，WebKit 约定），Browser 每行 40 px；Page 增量换回页数后按目标容器视口的 87.5% 缩放。非有限与超大增量钳制。
-- **路由**：可取消的 `wheel` 事件先发给目标元素（`captured ?? hit`，与浏览器不同，浏览器的 wheel 不受指针捕获影响）；没有被取消时，从目标向外找第一个「在该方向上还能滚」的容器，`OverscrollBehavior` 为 Contain / None 时到此为止。普通滚轮的平滑动画为 140 ms（`DesktopPhysics.WheelAnimationMs`），连续多格叠加；`RenderPipeline.SmoothScrolling = false` 关闭。精确增量或带相位的事件直接跟随，并锁定在手势开始时选中的容器直到惯性结束；没有惯性相位的手势在最后一个事件 100 ms 后结束（`GestureEndDelaySeconds`，与 Chrome 的 scrollend 去抖相同）。
+- **路由**：可取消的 `wheel` 事件先发给目标元素（`captured ?? hit`，与浏览器不同，浏览器的 wheel 不受指针捕获影响）；没有被取消时，从目标向外找第一个「在该方向上还能滚」的容器，`OverscrollBehavior` 为 Contain / None 时到此为止。普通滚轮的平滑动画为 140 ms（`DesktopPhysics.WheelAnimationMs`），连续多格叠加；`RenderPipeline.SmoothScrolling = false` 关闭。精确增量或带相位的事件直接跟随，并锁定在手势开始时选中的容器直到惯性结束；没有惯性相位的手势在最后一个事件 100 ms 后结束（`GestureEndDelaySeconds`，与 Chrome 的 scrollend 去抖相同）；有相位的手势在最后一个事件 0.3 s 后仍没有 Ended / Cancelled（手势中途失焦、平台丢事件）就强制结束（`GestureTimeoutSeconds`，由时钟定时器唤醒），之后继续滑动开始新的一段「滚动中」，仍锁定在同一个容器上。
 - **键盘**：按键没有被消费、焦点不在输入框里时，方向键、PageUp/PageDown、Home/End、空格滚动焦点所在的最近滚动容器；没有焦点时作用于最近一次按下所在的容器，否则作用于视口。键盘或程序聚焦时以最小移动把元素滚到可见（指针聚焦不滚动）。
 - **触摸**：按下后移动超过容差（8 px）即成为拖动并锁定主轴；被按下的元素收到 `pointercancel`，不再触发 click；拖动按 `ApplyDrag`，松手按 `VelocityTracker` 的速度调用 `CreateFling`；Bouncing 物理在边缘可以开始橡皮筋拖动。
 - **滚动条**（决策 D46）：样式由 `RenderPipeline.ScrollbarStyle`（`UIHost` 取 `WindowImpl.PreferredScrollbarStyle`）决定，最近一次按下来自触摸时总是覆盖式（`EffectiveScrollbarStyle`）。经典样式常驻、滑块可拖动、点击轨道翻一页（没有箭头按钮，按住轨道不连续翻页），v1 不占布局空间，画在内边距盒内侧、盖住内容边缘；覆盖样式在滚动或悬停时出现，停止 1 s 后淡出（等待期间用时钟定时器，只有淡出时逐帧）。滑块长度按视口与内容之比（不小于 20 px），位置按已施加（对齐设备像素）的偏移计算，所以滑块与内容总在同一帧变化。滚动条可命中（覆盖式只在可见时），受祖先裁剪与圆角裁剪、不受容器自己的溢出裁剪；不是层叠上下文的容器，其滚动条推迟到该层叠上下文中容器的最后一个 0 / auto 定位后代之后再画，z-index 为正的后代仍在滚动条之上（与浏览器的细节不同）。`scrollbar-*` CSS 属性尚未接入，宽度与颜色经控制器设置。
@@ -209,7 +209,7 @@ public abstract class NestedScrollConnection
 - **状态归属**：已施加的偏移与视口 / 内容度量属于元素的几何状态；换控制器时新控制器总是接过它们，偏移位置按新控制器是否用过决定（用过的按本元素的范围钳制）；控制器被别的元素拿走时，原元素立即换上新的控制器并回到位置 0。
 - **钳制**：平滑动画（滚轮、键盘、`ScrollTo`、`ScrollIntoView`）任何时候都不越界；只有拖动和惯性 / 回弹期间由物理决定是否越界。用户输入打断程序动画时两轴的模拟都清除、任务完成。
 - **时间**：`UIRoot.Clock` 为 null 时滚动的时间每帧推进 1/60 s（确定性的无窗口渲染），平滑滚动约 9 帧完成、覆盖式滚动条约 80 帧后隐藏。
-- **出帧**：`RenderPipeline.NeedsAnimationFrame` 在有模拟、待施加的偏移或正在淡出的滚动条时为真；`UIHost` 每帧之后检查它，`UIRoot.NeedsFrame` 还不包含它（见 [07](07-roadmap.md) 第八批后续事项）。
+- **出帧**：`RenderPipeline.NeedsAnimationFrame` 在有模拟、待施加的偏移或正在淡出的滚动条时为真；`UIRoot.NeedsFrame` 包含它（整合时加入），所以任何宿主都经 `FrameRequested` 得到后续帧。
 - **测试**：`ScrollDifferentialTests`（随机场景，局部重画与整帧非增量渲染逐字节比较并核对命中测试）、`ScrollReviewTests`（只平移与强制完整布局逐元素比较），种子数用 `AWAUI_SCROLL_DIFF_SEEDS` 加大；物理与速度追踪对固定时间点求值。
 
 ## 拖放

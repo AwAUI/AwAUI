@@ -23,14 +23,14 @@
 
 | 字段 | 说明 |
 |---|---|
-| `type` | 取自 `CssPropertyGen` 内固定的类型表（`Keyword`、`Size`、`LengthPercentage`、`LineWidth`、`Number`、`Alpha`、`Color`、`Radius`、`ImageList`、`ShadowList`、`FontFamily`、`FontSize`、`FontWeight`、`FontStretch`、`LineHeight`、`IntegerOrAuto`、`Cursor` …），决定解析器与计算值类型 |
-| `enum` / `flags` | `Keyword` 类型对应的关键字枚举；附加标志如 `Auto`、`None`、`Normal`、`Content`、`Intrinsic`、`NonNegative`（计算值截断为非负；允许负值的属性不写这个标志即可） |
+| `type` | 取自 `CssPropertyGen` 内固定的类型表（`Keyword`、`Size`、`LengthPercentage`、`LineWidth`、`Number`、`Alpha`、`Color`、`Radius`、`ImageList`、`ShadowList`、`FontFamily`、`FontSize`、`FontWeight`、`FontStretch`、`LineHeight`、`IntegerOrAuto`、`Cursor`，第八批加 `Integer`、`GridTemplate`、`GridAreas`、`GridTrackSizes`、`GridAutoFlow`、`GridLine` …），决定解析器与计算值类型 |
+| `enum` / `flags` | `Keyword` 类型对应的关键字枚举（第八批起枚举可带 `aliases` 对象，解析时把旧关键字转成标准值，如 `image-rendering` 的 `optimizespeed` → `crisp-edges`）；附加标志如 `Auto`、`None`、`Normal`、`Content`、`Intrinsic`、`NonNegative`（计算值截断为非负；允许负值的属性不写这个标志即可） |
 | `animatable` | `no` / `discrete` / `by-computed-value` |
 | `affects` | `structure` / `layout` / `paint` / `composite` / `none`，对应下表的 S / L / P / C / — |
 | `planned` | 尚未支持但已排期的属性及其期，AW2002 据此提示「计划在第 N 期支持」 |
 | `unsupported` | 不打算支持的属性及中文替代建议：`float`、`clear`、`columns`、`column-count`、`column-width`、`table-layout`、`border-collapse`、`border-spacing`、`vertical-align` |
 
-M1 清单：9 个组、20 个关键字枚举、74 个第 1 期长属性、20 个简写（`margin` `padding` `inset` `border` `border-top/right/bottom/left` `border-width/style/color` `border-radius` `outline` `flex` `flex-flow` `gap` `overflow` `background` `font` `all`）。M1 整合时把 `outline-width / -style / -color / -offset` 与 `outline` 简写从第 2 期提前到第 1 期（属于 Effects 组），供焦点轮廓使用。`CssPropertyGen`（`src/tools/CssPropertyGen`，net10.0）把它生成为 `src/AwAUI.Css/Generated/*.g.cs` 五个入库文件：属性 ID 枚举、元数据表、关键字枚举与表、解析分派、`ComputedStyle` 的组类与逐属性访问器、写时复制的构建器、差异比较与计算值序列化。生成逻辑同时编译进测试项目，单元测试在内存中重新生成并在入库文件过期时失败；命令行 `--check` 做同样的检查。第七批把 `aspect-ratio`（Box 组）、`object-fit` 与 `object-position`（Effects 组，只影响绘制）、`image-rendering`（继承，放在 Text 组，避免新增组或改动 `RenderPipeline.InheritedChanged`）从计划移入第 1 期，清单现为 22 个关键字枚举、78 个第 1 期长属性、20 个简写。
+M1 清单：9 个组、20 个关键字枚举、74 个第 1 期长属性、20 个简写（`margin` `padding` `inset` `border` `border-top/right/bottom/left` `border-width/style/color` `border-radius` `outline` `flex` `flex-flow` `gap` `overflow` `background` `font` `all`）。M1 整合时把 `outline-width / -style / -color / -offset` 与 `outline` 简写从第 2 期提前到第 1 期（属于 Effects 组），供焦点轮廓使用。`CssPropertyGen`（`src/tools/CssPropertyGen`，net10.0）把它生成为 `src/AwAUI.Css/Generated/*.g.cs` 五个入库文件：属性 ID 枚举、元数据表、关键字枚举与表、解析分派、`ComputedStyle` 的组类与逐属性访问器、写时复制的构建器、差异比较与计算值序列化。生成逻辑同时编译进测试项目，单元测试在内存中重新生成并在入库文件过期时失败；命令行 `--check` 做同样的检查。第七批把 `aspect-ratio`（Box 组）、`object-fit` 与 `object-position`（Effects 组，只影响绘制）、`image-rendering`（继承，放在 Text 组，避免新增组或改动 `RenderPipeline.InheritedChanged`）从计划移入第 1 期，清单现为 22 个关键字枚举、78 个第 1 期长属性、20 个简写。第八批把 `order`（`Integer`）、`justify-items`（初值 `legacy`）、`justify-self`、`grid-template-columns / rows / areas`、`grid-auto-columns / rows / flow`、`grid-row / column-start / end` 移入第 1 期（都在 Flex 组，组说明改为「Flexbox 与 Grid 布局」），简写加 `grid-row`、`grid-column`、`grid-area`、`grid-template`、`grid`、`place-items / self / content` 与 42 个逻辑属性，清单现为 24 个关键字枚举、91 个第 1 期长属性、70 个简写。新的计算值类型：`CssGridTrackList`（含 `CssGridTrackSize`、`CssGridRepeat` 等）、`CssGridTemplateAreas`、`CssGridLine`、`CssGridAutoFlow`、`CssJustifyItems`、`CssJustifySelf`，`order` 为 `int`。
 
 ## 影响阶段
 
@@ -81,7 +81,7 @@ M1 的实际实现（`AwAUI.Css.ComputedStyle`，不可变 `sealed class`）：
 
 | 属性 | 类型 | 继承 | 动画 | 影响 | 期 |
 |---|---|---|---|---|---|
-| `display` | 枚举 | 否 | 离散 | S | 1（flex/block/none），2（grid/contents/inline-flex） |
+| `display` | 枚举 | 否 | 离散 | S | 1（flex/block/none），2（grid/contents/inline-flex）；第八批起 grid / inline-grid 按网格布局（此前回退为 flex） |
 | `box-sizing` | 枚举 | 否 | 否 | L | 1 |
 | `width` `height` `min-*` `max-*` | 长度/百分比/auto/固有尺寸关键字 | 否 | 是 | L | 1 |
 | `aspect-ratio` | `auto \|\| <ratio>`（`AspectRatioValue`） | 否 | 是 | L | 1（第七批） |
@@ -91,7 +91,7 @@ M1 的实际实现（`AwAUI.Css.ComputedStyle`，不可变 `sealed class`）：
 | `overflow-x` `overflow-y` | 枚举 | 否 | 否 | S | 1（hidden），2（scroll/auto） |
 | `visibility` | 枚举 | 是 | 离散 | P | 1 |
 
-逻辑属性（`margin-inline-start`、`padding-block`、`inset-inline` 等）在级联时按 `direction` 映射到物理属性，第 3 期。
+逻辑属性（`margin-inline-start`、`padding-block`、`inset-inline` 等）在级联时按 `direction` 映射到物理属性，第 3 期。第八批的实现（决策 D49）：42 个逻辑属性 —— `margin / padding / inset` 的 `-inline / -block` 及其 `-start / -end`，`border-inline / block-start / end` 及其 `-width / -style / -color`，`border-inline`、`border-block` —— 是第 1 期的**解析期别名**（简写，解析器为 `Alias`、`Pair`、`BorderSide`、`BorderSidePair`），按左到右横排映射到物理长属性，在这种情形下与级联完全一致；不支持 `direction` / `writing-mode`，逻辑属性名的计算值文本为空（它是简写）。
 
 ### 定位与层叠
 
@@ -111,17 +111,19 @@ M1 的实际实现（`AwAUI.Css.ComputedStyle`，不可变 `sealed class`）：
 | `flex-basis` | 长度/百分比/auto/content | 否 | 是 | L | 1 |
 | `justify-content` `align-items` `align-self` `align-content` | 枚举 | 否 | 否 | L | 1 |
 | `gap`（`row-gap` `column-gap`） | 长度/百分比 | 否 | 是 | L | 1 |
-| `order` | 整数 | 否 | 是 | L | 2 |
+| `order` | 整数 | 否 | 是 | L | 1（第八批；布局与绘制顺序） |
 
 ### Grid
 
 | 属性 | 类型 | 继承 | 动画 | 影响 | 期 |
 |---|---|---|---|---|---|
-| `grid-template-columns` `grid-template-rows` | 轨道列表 | 否 | 是（同构时） | L | 2 |
-| `grid-template-areas` | 区域表 | 否 | 否 | L | 2 |
-| `grid-auto-columns` `grid-auto-rows` `grid-auto-flow` | 轨道/枚举 | 否 | 否 | L | 2 |
-| `grid-row-start/end` `grid-column-start/end` | 网格线 | 否 | 否 | L | 2 |
-| `justify-items` `justify-self` `place-*` | 枚举 | 否 | 否 | L | 2 |
+| `grid-template-columns` `grid-template-rows` | 轨道列表（`CssGridTrackList`） | 否 | 离散（同构插值后置） | L | 1（第八批） |
+| `grid-template-areas` | 区域表（`CssGridTemplateAreas`） | 否 | 离散 | L | 1（第八批） |
+| `grid-auto-columns` `grid-auto-rows` `grid-auto-flow` | 轨道/枚举 | 否 | 离散 | L | 1（第八批） |
+| `grid-row-start/end` `grid-column-start/end` | 网格线（`CssGridLine`） | 否 | 离散 | L | 1（第八批） |
+| `justify-items` `justify-self` `place-*` | 枚举 | 否 | 否 | L | 1（第八批） |
+
+Grid 值的解析（第八批，`src/AwAUI.Css/Values/GridParsers.cs`）：轨道列表支持线名、`fr`、`minmax()`、`fit-content()`、计数或 `auto-fill / auto-fit` 的 `repeat()` 以及 auto-repeat 的固定尺寸规则；区域字符串按规范校验（必须是矩形）；解析对输入线性，`repeat()` 次数与线号钳制到 10000，只接受整数记号（不接受 `calc()`）；序列化与 Chromium 一致。`<grid-line>` 是 `span && [<integer> || <custom-ident>]`：`span` 可以在开头或末尾（`2 span`、`foo 2 span`），不能在中间，序列化为 `span` 在前（`span 2 foo`）。`justify-items / self` 只接受单个关键字（`safe / unsafe`、`first / last baseline` 与 `legacy left / right` 组合未支持，`legacy` 按 normal）。
 
 ### 背景与边框
 
@@ -198,7 +200,7 @@ M1 的实际实现（`AwAUI.Css.ComputedStyle`，不可变 `sealed class`）：
 
 - `PositionValue`：计算后的 `<position>`，接受 1、2、4 值形式（3 值形式按 CSS Values 4 拒绝），关键字可交换，百分比与 calc 保留到使用时（`ResolveX / ResolveY`）；序列化如 `50% 50%`。
 - `AspectRatioValue`：`auto || <ratio>`。`auto 16/9` 表示「有自然比例就用它，否则 16/9」；含 0 的比例按 auto（CSS Sizing 4）；单个数值序列化为 `N / 1`；`Resolve(naturalRatio)` 给出实际使用的比例。
-- `image-rendering` 的旧值 `optimizeSpeed` / `optimizeQuality` 与 `-webkit-optimize-contrast` 按无效值拒绝（浏览器接受为别名）。
+- `image-rendering` 的旧值 `optimizeSpeed` / `optimizeQuality` 第八批起是解析期别名，分别转为 `crisp-edges` 与 `smooth`（CSS Images 3 规定它们的行为与之相同；headless Chromium 反而拒绝它们），计算值与序列化都是标准值；`-webkit-optimize-contrast` 仍按无效值拒绝。
 - 这些值是 `Image` / `Svg` 的唯一来源，节点上不再有对应属性（决策 D35，见 [05](05-ui-core.md)）。
 
 ### 过渡与动画

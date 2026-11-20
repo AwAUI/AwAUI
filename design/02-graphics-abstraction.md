@@ -218,7 +218,7 @@ public abstract class ImageCodec
 
 默认提供纯 C# 的 PNG / JPEG / GIF / WebP / BMP / ICO；注册表式扩展。Web 平台可选注册一个「浏览器解码」实现以减小包体。
 
-现状：上面的 `ImageCodec` 抽象类与注册表尚未实现。`AwAUI.Imaging` 目前是一组静态编解码器（`PngCodec`、`JpegCodec`、`GifCodec`、`WebPCodec`、`BmpCodec`、`IcoCodec`）加按文件头分派的 `ImageDecoder`，输出 `Bitmap`；动画走 `ImageDecoder.DecodeAnimation → AnimatedImage`（见 [03](03-renderer.md)「图片」）。DisplayList 的 `DrawImage`（操作码 34）第七批已在两个后端实现，UI 的 `Image` 元素经它画出位图像素（见 [03](03-renderer.md)「图片」、[13](13-displaylist.md)）。SVG 的 `<image>` 经抽象类 `SvgImageResolver` 解码，Svg 不引用 Imaging，实现（`ImagingSvgImageResolver`）在 UI。
+现状：上面的 `ImageCodec` 抽象类与注册表尚未实现。`AwAUI.Imaging` 目前是一组静态编解码器（`PngCodec`、`JpegCodec`、`GifCodec`、`WebPCodec`、`BmpCodec`、`IcoCodec`）加按文件头分派的 `ImageDecoder`，输出 `Bitmap`；动画走 `ImageDecoder.DecodeAnimation → AnimatedImage`（见 [03](03-renderer.md)「图片」）；第八批新增 `ImageDecoder.Decode(byte[] data, long maxPixels)`，调用方可给出比内部 `DecodeLimits` 更严的像素上限，各格式在分配像素之前按头部声明的尺寸拒绝（见 [03](03-renderer.md)「图片」的解码上限）。DisplayList 的 `DrawImage`（操作码 34）第七批已在两个后端实现，UI 的 `Image` 元素经它画出位图像素（见 [03](03-renderer.md)「图片」、[13](13-displaylist.md)）。SVG 的 `<image>` 经抽象类 `SvgImageResolver` 解码，Svg 不引用 Imaging，实现（`ImagingSvgImageResolver`）在 UI。
 
 ## 逃生舱：后端相关的自定义绘制
 
