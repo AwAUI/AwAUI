@@ -61,6 +61,7 @@ public class BrushTests
         var simple = Encode(new RadialGradientBrush(new Point(5, 5), 5, TwoStops));
         var focal = Encode(new RadialGradientBrush(new Point(5, 5), 5, new Point(3, 4), 1, TwoStops));
         Assert.Equal(simple, focal);
-        Assert.Equal(1, DisplayList.FormatVersion);
+        // FormatVersion 在第九批因 PushLayer 的滤镜字段与 DrawBackdrop 升为 2（与画刷无关）
+        Assert.Equal(2, DisplayList.FormatVersion);
     }
 }

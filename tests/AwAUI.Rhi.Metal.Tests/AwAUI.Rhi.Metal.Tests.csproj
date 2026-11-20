@@ -24,6 +24,7 @@
     <Compile Include="../AwAUI.RenderTests/Golden.cs" Link="Linked/Golden.cs" />
     <Compile Include="../AwAUI.RenderTests/DisplayListFuzzer.cs" Link="Linked/DisplayListFuzzer.cs" />
     <Compile Include="../AwAUI.RenderTests/ImageScenes.cs" Link="Linked/ImageScenes.cs" />
+    <Compile Include="../AwAUI.RenderTests/EffectScenes.cs" Link="Linked/EffectScenes.cs" />
     <Compile Include="../AwAUI.RenderTests/TestImages.cs" Link="Linked/TestImages.cs" />
     <Compile Include="../../samples/RenderDemo/DemoScene.cs" Link="Linked/DemoScene.cs" />
   </ItemGroup>

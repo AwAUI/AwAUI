@@ -144,8 +144,9 @@ public class CssGapReportTests
         if (depth > 8) return value;
         return Regex.Replace(value, @"var\((--[\w-]+)(?:,\s*([^()]*(?:\([^()]*\)[^()]*)*))?\)", m =>
         {
-            if (custom.TryGetValue(m.Groups[1].Value, out var v)) return Substitute(v, custom, depth + 1);
-            return m.Groups[2].Success ? Substitute(m.Groups[2].Value.Trim(), custom, depth + 1) : "initial";
+            // var() 按记号替换（不是文本拼接）：两侧补空白，避免相邻的替换结果在重新分词时粘成一个记号（如 200ms + cubic-bezier）
+            if (custom.TryGetValue(m.Groups[1].Value, out var v)) return " " + Substitute(v, custom, depth + 1) + " ";
+            return m.Groups[2].Success ? " " + Substitute(m.Groups[2].Value.Trim(), custom, depth + 1) + " " : "initial";
         });
     }
 

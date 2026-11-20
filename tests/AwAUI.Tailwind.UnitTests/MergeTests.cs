@@ -152,6 +152,20 @@ public class CvaTests
         Assert.Equal("base text-base", cva.Invoke(new Dictionary<string, string?> { ["intent"] = null }));
         Assert.Equal("base bg-blue-500 uppercase text-lg", cva.Invoke(null, "text-lg"));
     }
+
+    [Fact]
+    public void String_cva_without_variants_ignores_compound_variants()
+    {
+        // cva 0.7.1：config.variants 为 null/undefined 时直接返回 cx(base, class, className)，compoundVariants 不生效
+        var compounds = new[] { new CompoundVariant(new Dictionary<string, string[]>(), "m-1") };
+        var noVariants = new Cva("p-2", null, compounds);
+        Assert.Equal("p-2", noVariants.Invoke());
+        Assert.Equal("p-2 m-2", noVariants.Invoke(className: "m-2"));
+        Assert.Equal("p-2", noVariants.Invoke(new Dictionary<string, string?> { ["size"] = "lg" }));
+        // variants 是空表（不是 null）时复合变体照常生效
+        var emptyVariants = new Cva("p-2", new Dictionary<string, IReadOnlyDictionary<string, string>>(), compounds);
+        Assert.Equal("p-2 m-1", emptyVariants.Invoke());
+    }
 }
 
 public class ScannerTests

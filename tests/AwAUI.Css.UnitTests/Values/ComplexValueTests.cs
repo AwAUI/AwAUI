@@ -41,7 +41,7 @@ public class ComplexValueTests
     [InlineData("radial-gradient(circle 1px 2px, red, blue)")]
     [InlineData("radial-gradient(ellipse 10px, red, blue)")]
     [InlineData("radial-gradient(at, red, blue)")]
-    [InlineData("conic-gradient(red, blue)")]
+    [InlineData("conic-gradient(from 1px, red, blue)")]
     [InlineData("url(a.png) url(b.png)")]
     [InlineData("url(a.png),")]
     public void Invalid_background_images(string value) => Assert.False(IsValid("background-image", value), value);
@@ -208,7 +208,7 @@ public class ComplexValueTests
     public void Keywords(string property, string value, string expected) => Assert.Equal(expected, Text(property, value));
 
     [Theory]
-    [InlineData("display", "table")]
+    [InlineData("display", "tables")]
     [InlineData("display", "flex block")]
     [InlineData("position", "1px")]
     [InlineData("cursor", "url(a.cur)")]
@@ -270,7 +270,7 @@ public class ComplexValueTests
     [Fact]
     public void Planned_property_reports_phase()
     {
-        var d = Assert.Single(Diagnostics("transform: rotate(1deg)"));
+        var d = Assert.Single(Diagnostics("background-size: cover"));
         Assert.Equal(CssDiagnosticCodes.UnsupportedProperty, d.Code);
         Assert.Contains("第 2 期", d.Message);
         var f = Assert.Single(Diagnostics("float: left"));

@@ -166,3 +166,24 @@ public class AspectRatioReplacedTests
         }
     }
 }
+
+/// <summary>第九批：比值推出的轴按另一轴经 min/max 钳制后的使用值计算（响应式图片 <c>max-width: 100%; height: auto</c>）。</summary>
+public class AspectRatioClampTests
+{
+    [Fact]
+    public void Height_from_ratio_uses_width_after_max_width_clamp()
+    {
+        // <img width=300 height=150 style="display:block; max-width:100%; height:auto"> 在 120px 容器中：120×60（Chrome 相同）
+        var i = new LayoutNode(Block with { IsReplaced = true, AspectRatio = 2, Width = 300, MaxWidth = Dimension.Percent(100) }) { Measure = new FixedMeasure(300, 150) };
+        Run(N(Block, i), 120);
+        Box(i, 0, 0, 120, 60);
+        // 非替换元素同理：width 400、max-width 200、aspect-ratio 4 → 200×50
+        var d = N(Block with { Width = 400, MaxWidth = 200, AspectRatio = 4 });
+        Run(N(Block, d), 1000);
+        Box(d, 0, 0, 200, 50);
+        // 宽度由高度推出时按钳制后的高度：height 400、max-height 100、ratio 2 → 200×100
+        var e = N(Block with { Height = 400, MaxHeight = 100, AspectRatio = 2 });
+        Run(N(Block with { Display = Display.Flex, AlignItems = AlignItems.FlexStart }, e), 1000);
+        Box(e, 0, 0, 200, 100);
+    }
+}

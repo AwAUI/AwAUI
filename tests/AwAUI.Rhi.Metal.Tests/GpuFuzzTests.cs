@@ -35,15 +35,28 @@ public class GpuFuzzTests
             recorder.Record(list, graph, full, full, scale, frame, null);
             atlas.EndFrame();
             Assert.True(sw.Elapsed < TimeSpan.FromSeconds(10), $"seed {seed} frame {frame} took {sw.Elapsed}");
-            foreach (var q in graph.Instances.ToArray())
+            // 每个实例的四边形都在它所属的目标内且为整数（主目标是整个渲染目标；第九批的滤镜中间图像可以超出它，
+            // 或位于降采样后的坐标系中，按各自目标的矩形检查）
+            var instances = graph.Instances.ToArray();
+            void Check(FrameTarget t)
             {
-                // 每个实例的四边形都在目标内且为整数
-                Assert.InRange(q.Bounds.X, 0, full.Right);
-                Assert.InRange(q.Bounds.Z, q.Bounds.X, full.Right);
-                Assert.InRange(q.Bounds.Y, 0, full.Bottom);
-                Assert.InRange(q.Bounds.W, q.Bounds.Y, full.Bottom);
-                Assert.Equal(MathF.Floor(q.Bounds.X), q.Bounds.X);
+                foreach (var op in t.Ops)
+                {
+                    if (op.Kind != FrameOpKind.Draw) continue;
+                    for (int i = op.First; i < op.First + op.Count; i++)
+                    {
+                        var q = instances[i];
+                        Assert.InRange(q.Bounds.X, t.Rect.X, t.Rect.Right);
+                        Assert.InRange(q.Bounds.Z, q.Bounds.X, t.Rect.Right);
+                        Assert.InRange(q.Bounds.Y, t.Rect.Y, t.Rect.Bottom);
+                        Assert.InRange(q.Bounds.W, q.Bounds.Y, t.Rect.Bottom);
+                        Assert.Equal(MathF.Floor(q.Bounds.X), q.Bounds.X);
+                    }
+                }
             }
+            Assert.Equal(full, graph.Main.Rect);
+            Check(graph.Main);
+            foreach (var layer in graph.Layers) Check(layer);
         }
     }
 

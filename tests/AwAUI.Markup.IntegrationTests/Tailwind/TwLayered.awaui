@@ -1,0 +1,13 @@
+@* 组件样式写在 @layer components 里（shadcn 风格的组件库常见写法）：Tailwind 样式表必须先于组件样式表加入级联，
+   层顺序才是 theme, base, components, utilities（preflight 的 padding: 0 不能盖过组件层）*@
+<div class="tw-layered p-1" id="@Id"></div>
+
+<style>
+@layer components {
+    .tw-layered { padding: 8px; margin: 3px; }
+}
+</style>
+
+@code {
+    public string Id { get; set; } = "";
+}

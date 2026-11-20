@@ -1,0 +1,11 @@
+@* Tailwind 工具类写在 class 属性里；data-* / aria-* 与 Tailwind 的任意变体原样保留 *@
+<div class="flex flex-col gap-2 p-4 bg-primary text-primary-foreground rounded-md data-[state=open]:p-6 [&_span]:font-medium"
+     data-slot="card" data-state="@State" @attributes="Rest">
+    <span class="text-sm">@Title</span>
+</div>
+
+@code {
+    public string Title { get; set; } = "";
+    public string State { get; set; } = "closed";
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+}

@@ -7,5 +7,7 @@
     <!-- 属性代码生成器的纯函数部分：测试在内存中重新生成并与签入的 Generated/*.g.cs 比对 -->
     <Compile Include="../../src/tools/CssPropertyGen/PropertyCodeGenerator.cs" Link="Generator/PropertyCodeGenerator.cs" />
     <Compile Include="../../src/tools/CssPropertyGen/MiniJson.cs" Link="Generator/MiniJson.cs" />
+    <!-- 负载稳健的计时（线程 CPU 时间），用于有界复杂度的测试 -->
+    <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
   </ItemGroup>
 </Project>

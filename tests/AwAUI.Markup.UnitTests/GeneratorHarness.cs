@@ -120,6 +120,36 @@ sealed class GeneratorHarness
         return this;
     }
 
+    /// <summary>加入带 MSBuild 元数据的附加文件（如 Tailwind 入口样式表：<c>AwAUITailwind=Stylesheet</c>）。</summary>
+    public GeneratorHarness AdditionalFile(string relativePath, string text, params (string Name, string Value)[] metadata)
+    {
+        var file = new InMemoryAdditionalText(ProjectDir + relativePath, text);
+        _markup.Add(file);
+        if (metadata.Length > 0)
+        {
+            var values = new Dictionary<string, string>();
+            foreach (var (name, value) in metadata) values["build_metadata.AdditionalFiles." + name] = value;
+            _fileOptions[file.Path] = values;
+        }
+        return this;
+    }
+
+    /// <summary>Tailwind 入口样式表（<c>&lt;AwAUITailwindStylesheet Include="..." /&gt;</c>）。</summary>
+    public GeneratorHarness TailwindStylesheet(string relativePath, string css, string? className = null) =>
+        className is null
+            ? AdditionalFile(relativePath, css, ("AwAUITailwind", "Stylesheet"))
+            : AdditionalFile(relativePath, css, ("AwAUITailwind", "Stylesheet"), ("ClassName", className));
+
+    /// <summary>MSBuild 属性（<c>build_property.X</c>），如 <c>AwAUITailwindRegister</c>。</summary>
+    public GeneratorHarness Property(string name, string value)
+    {
+        _properties["build_property." + name] = value;
+        return this;
+    }
+
+    readonly Dictionary<string, Dictionary<string, string>> _fileOptions = new();
+    readonly Dictionary<string, string> _properties = new();
+
     public GeneratorHarness CSharp(string relativePath, string text)
     {
         _csharp.Add((ProjectDir + relativePath, text));
@@ -131,8 +161,11 @@ sealed class GeneratorHarness
     /// <summary>传给生成器的 .awaui 文本（增量测试用它们调用 <c>ReplaceAdditionalText</c>）。</summary>
     public IReadOnlyList<AdditionalText> AdditionalTexts => _markup;
 
+    /// <summary>程序集名；为 null 时每次编译用新的随机名（加载到同一进程的多个结果互不冲突）。</summary>
+    public string? AssemblyName { get; set; }
+
     public CSharpCompilation CreateCompilation() =>
-        CSharpCompilation.Create("AwauiE2E_" + Guid.NewGuid().ToString("N"),
+        CSharpCompilation.Create(AssemblyName ?? "AwauiE2E_" + Guid.NewGuid().ToString("N"),
             _csharp.Select(c => CSharpSyntaxTree.ParseText(c.Text, ParseOptions, path: c.Path, encoding: Encoding.UTF8)),
             References.Value,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: Nullable));
@@ -144,7 +177,7 @@ sealed class GeneratorHarness
         return CSharpGeneratorDriver.Create(generators,
             _markup,
             ParseOptions,
-            new OptionsProvider(RootNamespace, ProjectDir),
+            new OptionsProvider(RootNamespace, ProjectDir, _properties, _fileOptions),
             new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: trackSteps));
     }
 
@@ -172,19 +205,25 @@ sealed class GeneratorHarness
     sealed class OptionsProvider : AnalyzerConfigOptionsProvider
     {
         readonly Options _global;
+        readonly Dictionary<string, Dictionary<string, string>> _files;
 
-        public OptionsProvider(string rootNamespace, string projectDir) =>
-            _global = new Options(new Dictionary<string, string>
+        public OptionsProvider(string rootNamespace, string projectDir, Dictionary<string, string> properties, Dictionary<string, Dictionary<string, string>> files)
+        {
+            var global = new Dictionary<string, string>(properties)
             {
                 ["build_property.RootNamespace"] = rootNamespace,
                 ["build_property.ProjectDir"] = projectDir,
-            });
+            };
+            _global = new Options(global);
+            _files = files;
+        }
 
         public override AnalyzerConfigOptions GlobalOptions => _global;
 
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => Options.Empty;
 
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Options.Empty;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) =>
+            _files.TryGetValue(textFile.Path, out var values) ? new Options(values) : Options.Empty;
 
         sealed class Options : AnalyzerConfigOptions
         {

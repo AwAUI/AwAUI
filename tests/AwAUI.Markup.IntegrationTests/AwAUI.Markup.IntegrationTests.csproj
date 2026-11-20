@@ -12,5 +12,9 @@
     <!-- 与 .awaui 混用的手写 C# 组件由 C# 胶水生成器处理 -->
     <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Tailwind 构建期接入（design/23）：入口样式表；它只扫描 Tailwind/ 目录（source(none) + @source） -->
+    <AwAUITailwindStylesheet Include="Tailwind/app.css" />
+  </ItemGroup>
   <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
 </Project>

@@ -27,7 +27,31 @@ internal sealed class El : StyleElement
 
     public CssInlineStyle? Inline { get; set; }
 
+    /// <summary>表现提示（<see cref="StyleElement.PresentationalHints"/>）。</summary>
+    public CssInlineStyle? Hints { get; set; }
+
+    /// <summary>为真的表单 / 文档状态伪类。</summary>
+    public HashSet<PseudoClass> StatePseudoClasses { get; } = new();
+
+    public StyleDirection Dir { get; set; }
+
+    public string? Lang { get; set; }
+
+    /// <summary>上一次计算的样式（容器查询读取）。</summary>
+    public ComputedStyle? Style0 { get; set; }
+
+    /// <summary>作为查询容器的内容盒尺寸；null 表示尚未布局。</summary>
+    public (float W, float H)? ContainerSize { get; set; }
+
     public El Attr(string name, string value) { _attrs[name] = value; return this; }
+
+    /// <summary>替换 class 列表（动画测试中模拟样式变化）。</summary>
+    public El SetClasses(string classes)
+    {
+        _classes.Clear();
+        _classes.AddRange(classes.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+        return this;
+    }
 
     public El Style(string inlineStyle) { Inline = CssInlineStyle.Parse(inlineStyle); return this; }
     public El Part(string name) { _parts.Add(name); return this; }
@@ -78,6 +102,29 @@ internal sealed class El : StyleElement
     public override IReadOnlyList<string> Parts => _parts;
     public override StyleElement? PartHost => Host;
     public override CssInlineStyle? InlineStyle => Inline;
+    public override CssInlineStyle? PresentationalHints => Hints;
+    public override StyleElement? FirstChild => _children.Count > 0 ? _children[0] : null;
+    public override StyleDirection Direction => Dir;
+    public override string? Language => Lang;
+    public override ComputedStyle? CurrentStyle => Style0;
+
+    public override bool MatchesStatePseudoClass(PseudoClass pseudoClass)
+        => StatePseudoClasses.Contains(pseudoClass) || (pseudoClass == PseudoClass.ReadOnly && !StatePseudoClasses.Contains(PseudoClass.ReadWrite))
+           || pseudoClass == PseudoClass.Defined;
+
+    public override bool TryGetContainerSize(out float width, out float height)
+    {
+        width = ContainerSize?.W ?? 0;
+        height = ContainerSize?.H ?? 0;
+        return ContainerSize is not null;
+    }
+
+    public El Remove(El child)
+    {
+        _children.Remove(child);
+        child._parent = null;
+        return this;
+    }
 
     public override string ToString() => TagName + (IdValue is null ? "" : "#" + IdValue) + string.Concat(_classes.Select(c => "." + c));
 }

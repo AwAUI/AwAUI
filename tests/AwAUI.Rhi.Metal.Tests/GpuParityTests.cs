@@ -51,6 +51,8 @@ public class GpuParityTests
         foreach (var s in ParagraphScenes.All) yield return new object[] { "paragraph:" + s.Name };
         foreach (var s in GpuScenes.All) yield return new object[] { "gpu:" + s.Name };
         foreach (var s in ImageScenes.All) yield return new object[] { "image:" + s.Name };
+        // 第九批：滤镜图层与背景滤镜（场景自带缩放，名字里的 @2x 属于场景名）
+        foreach (var s in EffectScenes.All) yield return new object[] { "effects:" + s.Name };
         yield return new object[] { "image:image-sampling@2x" };
         yield return new object[] { "image:image-transforms@2x" };
         yield return new object[] { "gpu:ring-strokes@2x" };
@@ -63,6 +65,13 @@ public class GpuParityTests
 
     static (DisplayList List, int Width, int Height, double Scale) Build(string id)
     {
+        if (id.StartsWith("effects:", StringComparison.Ordinal))
+        {
+            var e = EffectScenes.All.Single(x => x.Name == id.Substring("effects:".Length));
+            var edc = new DrawingContext();
+            e.Draw(edc);
+            return (edc.Finish(), e.Width, e.Height, e.Scale);
+        }
         double scale = id.EndsWith("@2x", StringComparison.Ordinal) ? 2 : 1;
         var name = scale == 2 ? id.Substring(0, id.Length - 3) : id;
         var dc = new DrawingContext();

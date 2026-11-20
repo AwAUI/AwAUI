@@ -250,14 +250,15 @@ public class ParserTests
         Assert.Equal("display: grid", i2.SupportsText);
         Assert.Empty(i2.Media.Queries);
         Assert.True(Has(s, CssDiagnosticCodes.InvalidAtRule)); // c.css 位置无效
-        Assert.True(Has(s, CssDiagnosticCodes.UnsupportedAtRule)); // supports()
+        Assert.True(i2.SupportsMatches); // supports(display: grid) 按本引擎的支持情况求值
+        Assert.False(Has(s, CssDiagnosticCodes.UnsupportedAtRule));
     }
 
     [Fact]
     public void Unknown_at_rule_does_not_block_import()
     {
         var s = StyleSheet.Parse("@foo; @import 'a.css'; @supports (x: y) {} @import 'b.css';");
-        Assert.Equal(new[] { "UnknownAtRule", "Import", "UnknownAtRule" }, s.Rules.Select(r => r.Kind.ToString()));
+        Assert.Equal(new[] { "UnknownAtRule", "Import", "Supports" }, s.Rules.Select(r => r.Kind.ToString()));
     }
 
     [Fact]
@@ -280,18 +281,15 @@ public class ParserTests
     }
 
     [Fact]
-    public void Supports_is_kept_unparsed_with_diagnostic()
+    public void Supports_rule_is_evaluated_at_parse_time()
     {
         var s = StyleSheet.Parse("@supports (display: grid) { .a { x: 1 } } .b { y: 2 }");
         Assert.Equal(2, s.Rules.Count);
-        var u = Assert.IsType<CssUnknownAtRule>(s.Rules[0]);
-        Assert.Equal("supports", u.Name);
-        Assert.True(u.IsKnownUnsupported);
-        Assert.NotNull(u.Block);
-        Assert.Equal("(display: grid)", CssComponentValue.ToCss(u.Prelude).Trim());
-        var d = Assert.Single(s.Diagnostics);
-        Assert.Equal(CssDiagnosticCodes.UnsupportedAtRule, d.Code);
-        Assert.Equal(CssDiagnosticSeverity.Warning, d.Severity);
+        var u = Assert.IsType<CssSupportsRule>(s.Rules[0]);
+        Assert.True(u.Matches);
+        Assert.Equal("(display: grid)", u.ConditionText);
+        Assert.Single(u.Rules);
+        Assert.Empty(s.Diagnostics);
         Assert.IsType<CssStyleRule>(s.Rules[1]);
     }
 

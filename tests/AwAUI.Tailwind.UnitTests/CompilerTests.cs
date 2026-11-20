@@ -41,6 +41,52 @@ public class CompilerApiTests
     }
 
     [Fact]
+    public void Incremental_rule_indices_reproduce_build_order()
+    {
+        // 运行时 JIT 的用法：Build([]) 之后逐批 AddCandidates，按 Index 插入得到的规则顺序与一次性 Build 相同
+        var batches = new[]
+        {
+            new[] { "p-4", "hover:bg-red-500", "md:flex", "text-sm" },
+            new[] { "hover:bg-blue-500", "p-2", "md:grid", "px-3", "text-lg/7" },
+            new[] { "hover:underline", "m-1", "lg:p-8", "dark:md:hover:bg-red-500", "focus:outline-none" },
+        };
+        var compiler = TailwindCompiler.CreateDefault();
+        compiler.Build(Array.Empty<string>());
+        var rules = new List<TailwindGeneratedRule>();
+        foreach (var batch in batches)
+        {
+            foreach (var r in compiler.AddCandidates(batch).Rules) rules.Insert(r.Index, r);
+        }
+        string full = TailwindCompiler.CreateDefault().Build(batches.SelectMany(b => b));
+        var positions = rules.Select(r =>
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(full, System.Text.RegularExpressions.Regex.Escape("." + r.Candidate.Replace(":", "\\:").Replace("/", "\\/")) + @"(?![\w\\-])");
+            return m.Success ? m.Index : -1;
+        }).ToList();
+        Assert.DoesNotContain(-1, positions);
+        Assert.Equal(positions.OrderBy(p => p), positions);
+        Assert.Equal(batches.Sum(b => b.Length), rules.Count);
+    }
+
+    [Fact]
+    public void Incremental_add_emits_keyframes_of_inline_theme_animations()
+    {
+        // tw-animate-css 与 shadcn 的动画定义在 @theme inline 中：工具类直接内联 animation 值，不引用 --animate-* 变量
+        const string css = "@import \"tailwindcss\";\n@import \"tw-animate-css\";\n@theme inline { --animate-wiggle: wiggle 1s ease-in-out infinite; @keyframes wiggle { 50% { rotate: 3deg; } } }";
+        var candidates = new[] { "animate-wiggle", "data-[state=open]:animate-in" };
+        string full = TailwindCompiler.Create(css).Build(candidates);
+        Assert.Contains("@keyframes wiggle", full);
+        Assert.Contains("@keyframes enter", full);
+        var compiler = TailwindCompiler.Create(css);
+        Assert.DoesNotContain("@keyframes wiggle", compiler.Build(Array.Empty<string>()));
+        var delta = compiler.AddCandidates(candidates);
+        Assert.Contains("@keyframes wiggle", delta.GlobalCss);
+        Assert.Contains("@keyframes enter", delta.GlobalCss);
+        Assert.DoesNotContain("@keyframes exit", delta.GlobalCss);
+        Assert.Equal("", compiler.AddCandidates(new[] { "animate-in" }).GlobalCss);
+    }
+
+    [Fact]
     public void Validity_queries()
     {
         var compiler = TailwindCompiler.CreateDefault();
@@ -57,6 +103,9 @@ public class CompilerApiTests
         Assert.Contains("@layer base", css);
         Assert.DoesNotContain("::file-selector-button", css);
         Assert.DoesNotContain("-webkit-", css);
+        // AwAUI 的根元素是 root（没有 html）；根字号恢复为 Tailwind rem 刻度所依据的 16px（AwAUI 默认样式表是 14px）
+        Assert.Contains("  :root {\n    font-size: 16px;\n    line-height: 1.5;", css);
+        Assert.DoesNotContain("html", css);
         string original = TailwindCompiler.CreateDefault(new TailwindOptions { Preflight = PreflightKind.Tailwind }).Build(Array.Empty<string>());
         Assert.Contains("::file-selector-button", original);
     }
@@ -149,6 +198,38 @@ public class HostileInputTests
     }
 
     [Fact]
+    public void Selector_explosion_from_stacked_variants_is_bounded()
+    {
+        static string Repeat(string s, int n) => string.Concat(Enumerable.Repeat(s, n));
+        double start = ThreadCpuClock.NowMs();
+        // 每层 [&_a,&_b,&_c,&_d] 让展开后的选择器数量 ×4：9 层约 75 MB 输出，30 层不可能完成
+        Assert.Null(s_compiler.CandidateToCss(Repeat("[&_a,&_b,&_c,&_d]:", 9) + "flex"));
+        Assert.Null(s_compiler.CandidateToCss(Repeat("[&_a,&_b,&_c,&_d]:", 30) + "flex"));
+        // 复合变体每层把选择器长度翻倍以上
+        Assert.Null(s_compiler.CandidateToCss(Repeat("not-group-has-hover:", 14) + "flex"));
+        Assert.Null(s_compiler.CandidateToCss(Repeat("not-group-has-hover:", 32) + "flex"));
+        Assert.Null(s_compiler.CandidateToCss(Repeat("[&_&]:", 32) + "flex"));
+        // 样式表里定义的变体本身无害，但候选可以任意叠加它
+        var custom = TailwindCompiler.Create("@import \"tailwindcss\";\n@custom-variant x (&:hover, &:focus, &:active, &:visited);\n@custom-variant y { &:hover { @slot; } &:focus { @slot; } &:active { @slot; } }");
+        Assert.Null(custom.CandidateToCss(Repeat("x:", 30) + "flex"));
+        Assert.Null(custom.CandidateToCss(Repeat("y:", 30) + "flex"));
+        Assert.False(custom.IsValidCandidate(Repeat("y:", 30) + "flex"));
+        Assert.True(custom.AddCandidates(new[] { Repeat("x:", 30) + "flex" }).IsEmpty);
+        Assert.True(ThreadCpuClock.NowMs() - start < 30_000);
+        // 正常的多层变体不受影响
+        Assert.NotNull(s_compiler.CandidateToCss(Repeat("[&_a,&_b]:", 3) + "hover:flex"));
+        Assert.NotNull(s_compiler.CandidateToCss(Repeat("hover:", 32) + "flex"));
+        Assert.NotNull(custom.CandidateToCss(Repeat("x:", 3) + "flex"));
+        // 带大量嵌套规则的自定义工具（类似 typography 的 prose）叠加变体后仍然有效
+        var prose = new StringBuilder("@import \"tailwindcss\";\n@utility prose {");
+        for (int i = 0; i < 150; i++) prose.Append(" & :where(.p").Append(i).Append("):not(:where([class~=\"not-prose\"], [class~=\"not-prose\"] *)) { margin-top: ").Append(i).Append("px; }");
+        prose.Append(" }");
+        var typography = TailwindCompiler.Create(prose.ToString());
+        Assert.NotNull(typography.CandidateToCss("dark:md:hover:prose"));
+        Assert.NotNull(typography.CandidateToCss("[&_a,&_b]:group-hover:not-first:prose"));
+    }
+
+    [Fact]
     public void Deep_arbitrary_values_are_bounded()
     {
         Assert.Null(s_compiler.CandidateToCss("w-[" + new string('(', 400) + "1px" + new string(')', 400) + "]"));
@@ -172,6 +253,44 @@ public class HostileInputTests
         Assert.Throws<TailwindException>(() => TailwindCompiler.Create("@import \"loop.css\";", new TailwindOptions { Resolver = resolver }));
         Assert.Throws<TailwindException>(() => TailwindCompiler.Create("@source inline(\"p-{0..100000}\");"));
         Assert.Throws<TailwindException>(() => TailwindCompiler.Create("@source inline(\"{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}\");"));
+    }
+
+    [Fact]
+    public void Stylesheet_fan_out_is_bounded()
+    {
+        double start = ThreadCpuClock.NowMs();
+        // 每个 @utility 把上一个 @apply 两次：第 n 个展开为 2^n 条规则
+        var apply = new StringBuilder("@import \"tailwindcss\";\n@utility u0 { color: red; }\n");
+        for (int i = 1; i < 40; i++) apply.Append("@utility u").Append(i).Append(" { @apply u").Append(i - 1).Append("; &:hover { @apply u").Append(i - 1).Append("; } }\n");
+        var ex = Assert.Throws<TailwindException>(() => TailwindCompiler.Create(apply.ToString()));
+        Assert.Contains("@apply", ex.Message);
+        // 每个 @custom-variant 嵌套两次上一个：第 n 个的主体为 2^n 层
+        var variants = new StringBuilder("@import \"tailwindcss\";\n@custom-variant v0 { &:hover, &:focus { @slot; } }\n");
+        for (int i = 1; i < 40; i++) variants.Append("@custom-variant v").Append(i).Append(" { @variant v").Append(i - 1).Append(" { @variant v").Append(i - 1).Append(" { @slot; } } }\n");
+        var compiler = TailwindCompiler.Create(variants.ToString());
+        Assert.Throws<TailwindException>(() => compiler.CandidateToCss("v39:flex"));
+        Assert.NotNull(compiler.CandidateToCss("v2:flex"));
+        // @import 扇出：每个文件导入两个新文件
+        Assert.Throws<TailwindException>(() => TailwindCompiler.Create("@import \"f\";", new TailwindOptions { Resolver = new FanResolver() }));
+        Assert.True(ThreadCpuClock.NowMs() - start < 30_000);
+    }
+
+    [Fact]
+    public void Circular_theme_function_references_are_rejected()
+    {
+        double start = ThreadCpuClock.NowMs();
+        // Tailwind v4.3.5 在这里死循环：展开结果会被再次展开
+        var ex = Assert.Throws<TailwindException>(() => TailwindCompiler.Create("@import \"tailwindcss\";\n@theme { --spacing-a: theme(--spacing-b); --spacing-b: theme(--spacing-a); }\n.x { width: theme(--spacing-a); }"));
+        Assert.Contains("theme(", ex.Message);
+        // 非循环的多层引用照常展开
+        var ok = TailwindCompiler.Create("@import \"tailwindcss\";\n@theme { --spacing-a: theme(--spacing-b); --spacing-b: 3px; }\n.x { width: theme(--spacing-a); }");
+        Assert.Contains("width: 3px", ok.Build(Array.Empty<string>()));
+        Assert.True(ThreadCpuClock.NowMs() - start < 30_000);
+    }
+
+    sealed class FanResolver : StylesheetResolver
+    {
+        public override ResolvedStylesheet? Resolve(string id, string? baseDirectory) => new(id.Length < 24 ? $"@import \"{id}a\";\n@import \"{id}b\";" : ".z { color: red; }");
     }
 
     sealed class LoopResolver : StylesheetResolver

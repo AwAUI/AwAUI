@@ -43,7 +43,7 @@ sealed class TextInputFixture
             },
             new Button { Id = "other", Children = { "x" } },
         },
-    }, css);
+    }, css ?? "input { field-sizing: content; }"); // 第九批：输入框默认 field-sizing: fixed，这组测试沿用随文字变宽的框
 
     public HeadlessTextInput Ime => Window.HeadlessTextInput;
 

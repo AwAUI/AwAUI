@@ -78,7 +78,7 @@ public class GeneratorDiagnosticsTests
         var r = Run("""
             <div>
               <dvi>x</dvi>
-              <textarea />
+              <canvas />
               <input maxlength="3" />
               <span @ondblclick="Go">y</span>
             </div>
@@ -89,7 +89,7 @@ public class GeneratorDiagnosticsTests
         AssertAt(d, 2, 4);
         var unsupported = r.AllDiagnostics.Where(x => x.Id == "AW4012").OrderBy(x => x.Location.GetMappedLineSpan().StartLinePosition.Line).ToList();
         Assert.Equal(3, unsupported.Count);
-        AssertAt(unsupported[0], 3, 4);   // <textarea>：运行时没有该元素 → 错误，不生成代码
+        AssertAt(unsupported[0], 3, 4);   // <canvas>：运行时没有该元素 → 错误，不生成代码
         Assert.Equal(RoslynSeverity.Error, unsupported[0].Severity);
         AssertAt(unsupported[1], 4, 10);  // maxlength：行为未实现 → 警告，透传为自定义属性
         Assert.Equal(RoslynSeverity.Warning, unsupported[1].Severity);

@@ -1,0 +1,22 @@
+/* Tailwind 入口样式表（<AwAUITailwindStylesheet Include="Tailwind/app.css" />）：只扫描本目录，项目里其余组件的类名不受影响 */
+@import "tailwindcss" source(none);
+@source "./";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --primary: #3366ff;
+  --primary-foreground: #fafafa;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --primary: #e5e5e5;
+  --primary-foreground: #171717;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --radius-md: calc(var(--radius) - 2px);
+}

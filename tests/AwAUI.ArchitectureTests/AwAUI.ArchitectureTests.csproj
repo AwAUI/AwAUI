@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
     <ProjectReference Include="../../src/AwAUI.Svg/AwAUI.Svg.csproj" />
     <ProjectReference Include="../../src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
     <ProjectReference Include="../../src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
     <ProjectReference Include="../../src/Markup/AwAUI.Markup.Compiler/AwAUI.Markup.Compiler.csproj" />
   </ItemGroup>

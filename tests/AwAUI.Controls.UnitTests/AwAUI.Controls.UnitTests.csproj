@@ -2,6 +2,10 @@
   <Import Project="$(RepoRoot)build/Tests.props" />
   <ItemGroup>
     <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <!-- UI 接入的无头端到端测试：软件后端光栅化与 PNG 截图（测试不受依赖规则约束）；测试组件的 Props 胶水由源生成器生成 -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <!-- 复杂度测试用线程 CPU 时间代替墙钟（机器负载高时更稳定） -->

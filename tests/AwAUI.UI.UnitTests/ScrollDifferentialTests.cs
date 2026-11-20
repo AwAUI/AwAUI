@@ -23,6 +23,10 @@ public partial class ScrollDifferentialTests
         .relabs { position: absolute; left: 40px; top: 6px; width: 30px; height: 10px; background-color: #0ea5e9; }
         .fix { position: fixed; left: 2px; bottom: 2px; width: 14px; height: 14px; background-color: #dc2626; }
         .tall { height: 140px; background-color: #fef9c3; }
+        .row.xf { transform: rotate(-4deg) translateX(9px) scale(0.9); background-color: #c7d2fe; }
+        .row.flt { filter: drop-shadow(2px 3px 1px #1e293b) hue-rotate(90deg); }
+        .row.glass { position: relative; z-index: 1; margin-top: -10px; backdrop-filter: blur(2px) grayscale(1); background-color: rgba(255, 255, 255, 0.3); }
+        .row.cp { clip-path: inset(3px 10px round 6px); background-color: #fda4af; }
         """;
 
     sealed partial class Scene : Component
@@ -58,7 +62,14 @@ public partial class ScrollDifferentialTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Random_scrolling_matches_a_full_non_incremental_render(int seed, double scale)
+    public void Random_scrolling_matches_a_full_non_incremental_render(int seed, double scale) => Run(seed, scale, effects: false);
+
+    /// <summary>第九批：行可以带变换、滤镜、背景滤镜与 clip-path（在滚动容器内、随滚动平移）。</summary>
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Random_scrolling_with_effects_matches_a_full_non_incremental_render(int seed, double scale) => Run(seed + 1000, scale, effects: true);
+
+    static void Run(int seed, double scale, bool effects)
     {
         var rnd = new Random(seed);
         Scene Make()
@@ -120,7 +131,10 @@ public partial class ScrollDifferentialTests
                     var list = rnd.Next(3) == 0 ? (sa.InnerRows, sb.InnerRows) : (sa.Rows, sb.Rows);
                     if (list.Item1.Count == 0) break;
                     int k = rnd.Next(list.Item1.Count);
-                    string cls = rnd.Next(3) switch { 0 => "row", 1 => "row big", _ => "row wide" };
+                    string cls = rnd.Next(effects ? 7 : 3) switch
+                    {
+                        0 => "row", 1 => "row big", 2 => "row wide", 3 => "row xf", 4 => "row flt", 5 => "row glass", _ => "row cp",
+                    };
                     log.Add($"class {list.Item1[k].Id} = {cls}");
                     list.Item1[k] = (list.Item1[k].Id, cls);
                     list.Item2[k] = (list.Item2[k].Id, cls);

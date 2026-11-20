@@ -129,8 +129,9 @@ public class PropertyManifestTests
     [Fact]
     public void Planned_and_unsupported_lookup()
     {
-        Assert.True(CssProperties.TryGetPlannedPhase("transform", out var phase));
+        Assert.True(CssProperties.TryGetPlannedPhase("background-size", out var phase));
         Assert.Equal(2, phase);
+        Assert.False(CssProperties.TryGetPlannedPhase("transform", out _));
         Assert.True(CssProperties.TryGetUnsupportedHint("float", out var hint));
         Assert.Contains("flex", hint);
         Assert.False(CssProperties.TryGetPlannedPhase("color", out _));

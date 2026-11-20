@@ -30,7 +30,8 @@ public class DrawImageTests
         Assert.Equal(1, (int)ImageSampling.Linear);
         // int + 2 × Rect + float + 采样方式（1 字节）+ 3 字节填充
         Assert.Equal(44, Unsafe.SizeOf<DrawImageCmd>());
-        Assert.Equal(1, DisplayList.FormatVersion);
+        // DrawImage 没有改变格式版本；第九批的滤镜图层与 DrawBackdrop 把它升为 2
+        Assert.Equal(2, DisplayList.FormatVersion);
     }
 
     [Fact]

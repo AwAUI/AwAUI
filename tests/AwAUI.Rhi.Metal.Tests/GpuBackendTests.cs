@@ -50,7 +50,9 @@ public class GpuBackendTests
         var list = dc.Finish();
         lock (MetalTestSupport.Lock)
         {
-            using var target = (GpuRenderTarget)MetalTestSupport.Backend.CreateOffscreenTarget(new PixelSize(360, 220), 1);
+            // 图集跨用例复用时，字形和路径所在的页取决于用例顺序，同一场景的批次数会变。
+            using var backend = new GpuRenderBackend(MetalTestSupport.Backend.Device, ownsDevice: false);
+            using var target = (GpuRenderTarget)backend.CreateOffscreenTarget(new PixelSize(360, 220), 1);
             target.Render(list, new RenderOptions(Color.White));
             target.Render(list, new RenderOptions(Color.White));
             target.WaitForGpu();

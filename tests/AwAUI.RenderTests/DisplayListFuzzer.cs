@@ -103,6 +103,26 @@ public sealed class DisplayListFuzzer
         _ => Matrix3x2.CreateTranslation(F(50), F(50)),
     };
 
+    /// <summary>随机的滤镜链：极端的标准差、偏移与系数，偶尔很长。</summary>
+    public Filter Filter()
+    {
+        int n = _rng.Next(8) == 0 ? 40 + _rng.Next(60) : 1 + _rng.Next(3);
+        var ops = new FilterOperation[n];
+        for (int i = 0; i < n; i++)
+        {
+            ops[i] = _rng.Next(6) switch
+            {
+                0 => FilterOperation.Blur(_rng.Next(5) == 0 ? F(1e6f) : (float)_rng.NextDouble() * 20),
+                1 => FilterOperation.Blur(F(30), F(30)),
+                2 => FilterOperation.DropShadow(F(40), F(40), _rng.Next(5) == 0 ? F(1e5f) : (float)_rng.NextDouble() * 8, Color()),
+                3 => FilterOperation.HueRotate(F(1000)),
+                4 => FilterOperation.ColorMatrix(Enumerable.Range(0, 20).Select(_ => F(3)).ToArray()),
+                _ => FilterOperation.Saturate(F(10)),
+            };
+        }
+        return new Filter(ops);
+    }
+
     public DisplayList Build(int commands, int depth = 0)
     {
         var dc = new DrawingContext();
@@ -110,8 +130,16 @@ public sealed class DisplayListFuzzer
         var opened = new Stack<bool>();   // true = layer
         for (int i = 0; i < commands; i++)
         {
-            switch (_rng.Next(22))
+            switch (_rng.Next(24))
             {
+                case 22:
+                    // 第九批：滤镜图层（含极端 σ、偏移与超长的链）
+                    dc.PushLayer(new LayerOptions(F(1.5f), (BlendMode)_rng.Next(21), _rng.Next(3) == 0 ? null : Rect(), Filter()));
+                    opened.Push(true);
+                    break;
+                case 23:
+                    dc.DrawBackdrop(RoundRect(), Filter(), F(1.5f));
+                    break;
                 case 0: dc.Save(); opened.Push(false); open++; break;
                 case 1: if (opened.Count > 0) { if (opened.Pop()) dc.PopLayer(); else dc.Restore(); } break;
                 case 2: dc.Transform(Matrix()); break;

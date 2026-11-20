@@ -30,6 +30,8 @@ public class DependencyRulesTests
         ["AwAUI.Svg"] = new[] { "AwAUI.Foundation", "AwAUI.Graphics" },
         // design/23 第 3 层（D41）：Tailwind 工具类引擎只输出 CSS 文本，不引用任何 AwAUI 程序集，可被 Roslyn 源生成器（netstandard2.0）引用
         ["AwAUI.Tailwind"] = Array.Empty<string>(),
+        // 组件库（design/23，D38）：原语与基础控件只建立在 UI 及其公开的下层之上；不引用 Diagnostics / Imaging / Svg / Render
+        ["AwAUI.Controls"] = new[] { "AwAUI.Foundation", "AwAUI.Graphics", "AwAUI.Platform", "AwAUI.Css", "AwAUI.Layout", "AwAUI.Text", "AwAUI.UI" },
         // design/15：RHI 抽象与 GPU 后端在 AwAUI.Render（Rhi/、Gpu/），各图形 API 的实现是 src/Rhi 下的独立程序集
         ["AwAUI.Rhi.Metal"] = new[] { "AwAUI.Foundation", "AwAUI.Graphics", "AwAUI.Render" },
     };

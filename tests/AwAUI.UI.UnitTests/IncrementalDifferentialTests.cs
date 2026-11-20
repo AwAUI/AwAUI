@@ -33,9 +33,27 @@ public class IncrementalDifferentialTests
         .u { margin-top: -6px; }
         .v { margin-top: 150px; }
         :hover > .hv, .hv:hover { background-color: #ffee00; }
+        .xr { transform: rotate(12deg) scale(0.9); }
+        .xt { translate: 6px -3px; scale: 1.2; }
+        .fb { filter: blur(1.5px); }
+        .fd { filter: drop-shadow(3px 2px 2px #000000) grayscale(0.7); }
+        .bd { backdrop-filter: blur(2px) invert(1); }
+        .cc { clip-path: circle(45%); }
+        .mb { mix-blend-mode: multiply; background-color: #66ccff; }
+        .gb::before { content: 'ab'; color: #cc00cc; }
+        .ga { position: relative; }
+        .ga::after { content: ''; position: absolute; left: 2px; top: 2px; width: 6px; height: 6px; background-color: #00cc88; }
+        .ud { text-decoration: underline wavy #aa0000; text-shadow: 1px 1px 0 #00aa00; }
+        .ls { letter-spacing: 2px; text-indent: 5px; }
         """;
 
     static readonly string[] Classes = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "p", "q", "r", "s", "t", "u", "v", "k", "c", "hv"];
+
+    /// <summary>第九批：变换、滤镜、背景滤镜、clip-path 与混合模式（只在带效果的变体中使用，原有种子的随机序列不变）。</summary>
+    static readonly string[] EffectClasses = [.. Classes, "xr", "xt", "fb", "fd", "bd", "cc", "mb", "xr", "fb"];
+
+    /// <summary>第九批：伪元素（::before 文字、绝对定位的 ::after 盒）、文本装饰与阴影、字距与缩进。</summary>
+    static readonly string[] ContentClasses = [.. Classes, "gb", "ga", "ud", "ls", "gb", "ga"];
 
     const string TintedSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' width='12' height='12'><circle cx='5' cy='5' r='4' fill='currentColor'/></svg>";
 
@@ -56,8 +74,11 @@ public class IncrementalDifferentialTests
         public readonly Random Rng;
         public readonly SvgDocument Svg = SvgDocument.Parse(TintedSvg);
 
-        public Model(int seed)
+        readonly string[] _classes;
+
+        public Model(int seed, bool effects = false, bool content = false)
         {
+            _classes = content ? ContentClasses : effects ? EffectClasses : Classes;
             Rng = new Random(seed);
             for (int i = 0; i < 14; i++) AddRandom();
         }
@@ -87,7 +108,7 @@ public class IncrementalDifferentialTests
             var parent = RandomContainer();
             int kind = Rng.Next(12) switch { < 7 => 0, < 10 => 1, 10 => 2, _ => 3 };
             var s = new Spec { Id = NextId++, Kind = kind, Text = RandomText() };
-            if (Rng.Next(3) == 0) s.Classes.Add(Classes[Rng.Next(Classes.Length)]);
+            if (Rng.Next(3) == 0) s.Classes.Add(_classes[Rng.Next(_classes.Length)]);
             s.Style = RandomStyle();
             parent.Children.Insert(Rng.Next(parent.Children.Count + 1), s);
         }
@@ -140,7 +161,7 @@ public class IncrementalDifferentialTests
                 case 1:
                 case 2:
                 {
-                    var c = Classes[Rng.Next(Classes.Length)];
+                    var c = _classes[Rng.Next(_classes.Length)];
                     if (!target.Classes.Remove(c)) target.Classes.Add(c);
                     return "toggle ." + c + " on n" + target.Id;
                 }
@@ -228,10 +249,33 @@ public class IncrementalDifferentialTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Random_mutations_match_full_repaint(int seed, float scale)
+    public void Random_mutations_match_full_repaint(int seed, float scale) => Run(seed, scale, effects: false);
+
+    /// <summary>第九批：随机树中的元素还会切换变换、滤镜、背景滤镜、clip-path 与混合模式。</summary>
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Random_mutations_with_effects_match_full_repaint(int seed, float scale) => Run(seed + 5000, scale, effects: true);
+
+    public static IEnumerable<object[]> ContentSeeds()
+    {
+        bool hasRegression = false;
+        foreach (var seed in Seeds())
+        {
+            hasRegression |= (int)seed[0] == 101;
+            yield return seed;
+        }
+        if (!hasRegression) yield return [101, 2f];
+    }
+
+    /// <summary>第九批：随机树中的元素还会切换伪元素、文本装饰、阴影与缩进。</summary>
+    [Theory]
+    [MemberData(nameof(ContentSeeds))]
+    public void Random_mutations_with_generated_content_match_full_repaint(int seed, float scale) => Run(seed + 9000, scale, effects: false, content: true);
+
+    static void Run(int seed, float scale, bool effects, bool content = false)
     {
         const float W = 220, H = 180;
-        var model = new Model(seed);
+        var model = new Model(seed, effects, content);
         var version = new State<int>(0);
         var refVersion = new State<int>(0);
         var h = new PipelineHarness(new Lambda { Render = () => { _ = version.Value; return model.Build(model.Root); } }, Css, W, H, scale);

@@ -4,7 +4,7 @@ using AwAUI.UI;
 namespace AwAUI.Controls.UnitTests.State;
 
 /// <summary>受控 / 非受控状态与组件模型的集成：在真实的 <see cref="UIRoot"/> 中挂载组件、触发重建。</summary>
-public class ControllableStateTests
+public partial class ControllableStateTests
 {
     sealed class Disclosure : Component
     {
@@ -41,7 +41,7 @@ public class ControllableStateTests
     }
 
     /// <summary>父组件：<see cref="Controlled"/> 为 true 时把自己的 State 作为受控值传下去。</summary>
-    sealed class Host : Component
+    sealed partial class Host : Component
     {
         public readonly State<bool> ParentOpen = new(false);
         public readonly State<bool> Controlled = new(true);

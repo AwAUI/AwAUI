@@ -60,7 +60,7 @@ public class ColorTests
     [InlineData("hsl(10 50% 50% 0.5)")]
     [InlineData("notacolor")]
     [InlineData("rgb()")]
-    [InlineData("lab(50 0 0)")]
+    [InlineData("lab(50, 0, 0)")]
     [InlineData("1px")]
     public void Invalid_colors(string text) => Assert.False(CssColorParser.TryParse(text, out _), text);
 

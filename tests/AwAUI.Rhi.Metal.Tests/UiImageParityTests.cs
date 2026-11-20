@@ -12,8 +12,8 @@ namespace AwAUI.Rhi.Metal.Tests;
 /// UI 的图片元素经两个后端画出的结果一致（第七批只在 scratchpad 的一次性程序里做过）：object-fit 的各种取值与 object-position、
 /// 最近邻与双线性采样（含大比例缩小的 mip）、圆角裁剪、透明度（图层）、作为图片的 SVG、内联 SVG 图标（currentColor），
 /// 以及加载失败的占位（图标 + 替代文本）。UI 的帧（DisplayList）由软件后端与 Metal 各渲染一次，容差与
-/// <see cref="GpuParityTests"/> 的默认容差相同。没有 Metal 设备时跳过。UI 尚不支持 CSS <c>transform</c>，旋转与缩放后的图片采样由
-/// GpuParityTests 的 image-transforms 场景（DisplayList 层面）覆盖。
+/// <see cref="GpuParityTests"/> 的默认容差相同。没有 Metal 设备时跳过。旋转与缩放后的图片采样由
+/// GpuParityTests 的 image-transforms 场景（DisplayList 层面）覆盖；UI 层的 CSS 变换、滤镜与背景滤镜见 <see cref="UiEffectsParityTests"/>。
 /// </summary>
 public class UiImageParityTests
 {

@@ -191,7 +191,9 @@ public class CodeGenTests
         Assert.Contains(".Attributes[\"title\"] = \"t\";", cs);
         Assert.Contains(".Attributes[\"hidden\"] = (h) ? \"\" : null;", cs);
         Assert.Contains(".Attributes[\"dir\"] = \"rtl\";", cs);
-        Assert.Contains(".Attributes.AddRange(extra);", cs);
+        const string splat = ".MergeAttributes(((extra))!);";
+        Assert.Contains(splat, cs);
+        Assert.True(cs.IndexOf(splat, StringComparison.Ordinal) > cs.IndexOf(".Attributes[\"dir\"]", StringComparison.Ordinal));
         Assert.Contains(".Ref = box;", cs);
         Assert.Contains(".Key = k;", cs);
         Assert.Contains("new global::AwAUI.UI.Image();", cs);
@@ -221,22 +223,21 @@ public class CodeGenTests
     {
         var c = MarkupCompiler.Compile("""
             <div>
-                <textarea @bind="text"><span>inner</span></textarea>
-                <canvas width="10" />
+                <textarea @bind="text" />
+                <canvas width="10"><span>inner</span></canvas>
                 <path d="M0 0" />
                 <div @onpinch="W" @ondblclick="D" @onclick="C" />
                 <span @onchange="X" />
             </div>
             """, "U.awaui", new CSharpEmitOptions { EmitLineDirectives = false });
         var errors = c.Diagnostics.Where(d => d.Code == DiagnosticCodes.NotSupportedByRuntime && d.IsError).Select(d => d.Message).ToList();
-        Assert.Equal(6, errors.Count);
-        Assert.Contains(errors, m => m.Contains("<textarea>"));
+        Assert.Equal(5, errors.Count);
         Assert.Contains(errors, m => m.Contains("<canvas>"));
         Assert.Contains(errors, m => m.Contains("<path>"));   // path 只能用在内联 <svg> 中
         Assert.Contains(errors, m => m.Contains("@onpinch"));
         Assert.Contains(errors, m => m.Contains("@ondblclick"));
         Assert.Contains(errors, m => m.Contains("@onchange")); // change 只在 input 上存在
-        Assert.DoesNotContain("TextArea", c.GeneratedCode);
+        Assert.Contains("new global::AwAUI.UI.TextArea()", c.GeneratedCode);
         Assert.DoesNotContain("inner", c.GeneratedCode);       // 跳过整个子树
         Assert.DoesNotContain("Path", c.GeneratedCode);
         Assert.Contains(".OnClick = ", c.GeneratedCode);

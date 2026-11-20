@@ -19,12 +19,22 @@ public class ClipIndependenceTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Partial_raster_matches_full_raster_inside_the_damage_rect(int seed)
+    public void Partial_raster_matches_full_raster_inside_the_damage_rect(int seed) => Run(seed, effects: false);
+
+    /// <summary>
+    /// 第九批：场景中还有滤镜图层（模糊含降采样路径、投影、颜色矩阵，以及它们的链）。滤镜图层的内容不受裁剪限制地绘制，
+    /// 所以局部光栅化与整帧光栅化同样逐字节相同。（背景滤镜读取裁剪区之外的已绘制像素，按设计只在损伤包含其读取范围时成立，不在此测试。）
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Partial_raster_with_filter_layers_matches_full_raster(int seed) => Run(seed + 100_000, effects: true);
+
+    static void Run(int seed, bool effects)
     {
         var rng = new Random(seed * 7919 + 17);
         double scale = new[] { 1.0, 1.5, 2.0, 1.25 }[seed % 4];
         int w = 220, h = 160;
-        var list = new SceneGenerator(rng).Build(18 + rng.Next(14));
+        var list = new SceneGenerator(rng, effects).Build(18 + rng.Next(14));
         var size = new PixelSize((int)Math.Ceiling(w * scale), (int)Math.Ceiling(h * scale));
 
         using var backend = new SoftwareRenderBackend();
@@ -104,9 +114,35 @@ public class ClipIndependenceTests
     internal sealed class SceneGenerator
     {
         readonly Random _rng;
+        readonly bool _effects;
         static readonly Lazy<Bitmap> s_image = new(() => TestImages.Checker(23, 17));
 
-        public SceneGenerator(Random rng) => _rng = rng;
+        public SceneGenerator(Random rng, bool effects = false)
+        {
+            _rng = rng;
+            _effects = effects;
+        }
+
+        /// <summary>随机的滤镜链（1–3 个操作）。</summary>
+        Filter RandomFilter()
+        {
+            var ops = new List<FilterOperation>();
+            int n = 1 + _rng.Next(3);
+            for (int i = 0; i < n; i++)
+            {
+                ops.Add(_rng.Next(7) switch
+                {
+                    0 => FilterOperation.Blur(R(3)),
+                    1 => FilterOperation.Blur(4 + R(14)),
+                    2 => FilterOperation.DropShadow(R(10) - 5, R(10) - 5, R(6), Col()),
+                    3 => FilterOperation.Grayscale(R(1)),
+                    4 => FilterOperation.HueRotate(R(360)),
+                    5 => FilterOperation.Contrast(R(2)),
+                    _ => FilterOperation.Blur(R(6), R(2)),
+                });
+            }
+            return new Filter(ops);
+        }
 
         float R(float max) => (float)_rng.NextDouble() * max;
         Color Col() => new(R(1), R(1), R(1), 0.3f + R(0.7f));
@@ -157,8 +193,13 @@ public class ClipIndependenceTests
             var open = new Stack<bool>();
             for (int i = 0; i < commands; i++)
             {
-                switch (_rng.Next(19))
+                switch (_rng.Next(_effects ? 21 : 19))
                 {
+                    case 19:
+                    case 20:
+                        dc.PushLayer(new LayerOptions(_rng.Next(2) == 0 ? 1 : 0.3f + R(0.7f), BlendMode.SrcOver, _rng.Next(4) == 0 ? null : Rc(), RandomFilter()));
+                        open.Push(true);
+                        break;
                     case 0: dc.Save(); open.Push(false); break;
                     case 1:
                         if (open.Count > 0) { if (open.Pop()) dc.PopLayer(); else dc.Restore(); }
