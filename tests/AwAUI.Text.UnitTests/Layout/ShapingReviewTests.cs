@@ -24,7 +24,7 @@ public class ShapingReviewLayoutTests
     {
         // 词中间换颜色（例如高亮一个字母）：两段分别整形，但连写必须看到相邻的字符（与浏览器相同）
         var engine = CreateEngine();
-        var p = new ParagraphStyle { TextStyle = new TextStyle { FontSize = 1000 }, Direction = BidiDirection.RightToLeft };
+        var p = new ParagraphStyle { TextStyle = new TextStyle { FontSize = 1000 }, Direction = ParagraphDirection.RightToLeft };
         var whole = DrawnGlyphs(engine.CreateLayout("ببب", p));
         var b = engine.CreateParagraphBuilder(p);
         b.AddText("ب");
@@ -44,7 +44,7 @@ public class ShapingReviewLayoutTests
     {
         // 整形文本把控制符（含换行）换成 ZWSP，而 ZWSP 的 Joining_Type 是 T（透明）：上下文不能越过它们连写到下一行
         var engine = CreateEngine();
-        var p = new ParagraphStyle { TextStyle = new TextStyle { FontSize = 1000 }, Direction = BidiDirection.RightToLeft };
+        var p = new ParagraphStyle { TextStyle = new TextStyle { FontSize = 1000 }, Direction = ParagraphDirection.RightToLeft };
         var single = DrawnGlyphs(engine.CreateLayout("ب", p));
         foreach (var text in new[] { "ب\nب", "ب\u2028ب", "ب\rب", "ب\r\nب", "ب\u2029ب", "ب\u0085ب" })
         {

@@ -86,18 +86,19 @@ public sealed partial class TextLayout
     /// 下划线与上划线在文字之前、删除线在文字之后以矩形绘制（位置与粗细取自字体的 post / OS/2 度量）。
     /// 字形串在第一次绘制时创建并缓存到下一次 <see cref="Layout"/>。占位盒不绘制（由调用方在 <see cref="GetPlaceholderRect"/> 处绘制）。
     /// </summary>
-    public void Paint(DrawingContext dc, Point origin)
+    /// <param name="colorOverride">Replaces the glyph colour of every run (selection text colour); decorations keep theirs.</param>
+    public void Paint(DrawingContext dc, Point origin, Paint? colorOverride = null)
     {
         if (dc is null) throw new ArgumentNullException(nameof(dc));
         EnsureLayout();
         var data = _paintData ??= BuildPaintData();
         foreach (var sh in data.Shadows)
         {
-            if (sh.IsRun) dc.DrawGlyphRun(sh.Run.Run, new Point(origin.X + sh.Run.X, origin.Y + sh.Run.Y), sh.Run.Paint);
+            if (sh.IsRun) dc.DrawGlyphRun(sh.Run.Run, new Point(origin.X + sh.Run.X, origin.Y + sh.Run.Y), colorOverride ?? sh.Run.Paint);
             else DrawDecoration(dc, origin, sh.Decoration);
         }
         foreach (var d in data.Under) DrawDecoration(dc, origin, d);
-        foreach (var r in data.Runs) dc.DrawGlyphRun(r.Run, new Point(origin.X + r.X, origin.Y + r.Y), r.Paint);
+        foreach (var r in data.Runs) dc.DrawGlyphRun(r.Run, new Point(origin.X + r.X, origin.Y + r.Y), colorOverride ?? r.Paint);
         foreach (var d in data.Through) DrawDecoration(dc, origin, d);
     }
 

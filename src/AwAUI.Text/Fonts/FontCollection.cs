@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using AwAUI.Graphics.Text;
 using AwAUI.Text.OpenType;
 using AwAUI.Unicode;
@@ -35,8 +36,59 @@ public sealed class FontCollection : FontManager
     readonly HashSet<string> _familySet = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<string, List<Entry>> _byFamily = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<string, string[]> _generic = new(StringComparer.OrdinalIgnoreCase);
-    readonly Dictionary<(int, int, FontStyle, FontStretch, string), FontFace?> _fallbackCache = new();
+    readonly Dictionary<(int, int, FontStyle, FontStretch, string, string), FontFace?> _fallbackCache = new();
     const int MaxFallbackCache = 4096;
+    // 系统字体：族名 → 字型（首次解析后缓存）；文件路径 → 文件中的全部字型。
+    // 全量索引只记录（文件、面）位置——族名从 name 表读取，字型在命中族名后才加载，
+    // 否则 Windows 的 Fonts 目录（约 470 MB）会整个进入进程内存。
+    readonly Dictionary<string, Entry[]?> _systemFamilies = new(StringComparer.OrdinalIgnoreCase);
+    readonly Dictionary<string, FontFace[]> _systemFaces = new(StringComparer.Ordinal);
+    readonly Dictionary<string, List<SystemFaceRef>> _systemIndex = new(StringComparer.OrdinalIgnoreCase);
+    SystemFontProvider? _systemFonts;
+    bool _systemIndexBuilt;
+
+    /// <summary>系统字体索引中的一项：某个文件中的某个面。字型按需加载。</summary>
+    readonly struct SystemFaceRef : IEquatable<SystemFaceRef>
+    {
+        public SystemFaceRef(string path, int faceIndex)
+        {
+            Path = path;
+            FaceIndex = faceIndex;
+        }
+
+        public string Path { get; }
+        public int FaceIndex { get; }
+
+        public bool Equals(SystemFaceRef other) =>
+            FaceIndex == other.FaceIndex && string.Equals(Path, other.Path, StringComparison.Ordinal);
+
+        public override bool Equals(object? obj) => obj is SystemFaceRef other && Equals(other);
+
+        public override int GetHashCode() => (StringComparer.Ordinal.GetHashCode(Path) * 397) ^ FaceIndex;
+    }
+
+    /// <summary>
+    /// 系统字体提供者（design/19「字体回退」）：应用注册的字体找不到族名或缺少某个码点时，按语言环境回退到系统字体。
+    /// 为 null（默认）时只使用已注册的字体。设置后清空回退缓存与系统字体索引。
+    /// 平台后端没有系统字体（Web、Headless）时保持 null 或设为 <see cref="SystemFontProvider.Empty"/>。
+    /// </summary>
+    public SystemFontProvider? SystemFonts
+    {
+        get => _systemFonts;
+        set
+        {
+            lock (_lock)
+            {
+                if (ReferenceEquals(_systemFonts, value)) return;
+                _systemFonts = value;
+                _systemFamilies.Clear();
+                _systemFaces.Clear();
+                _systemIndex.Clear();
+                _systemIndexBuilt = false;
+                _fallbackCache.Clear();
+            }
+        }
+    }
 
     public override IReadOnlyList<string> FamilyNames
     {
@@ -52,6 +104,15 @@ public sealed class FontCollection : FontManager
         get
         {
             lock (_lock) return _entries.Count;
+        }
+    }
+
+    /// <summary>已加载的系统字体文件数（测试用：全量索引不应把整个系统字体目录读进内存）。</summary>
+    internal int LoadedSystemFaceFiles
+    {
+        get
+        {
+            lock (_lock) return _systemFaces.Count;
         }
     }
 
@@ -133,24 +194,35 @@ public sealed class FontCollection : FontManager
         lock (_lock)
         {
             foreach (var family in ExpandFamilies(query.Families))
+            {
                 if (_byFamily.TryGetValue(family, out var list) && list.Count > 0)
                     return SelectBest(list, query)?.Face;
+                // 系统字体：族名（含未映射的通用族名解析出的默认族）按需加载
+                var system = ResolveSystemFamily(family, query);
+                if (system is not null) return system.Face;
+            }
+            // 指定的族名都不存在：退回系统默认族（与浏览器对未知 font-family 的处理一致）
+            if (_systemFonts?.DefaultFamilyName is { } defaultFamily)
+                return ResolveSystemFamily(defaultFamily, query)?.Face;
             return null;
         }
     }
 
     /// <summary>
-    /// 回退顺序：查询中的族名 → 其余已注册的族（按注册顺序）。每个族内只考虑含有该码点的字型，再按 CSS 算法选择风格最接近者。
-    /// P1 不使用 <paramref name="locale"/>（按文字与语言选择默认字体在后续阶段实现）。
+    /// 回退顺序：查询中的族名 → 其余已注册的族（按注册顺序）→ 系统字体（按语言环境与文字选择的回退族名、平台默认族、全量扫描）。
+    /// 每个族内只考虑含有该码点的字型，再按 CSS 算法选择风格最接近者。结果按（码点、语言环境、字重、风格、字宽、族名列表）缓存。
+    /// 没有任何字型能显示该码点时触发 <see cref="FontManager.MissingGlyphs"/>。
     /// </summary>
     public override FontFace? Fallback(int codePoint, in FontQuery baseQuery, string? locale)
     {
+        FontFace? result;
         lock (_lock)
         {
-            var key = (codePoint, baseQuery.Weight.Value, baseQuery.Style, baseQuery.Stretch, string.Join("\u0001", baseQuery.Families));
+            var key = (codePoint, baseQuery.Weight.Value, baseQuery.Style, baseQuery.Stretch,
+                string.Join("\u0001", baseQuery.Families), locale ?? string.Empty);
             if (_fallbackCache.TryGetValue(key, out var cached)) return cached;
 
-            FontFace? result = null;
+            result = null;
             var visited = new HashSet<Entry>();
             var candidates = new List<Entry>();
             foreach (var family in ExpandFamilies(baseQuery.Families))
@@ -165,12 +237,211 @@ public sealed class FontCollection : FontManager
                     result = BestWithGlyph(_byFamily[family], codePoint, baseQuery, candidates, visited);
                     if (result is not null) break;
                 }
+            if (result is null) result = SystemFallback(codePoint, baseQuery, locale, visited, candidates);
 
             if (_fallbackCache.Count >= MaxFallbackCache) _fallbackCache.Clear();
             _fallbackCache[key] = result;
-            return result;
+        }
+        // 缺字：让应用有机会按需下载并注册字体（design/19「Web 平台没有系统字体」）；在锁外通知
+        if (result is null) RaiseMissingGlyph(codePoint, locale);
+        return result;
+    }
+
+    /// <summary>系统字体回退：语言环境 / 文字的回退族名 → 平台默认族 → 全量扫描。</summary>
+    FontFace? SystemFallback(int codePoint, in FontQuery query, string? locale, HashSet<Entry> visited, List<Entry> candidates)
+    {
+        var provider = _systemFonts;
+        if (provider is null || provider.FontFiles.Count == 0) return null;
+        foreach (var family in provider.GetFallbackFamilies(codePoint, locale))
+            if (ResolveSystemFamily(family, query) is { } entry && Covers(entry.Face, codePoint)) return entry.Face;
+        if (provider.DefaultFamilyName is { } defaultFamily && ResolveSystemFamily(defaultFamily, query) is { } fallback
+            && Covers(fallback.Face, codePoint))
+            return fallback.Face;
+
+        // 回退族名都不存在（例如精简的容器镜像）：逐个文件扫描 cmap。
+        // 文件以内存映射打开，只触及 cmap 所在的页；没有命中的文件立即解除映射，
+        // 不会为了报告缺字而把整个字体目录留在内存中。
+        foreach (var path in provider.FontFiles)
+        {
+            bool cached = _systemFaces.TryGetValue(path, out var faces);
+            IDisposable? owner = null;
+            if (!cached) faces = ReadSystemFaces(path, out owner);
+            var entries = new List<Entry>(faces!.Length);
+            foreach (var face in faces) entries.Add(CreateEntry(face, _entries.Count + entries.Count));
+            var hit = entries.Count > 0 ? BestWithGlyph(entries, codePoint, query, candidates, visited) : null;
+            if (hit is null)
+            {
+                owner?.Dispose();
+                continue;
+            }
+            if (!cached) _systemFaces[path] = faces;
+            // 同一个族的其他风格可能在别的文件里（arial.ttf / arialbd.ttf）：按族名解析出风格最接近的字型
+            return ResolveSystemFamily(hit.Descriptor.FamilyName, query) is { } best && Covers(best.Face, codePoint)
+                ? best.Face
+                : hit;
+        }
+        return null;
+
+        static bool Covers(FontFace face, int cp) => face.TryGetGlyph(cp, out _);
+    }
+
+    /// <summary>
+    /// 解析一个族名对应的系统字型：先按文件名猜测（少数文件），再查全量索引。
+    /// 返回风格最接近 <paramref name="query"/> 的字型；没有该族时返回 null。
+    /// </summary>
+    Entry? ResolveSystemFamily(string family, in FontQuery query)
+    {
+        if (_systemFonts is null || string.IsNullOrWhiteSpace(family)) return null;
+        var entries = _systemFamilies.TryGetValue(family, out var cached)
+            ? cached
+            : _systemFamilies[family] = LookupSystemFamily(family);
+        return entries is { Length: > 0 } ? SelectBest(new List<Entry>(entries), query) : null;
+    }
+
+    Entry[]? LookupSystemFamily(string family)
+    {
+        // 通用族名没有映射时使用平台默认族
+        if (!_generic.ContainsKey(family) && IsGenericFamily(family)) family = _systemFonts!.DefaultFamilyName ?? family;
+        var normalized = NormalizeFamily(family);
+        if (normalized.Length == 0) return null;
+
+        // 1. 文件名提示：族名与文件名（去掉风格后缀）互相包含时只加载少数文件
+        if (_systemIndex.Count == 0)
+        {
+            var hints = new List<Entry>();
+            foreach (var path in _systemFonts!.FontFiles)
+            {
+                var file = NormalizeFamily(Path.GetFileNameWithoutExtension(path));
+                if (!IsFileNameHint(file, normalized, family)) continue;
+                foreach (var face in LoadSystemFaces(path))
+                    if (MatchesFamily(face, family)) hints.Add(CreateEntry(face, _entries.Count + hints.Count));
+            }
+            if (hints.Count > 0) return hints.ToArray();
+        }
+
+        // 2. 全量索引（Windows 的系统字体文件名与族名无关，例如 msyh.ttc → Microsoft YaHei）。
+        //    索引只记录位置，命中后再加载该族的字型。
+        BuildSystemIndex();
+        return _systemIndex.TryGetValue(family, out var refs) ? LoadSystemEntries(refs) : null;
+    }
+
+    /// <summary>加载索引中某个族的全部字型（文件按路径缓存，只会加载真正用到的族）。</summary>
+    Entry[]? LoadSystemEntries(List<SystemFaceRef> refs)
+    {
+        var entries = new List<Entry>(refs.Count);
+        foreach (var r in refs)
+        {
+            var faces = LoadSystemFaces(r.Path);
+            if ((uint)r.FaceIndex >= (uint)faces.Length) continue;
+            entries.Add(CreateEntry(faces[r.FaceIndex], _entries.Count + entries.Count));
+        }
+        return entries.Count > 0 ? entries.ToArray() : null;
+    }
+
+    static bool IsFileNameHint(string file, string normalized, string family)
+    {
+        if (file.Length < 4 || normalized.Length < 3) return false;
+        if (file.Contains(normalized, StringComparison.Ordinal) || normalized.Contains(file, StringComparison.Ordinal)) return true;
+        // 常见缩写：msyh.ttc → Microsoft YaHei，simsun.ttf → SimSun，malgun.ttf → Malgun Gothic
+        return s_shortFileNames.TryGetValue(file, out var full)
+            && NormalizeFamily(full).Equals(normalized, StringComparison.Ordinal);
+    }
+
+    static readonly Dictionary<string, string> s_shortFileNames = new(StringComparer.Ordinal)
+    {
+        ["msyh"] = "Microsoft YaHei", ["msyhbd"] = "Microsoft YaHei", ["msyhl"] = "Microsoft YaHei",
+        ["msjh"] = "Microsoft JhengHei", ["msjhbd"] = "Microsoft JhengHei",
+        ["simsun"] = "SimSun", ["simhei"] = "SimHei", ["simkai"] = "KaiTi", ["simfang"] = "FangSong",
+        ["mingliu"] = "MingLiU", ["malgun"] = "Malgun Gothic", ["gulim"] = "Gulim", ["batang"] = "Batang",
+        ["meiryo"] = "Meiryo", ["msgothic"] = "MS Gothic", ["yugoth"] = "Yu Gothic", ["segoeui"] = "Segoe UI",
+        ["pingfang"] = "PingFang SC", ["hiraginosans"] = "Hiragino Sans",
+        ["hiraginosansgb"] = "Hiragino Sans GB", ["applesdgothicneo"] = "Apple SD Gothic Neo",
+        ["applegothic"] = "AppleGothic", ["arialunicode"] = "Arial Unicode MS",
+    };
+
+    void BuildSystemIndex()
+    {
+        if (_systemIndexBuilt || _systemFonts is null) return;
+        _systemIndexBuilt = true;
+        foreach (var path in _systemFonts.FontFiles)
+        {
+            var faces = OpenTypeNameIndex.ReadFamilyNames(path);
+            for (int i = 0; i < faces.Count; i++)
+                foreach (var name in faces[i])
+                {
+                    if (!_systemIndex.TryGetValue(name, out var list)) _systemIndex.Add(name, list = new List<SystemFaceRef>());
+                    list.Add(new SystemFaceRef(path, i));
+                }
         }
     }
+
+    FontFace[] LoadSystemFaces(string path)
+    {
+        if (_systemFaces.TryGetValue(path, out var cached)) return cached;
+        return _systemFaces[path] = ReadSystemFaces(path, out _);
+    }
+
+    /// <summary>
+    /// 读取一个系统字体文件中的全部字型（内存映射，见 <see cref="FontFileData"/>）。
+    /// <paramref name="owner"/> 非 null 时释放它即解除映射；字型被保留时不要释放。无法解析的文件返回空数组。
+    /// </summary>
+    static FontFace[] ReadSystemFaces(string path, out IDisposable? owner)
+    {
+        owner = null;
+        try
+        {
+            var loaded = OpenTypeFace.LoadAll(FontFileData.Open(path, out owner));
+            var faces = new FontFace[loaded.Count];
+            for (int i = 0; i < faces.Length; i++) faces[i] = loaded[i];
+            return faces;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidFontException
+            or NotSupportedException or ArgumentOutOfRangeException)
+        {
+            owner?.Dispose();
+            owner = null;
+            return Array.Empty<FontFace>();
+        }
+    }
+
+    static Entry CreateEntry(FontFace face, int order)
+    {
+        var d = face.Descriptor;
+        var names = new List<string>(2);
+        if (d.FamilyName.Length > 0) names.Add(d.FamilyName);
+        if (face is OpenTypeFace ot && ot.Names.Family is { Length: > 0 } legacy
+            && !names.Exists(n => string.Equals(n, legacy, StringComparison.OrdinalIgnoreCase)))
+            names.Add(legacy);
+        return new Entry(face, d, names.ToArray(), order);
+    }
+
+    static bool MatchesFamily(FontFace face, string family)
+    {
+        if (face.Descriptor.FamilyName.Equals(family, StringComparison.OrdinalIgnoreCase)) return true;
+        return face is OpenTypeFace ot && ot.Names.Family is { Length: > 0 } legacy
+            && legacy.Equals(family, StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsGenericFamily(string name) => name.Equals("sans-serif", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("system-ui", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("ui-sans-serif", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("serif", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("ui-serif", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("monospace", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("ui-monospace", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("cursive", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("fantasy", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>族名 / 文件名归一化：只保留字母与数字并转小写，忽略空格、连字符与风格后缀。</summary>
+    static string NormalizeFamily(string name)
+    {
+        var buffer = new char[name.Length];
+        int n = 0;
+        foreach (var c in name)
+            if (char.IsLetterOrDigit(c)) buffer[n++] = char.ToLowerInvariant(c);
+        return new string(buffer, 0, n);
+    }
+
 
     static FontFace? BestWithGlyph(List<Entry> family, int codePoint, in FontQuery query, List<Entry> scratch, HashSet<Entry> visited)
     {

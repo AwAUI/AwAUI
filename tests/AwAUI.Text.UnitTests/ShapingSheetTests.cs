@@ -19,7 +19,7 @@ public class ShapingSheetTests
     const string HiraginoGb = "/System/Library/Fonts/Hiragino Sans GB.ttc";
 
     static TextLayout Layout(FontFace face, string text, float size, TextShaper? shaper = null, IReadOnlyList<FontFeature>? features = null,
-        BidiDirection dir = BidiDirection.Auto, string? locale = null)
+        ParagraphDirection dir = ParagraphDirection.Auto, string? locale = null)
     {
         var fonts = new FontCollection();
         fonts.Register(face);

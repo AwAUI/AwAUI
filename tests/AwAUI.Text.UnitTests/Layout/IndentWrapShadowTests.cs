@@ -39,7 +39,7 @@ public class IndentWrapShadowTests
         var pct = Lay("ab", With(P(), indentPct: 0.1f), 200);
         Assert.Equal(20, pct.GetLine(0).Left);
         // 右到左：缩进在右侧
-        var rtl = Lay("ab", With(P(dir: AwAUI.Unicode.BidiDirection.RightToLeft), indent: 10), 100);
+        var rtl = Lay("ab", With(P(dir: ParagraphDirection.RightToLeft), indent: 10), 100);
         Assert.Equal(70, rtl.GetLine(0).Left);
         // 固有宽度计入正缩进
         Assert.Equal(40, Lay("ab", With(P(), indent: 20)).MaxIntrinsicWidth);

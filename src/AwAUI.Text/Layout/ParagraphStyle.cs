@@ -62,6 +62,15 @@ public enum OverflowWrap : byte
     Anywhere,
 }
 
+/// <summary>段落基础方向（CSS <c>direction</c>）。Auto 对应 <c>unicode-bidi: plaintext</c>。</summary>
+public enum ParagraphDirection : byte
+{
+    /// <summary>按第一个强字符决定；没有强字符时从左到右。</summary>
+    Auto,
+    LeftToRight,
+    RightToLeft,
+}
+
 /// <summary>
 /// 段落样式：对齐、方向、最大行数、省略号、行高策略、断行严格度、空白处理。与 CSS 文本属性一一对应（design/16）。
 /// 不可变；用对象初始化器设置。
@@ -75,8 +84,8 @@ public sealed class ParagraphStyle
 
     public TextAlign TextAlign { get; init; }
 
-    /// <summary>段落基础方向（CSS <c>direction</c>；<see cref="BidiDirection.Auto"/> 对应 <c>unicode-bidi: plaintext</c>）。</summary>
-    public BidiDirection Direction { get; init; }
+    /// <summary>段落基础方向（CSS <c>direction</c>；<see cref="ParagraphDirection.Auto"/> 对应 <c>unicode-bidi: plaintext</c>）。</summary>
+    public ParagraphDirection Direction { get; init; }
 
     /// <summary>最大行数（CSS <c>line-clamp</c>）；0 表示不限制。</summary>
     public int MaxLines { get; init; }

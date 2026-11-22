@@ -501,7 +501,12 @@ public sealed partial class TextLayout
     {
         var t = _text;
         int n = t.Length;
-        var direction = _style.Direction;
+        var direction = _style.Direction switch
+        {
+            ParagraphDirection.RightToLeft => BidiDirection.RightToLeft,
+            ParagraphDirection.LeftToRight => BidiDirection.LeftToRight,
+            _ => BidiDirection.Auto,
+        };
         bool needed = direction == BidiDirection.RightToLeft;
         for (int i = 0; i < n && !needed;)
         {

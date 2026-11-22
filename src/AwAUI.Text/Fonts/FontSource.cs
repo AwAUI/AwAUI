@@ -39,7 +39,7 @@ public abstract class FontSource
     sealed class FileSource : FontSource
     {
         readonly string _path;
-        byte[]? _data;
+        ReadOnlyMemory<byte>? _data;
 
         public FileSource(string path, int faceIndex)
         {
@@ -48,7 +48,8 @@ public abstract class FontSource
         }
 
         public override string Name => _path;
-        public override ReadOnlyMemory<byte> GetData() => _data ??= File.ReadAllBytes(_path);
+        // 内存映射：只有用到的表与字形所在的页驻留（见 FontFileData）
+        public override ReadOnlyMemory<byte> GetData() => _data ??= FontFileData.Open(_path, out _);
     }
 }
 

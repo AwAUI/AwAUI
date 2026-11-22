@@ -17,7 +17,7 @@ public class ShapingLayoutTests
         return new DefaultTextEngine(fonts, shaper, defaultFontFamilies: new[] { Font.Descriptor.FamilyName });
     }
 
-    static ParagraphStyle Para(float size = 1000, BidiDirection dir = BidiDirection.LeftToRight, IReadOnlyList<FontFeature>? features = null) =>
+    static ParagraphStyle Para(float size = 1000, ParagraphDirection dir = ParagraphDirection.LeftToRight, IReadOnlyList<FontFeature>? features = null) =>
         new() { TextStyle = new TextStyle { FontSize = size, Features = features }, Direction = dir };
 
     [Fact]
@@ -49,7 +49,7 @@ public class ShapingLayoutTests
     public void Rtl_ligature_is_drawn_at_the_left_of_its_units()
     {
         // lam + alef → lam_alef（rlig），从右到左：字形归视觉上最左的单元（逻辑上的 alef）
-        var l = Lay("لا", Para(dir: BidiDirection.RightToLeft), engine: CreateEngine());
+        var l = Lay("لا", Para(dir: ParagraphDirection.RightToLeft), engine: CreateEngine());
         var (glyphs, _, _) = Record(l);
         var run = Assert.Single(glyphs).Run;
         Assert.Equal(1, run.Glyphs.Length);
@@ -128,7 +128,7 @@ public class ShapingLayoutTests
     [Fact]
     public void Arabic_paragraph_joins_across_the_layout()
     {
-        var l = Lay("ببب لا", Para(dir: BidiDirection.RightToLeft), engine: CreateEngine());
+        var l = Lay("ببب لا", Para(dir: ParagraphDirection.RightToLeft), engine: CreateEngine());
         var (glyphs, _, _) = Record(l);
         var ids = glyphs.SelectMany(g => g.Run.Glyphs.ToArray()).ToArray();
         Assert.True(Font.TryGetGlyph(0x628, out var beh));

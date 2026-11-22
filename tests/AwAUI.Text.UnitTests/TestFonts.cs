@@ -53,3 +53,13 @@ public sealed class SystemFontFactAttribute : FactAttribute
             }
     }
 }
+
+/// <summary>系统字体不能显示汉字（精简容器、无 CJK 字体的机器）时跳过的测试。</summary>
+public sealed class ChineseSystemFontFactAttribute : FactAttribute
+{
+    public ChineseSystemFontFactAttribute()
+    {
+        if (SystemFonts.CreateCollection().Fallback(0x4E2D, new FontQuery("sans-serif"), "zh-Hans") is null)
+            Skip = "No system font covers U+4E2D on this machine.";
+    }
+}

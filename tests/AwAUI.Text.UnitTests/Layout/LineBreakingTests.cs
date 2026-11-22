@@ -319,7 +319,7 @@ public class LineBreakingTests
     [Fact]
     public void Ellipsis_in_rtl_paragraph_is_on_the_left()
     {
-        var l = Lay(Hebrew + Hebrew + Hebrew, P(WhiteSpace.NoWrap, ellipsis: "…", dir: BidiDirection.RightToLeft), 50);
+        var l = Lay(Hebrew + Hebrew + Hebrew, P(WhiteSpace.NoWrap, ellipsis: "…", dir: ParagraphDirection.RightToLeft), 50);
         Assert.Equal(50, l.Width);
         var (glyphs, _, _) = Record(l);
         var xs = glyphs.SelectMany(GlyphXs).OrderBy(x => x).ToArray();

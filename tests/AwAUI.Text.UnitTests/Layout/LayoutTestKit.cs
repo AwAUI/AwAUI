@@ -14,7 +14,7 @@ static class Kit
 
     public static TextStyle Ts(float size = 10) => new() { FontSize = size };
 
-    public static ParagraphStyle P(WhiteSpace ws = WhiteSpace.Normal, TextAlign align = TextAlign.Start, BidiDirection dir = BidiDirection.LeftToRight,
+    public static ParagraphStyle P(WhiteSpace ws = WhiteSpace.Normal, TextAlign align = TextAlign.Start, ParagraphDirection dir = ParagraphDirection.LeftToRight,
         int maxLines = 0, string? ellipsis = null, LineHeight lineHeight = default, WordBreak wordBreak = WordBreak.Normal,
         OverflowWrap overflowWrap = OverflowWrap.Normal, TextStyle? style = null, LineBreakStrictness strictness = LineBreakStrictness.Normal) => new()
     {

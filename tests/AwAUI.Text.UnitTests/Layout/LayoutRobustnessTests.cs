@@ -53,7 +53,7 @@ public class LayoutRobustnessTests
     public void Degenerate_text_in_every_white_space_mode(string text)
     {
         foreach (WhiteSpace ws in Enum.GetValues(typeof(WhiteSpace)))
-            foreach (var dir in new[] { BidiDirection.LeftToRight, BidiDirection.RightToLeft, BidiDirection.Auto })
+            foreach (var dir in new[] { ParagraphDirection.LeftToRight, ParagraphDirection.RightToLeft, ParagraphDirection.Auto })
                 Exercise(Lay(text, P(ws, TextAlign.Justify, dir, maxLines: 2, ellipsis: "…", overflowWrap: OverflowWrap.Anywhere)));
     }
 
@@ -90,7 +90,7 @@ public class LayoutRobustnessTests
     public void Deep_bidi_embedding_and_many_runs()
     {
         var text = new string('\u202B', 300) + "abc" + Hebrew + new string('\u202C', 300) + string.Concat(Enumerable.Repeat("a" + Alef, 2000));
-        Exercise(Lay(text, P(dir: BidiDirection.Auto)));
+        Exercise(Lay(text, P(dir: ParagraphDirection.Auto)));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class LayoutRobustnessTests
         var engine = NotoLayoutTests.CreateEngine();
         var arabic = string.Concat(Enumerable.Repeat("\u0645\u0631\u062D\u0628\u0627 ", 20_000));
         var sw = Stopwatch.StartNew();
-        var l = Lay(arabic, P(dir: BidiDirection.Auto), 300, engine);
+        var l = Lay(arabic, P(dir: ParagraphDirection.Auto), 300, engine);
         Assert.True(l.IsRightToLeft);
         var b = engine.CreateParagraphBuilder(P());
         for (int i = 0; i < 5_000; i++)

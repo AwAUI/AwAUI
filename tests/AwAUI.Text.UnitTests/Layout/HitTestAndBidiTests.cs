@@ -100,7 +100,7 @@ public class HitTestAndBidiTests
     [Fact]
     public void Rtl_paragraph_layout_and_navigation()
     {
-        var l = Lay(Hebrew + " def", P(dir: BidiDirection.RightToLeft), 100);
+        var l = Lay(Hebrew + " def", P(dir: ParagraphDirection.RightToLeft), 100);
         Assert.True(l.IsRightToLeft);
         Assert.Equal(30, l.GetLine(0).Left);
         Assert.Equal(100, CaretX(l, 0));
@@ -122,11 +122,11 @@ public class HitTestAndBidiTests
     [Fact]
     public void Auto_direction_follows_the_first_strong_character()
     {
-        Assert.True(Lay(Hebrew + " abc", P(dir: BidiDirection.Auto)).IsRightToLeft);
-        Assert.False(Lay("abc " + Hebrew, P(dir: BidiDirection.Auto)).IsRightToLeft);
-        Assert.False(Lay("123", P(dir: BidiDirection.Auto)).IsRightToLeft);
+        Assert.True(Lay(Hebrew + " abc", P(dir: ParagraphDirection.Auto)).IsRightToLeft);
+        Assert.False(Lay("abc " + Hebrew, P(dir: ParagraphDirection.Auto)).IsRightToLeft);
+        Assert.False(Lay("123", P(dir: ParagraphDirection.Auto)).IsRightToLeft);
         // 每个硬段落独立决定方向
-        var two = Lay("abc\n" + Hebrew, P(WhiteSpace.Pre, TextAlign.Start, BidiDirection.Auto), 100);
+        var two = Lay("abc\n" + Hebrew, P(WhiteSpace.Pre, TextAlign.Start, ParagraphDirection.Auto), 100);
         Assert.Equal(0, two.GetLine(0).Left);
         Assert.Equal(70, two.GetLine(1).Left);
     }
@@ -172,7 +172,7 @@ public class HitTestAndBidiTests
         {
             ("aaaa bbbb cccc dddd", P()),
             (Mixed + " " + Mixed, P()),
-            (Hebrew + " xyz " + Hebrew + " 12 " + Hebrew, P(dir: BidiDirection.RightToLeft)),
+            (Hebrew + " xyz " + Hebrew + " 12 " + Hebrew, P(dir: ParagraphDirection.RightToLeft)),
             ("e\u0301te\u0301 \U0001F44D\U0001F3FD x", P()),
             ("ab\ncd\n\nef", P(WhiteSpace.Pre)),
             ("中文字符测试中文", P(align: TextAlign.Center)),

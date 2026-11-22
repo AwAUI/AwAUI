@@ -8,16 +8,16 @@ namespace AwAUI.Text.UnitTests.Layout;
 public class AlignmentAndStyleTests
 {
     [Theory]
-    [InlineData(TextAlign.Left, BidiDirection.LeftToRight, 0)]
-    [InlineData(TextAlign.Start, BidiDirection.LeftToRight, 0)]
-    [InlineData(TextAlign.Justify, BidiDirection.LeftToRight, 0)]
-    [InlineData(TextAlign.Right, BidiDirection.LeftToRight, 70)]
-    [InlineData(TextAlign.End, BidiDirection.LeftToRight, 70)]
-    [InlineData(TextAlign.Center, BidiDirection.LeftToRight, 35)]
-    [InlineData(TextAlign.Start, BidiDirection.RightToLeft, 70)]
-    [InlineData(TextAlign.End, BidiDirection.RightToLeft, 0)]
-    [InlineData(TextAlign.Left, BidiDirection.RightToLeft, 0)]
-    public void Aligns_lines_within_the_available_width(TextAlign align, BidiDirection dir, float left)
+    [InlineData(TextAlign.Left, ParagraphDirection.LeftToRight, 0)]
+    [InlineData(TextAlign.Start, ParagraphDirection.LeftToRight, 0)]
+    [InlineData(TextAlign.Justify, ParagraphDirection.LeftToRight, 0)]
+    [InlineData(TextAlign.Right, ParagraphDirection.LeftToRight, 70)]
+    [InlineData(TextAlign.End, ParagraphDirection.LeftToRight, 70)]
+    [InlineData(TextAlign.Center, ParagraphDirection.LeftToRight, 35)]
+    [InlineData(TextAlign.Start, ParagraphDirection.RightToLeft, 70)]
+    [InlineData(TextAlign.End, ParagraphDirection.RightToLeft, 0)]
+    [InlineData(TextAlign.Left, ParagraphDirection.RightToLeft, 0)]
+    public void Aligns_lines_within_the_available_width(TextAlign align, ParagraphDirection dir, float left)
     {
         var l = Lay("abc", P(align: align, dir: dir), 100);
         Assert.Equal(left, l.GetLine(0).Left);
@@ -40,7 +40,7 @@ public class AlignmentAndStyleTests
     public void Overflowing_line_is_start_aligned()
     {
         Assert.Equal(0, Lay("abcdefghijkl", P(WhiteSpace.NoWrap, TextAlign.Right), 100).GetLine(0).Left);
-        Assert.Equal(-20, Lay(Hebrew + Hebrew + Hebrew + Hebrew, P(WhiteSpace.NoWrap, dir: BidiDirection.RightToLeft), 100).GetLine(0).Left);
+        Assert.Equal(-20, Lay(Hebrew + Hebrew + Hebrew + Hebrew, P(WhiteSpace.NoWrap, dir: ParagraphDirection.RightToLeft), 100).GetLine(0).Left);
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public class NotoLayoutTests
 
     static readonly DefaultTextEngine Engine = CreateEngine();
 
-    static ParagraphStyle NP(float size = 16, TextTransform transform = TextTransform.None, BidiDirection dir = BidiDirection.LeftToRight) =>
+    static ParagraphStyle NP(float size = 16, TextTransform transform = TextTransform.None, ParagraphDirection dir = ParagraphDirection.LeftToRight) =>
         new() { TextStyle = new TextStyle { FontSize = size, TextTransform = transform }, Direction = dir };
 
     /// <summary>引擎默认整形器（OpenType：GPOS 字距、连字）下的宽度。</summary>
@@ -99,7 +99,7 @@ public class NotoLayoutTests
         Assert.Equal(new[] { "Noto Sans", "Box", "Noto Sans" }, glyphs.Select(g => g.Run.Face.Descriptor.FamilyName).ToArray());
         Assert.Equal(Advance("Hi ") + 5 * 16 + Advance(" ok"), l.Width, 2);
         Assert.All(glyphs[1].Run.Glyphs.ToArray(), g => Assert.Equal(BoxFontFace.BoxGlyph, g));
-        Assert.True(Lay(arabic + " abc", NP(dir: BidiDirection.Auto), engine: engine).IsRightToLeft);
+        Assert.True(Lay(arabic + " abc", NP(dir: ParagraphDirection.Auto), engine: engine).IsRightToLeft);
     }
 
     [Fact]
