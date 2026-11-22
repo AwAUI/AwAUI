@@ -32,6 +32,12 @@ public enum Position : byte
     Absolute,
     /// <summary>目前按「相对初始包含块（视口）的绝对定位」处理。</summary>
     Fixed,
+    /// <summary>
+    /// 按常规流布局（占据静态空间、不影响兄弟），滚动时在最近的滚动容器视口内按 inset 粘附。
+    /// 布局引擎不施加偏移：视觉偏移由 UI 层在几何阶段按滚动偏移计算（design/08），只有滚动时才变化，不触发重排。
+    /// 与 relative 一样建立包含块（供绝对定位后代使用）。
+    /// </summary>
+    Sticky,
 }
 
 /// <summary><c>box-sizing</c>：width/height 等尺寸属性度量的是哪一个盒。</summary>

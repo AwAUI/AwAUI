@@ -113,6 +113,9 @@ public sealed partial class LayoutEngine
         if ((node._basisFlags & LayoutNode.UsesParentHeight) == 0) input.ParentHeight = float.NaN;
 
         var style = node.Style;
+        // 轨道数据只对 flex / grid 容器有意义：其他显示类型（含 display:none）的旧数据必须清掉，否则 DevTools 会报告过期的轨道。
+        if (input.IsPerform && style.Display is not (Display.Flex or Display.InlineFlex or Display.Grid or Display.InlineGrid))
+            node.ClearUsedTracks();
         if (style.Display == Display.None)
         {
             if (input.IsPerform) HideSubtree(node);

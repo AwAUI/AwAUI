@@ -410,6 +410,7 @@ public sealed partial class LayoutEngine
                 innerH = Math.Max(0, h - pbH);
             }
             PositionTracks(rows, nRows, innerH, rowGap, MapAlignContent(s.AlignContent, false));
+            if (perform) RecordGridTracks(node, cols, nCols, rows, nRows, rtl, innerW);
 
             // 网格容器的第一条基线：首行（有项目的最上一行）中网格顺序最前的项目（基线对齐未实现）
             int baseItem = -1;
@@ -470,6 +471,36 @@ public sealed partial class LayoutEngine
     }
 
     float _gLastItemY;
+
+    /// <summary>
+    /// 记录网格两轴的已用轨道尺寸与起点（相对容器内容盒），供 DevTools 的布局网格叠加绘制。
+    /// 折叠的轨道（<see cref="GTrack.Collapsed"/>）没有可见尺寸，不记录；尺寸不含间距。RTL 时列轨道起点按物理位置镜像。
+    /// 复用上次的数组（可见轨道数不变时零分配）。
+    /// </summary>
+    static void RecordGridTracks(LayoutNode node, GTrack[] cols, int nCols, GTrack[] rows, int nRows, bool rtl, float innerW)
+    {
+        node._usedTracksX = CollectTracks(cols, nCols, rtl, innerW, node._usedTracksX, node._usedTrackPositionsX, out var posX);
+        node._usedTrackPositionsX = posX;
+        node._usedTracksY = CollectTracks(rows, nRows, false, float.NaN, node._usedTracksY, node._usedTrackPositionsY, out var posY);
+        node._usedTrackPositionsY = posY;
+    }
+
+    static float[] CollectTracks(GTrack[] tracks, int count, bool mirror, float inner, float[]? sizeReuse, float[]? posReuse, out float[] positions)
+    {
+        int visible = 0;
+        for (int i = 0; i < count; i++)
+            if (!tracks[i].Collapsed) visible++;
+        var sizes = sizeReuse is { } sr && sr.Length == visible ? sr : visible == 0 ? Array.Empty<float>() : new float[visible];
+        positions = posReuse is { } pr && pr.Length == visible ? pr : visible == 0 ? Array.Empty<float>() : new float[visible];
+        for (int i = 0, j = 0; i < count; i++)
+        {
+            if (tracks[i].Collapsed) continue;
+            sizes[j] = Math.Max(0, tracks[i].Base);
+            positions[j] = mirror ? inner - tracks[i].Pos - tracks[i].Base : tracks[i].Pos;
+            j++;
+        }
+        return sizes;
+    }
 
     /// <summary>
     /// justify-self / align-self 解析为逻辑方向的对齐。<c>normal</c>（§6.2）：没有宽高比的非替换元素按 stretch；

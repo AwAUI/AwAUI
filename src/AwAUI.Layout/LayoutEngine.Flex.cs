@@ -392,6 +392,7 @@ public sealed partial class LayoutEngine
             }
 
             // 绝对定位子节点的静态位置：视作容器中唯一的 flex 项目（§4.1）
+            RecordFlexTracks(node, items, count, ctx.IsRow, bor.Left + pad.Left, bor.Top + pad.Top);
             for (int i = 0; i < children.Count; i++)
             {
                 var c = children[i];
@@ -419,6 +420,55 @@ public sealed partial class LayoutEngine
         _linePool.Push(lines);
         ReturnList(children);
         return new LayoutOutput(w, h, baseline);
+    }
+
+    /// <summary>
+    /// 记录 flex 项目的主轴尺寸与起点（相对容器内容盒），供 DevTools 的布局网格叠加绘制。
+    /// flex 只有主轴上的「轨道」（每个项目一条）；交叉轴没有轨道数据。项目按布局顺序记录。
+    /// 复用上次的数组（项目数不变时零分配），避免完整重排产生可观察的额外分配。
+    /// </summary>
+    static void RecordFlexTracks(LayoutNode node, FlexItem[] items, int count, bool isRow, float contentLeft, float contentTop)
+    {
+        if (count == 0)
+        {
+            if (isRow) { node._usedTracksX = null; node._usedTrackPositionsX = null; }
+            else { node._usedTracksY = null; node._usedTrackPositionsY = null; }
+            return;
+        }
+        float[] sizes, positions;
+        if (isRow)
+        {
+            sizes = node._usedTracksX is { } sx && sx.Length == count ? sx : new float[count];
+            positions = node._usedTrackPositionsX is { } px && px.Length == count ? px : new float[count];
+            // 主轴方向变化时清掉旧的交叉轴数据
+            node._usedTracksY = null;
+            node._usedTrackPositionsY = null;
+            node._usedTracksX = sizes;
+            node._usedTrackPositionsX = positions;
+        }
+        else
+        {
+            sizes = node._usedTracksY is { } sy && sy.Length == count ? sy : new float[count];
+            positions = node._usedTrackPositionsY is { } py && py.Length == count ? py : new float[count];
+            node._usedTracksX = null;
+            node._usedTrackPositionsX = null;
+            node._usedTracksY = sizes;
+            node._usedTrackPositionsY = positions;
+        }
+        for (int i = 0; i < count; i++)
+        {
+            var c = items[i].Node;
+            if (isRow)
+            {
+                sizes[i] = Math.Max(0, c._w);
+                positions[i] = c._x - contentLeft;
+            }
+            else
+            {
+                sizes[i] = Math.Max(0, c._h);
+                positions[i] = c._y - contentTop;
+            }
+        }
     }
 
     void InitItem(ref FlexCtx ctx, LayoutStyle container, bool rtl, ref FlexItem it, LayoutNode c)

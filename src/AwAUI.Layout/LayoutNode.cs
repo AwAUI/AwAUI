@@ -68,6 +68,14 @@ public class LayoutNode
     // ---- 像素对齐结果 ----
     internal float _snapX, _snapY, _snapW, _snapH;
 
+    // ---- 最近一次完整布局使用的轨道（逻辑像素；不含间距）----
+    // 供 DevTools 的布局网格叠加（Layout.getLayoutInfo / Overlay.setShowOptions）读取。不参与缓存键，也不改变增量布局的判定：
+    // 只在真正执行完整布局时覆盖，下一次完整布局写入新数组。只记录实际有轨道的方向：flex 容器只写主轴
+    // （row -> X，column -> Y），grid 容器写两轴。
+    internal float[]? _usedTracksX, _usedTracksY;
+    // 各轨道起点（相对容器内容盒左上角），与 _usedTracksX / _usedTracksY 的下标一一对应。
+    internal float[]? _usedTrackPositionsX, _usedTrackPositionsY;
+
     public LayoutNode() { }
 
     public LayoutNode(LayoutStyle style)
@@ -197,11 +205,52 @@ public class LayoutNode
     /// </summary>
     public Size ScrollSize => new(_scrollW, _scrollH);
 
+    /// <summary>
+    /// 内容在行内起点一侧的最小横向偏移（相对边框盒左边缘，通常 ≤ 0）。LTR 的起点在左，向左的溢出不可滚到，
+    /// 一般不需要它；RTL 的起点在右，向左溢出的内容才是行内末尾，滚动容器用 <c>ScrollSize.Width - InlineStartOverflow()</c>
+    /// 得到完整的可滚动宽度。
+    /// </summary>
+    public float InlineStartOverflow()
+    {
+        float min = 0;
+        var children = _children;
+        for (int i = 0; i < children.Count; i++)
+        {
+            var c = children[i];
+            if (c._hidden) continue;
+            float x = c._x - c._margin.Left + c.InlineStartOverflow();
+            if (x < min) min = x;
+        }
+        return min;
+    }
+
     /// <summary>第一条基线到边框盒顶部的距离；没有基线时为 NaN。</summary>
     public float Baseline => _baseline;
 
     /// <summary><see cref="LayoutEngine.RoundToPixels"/> 之后的边框盒（相对父节点对齐后的边框盒）。</summary>
     public Rect SnappedBorderBox => new(_snapX, _snapY, _snapW, _snapH);
+
+    /// <summary>
+    /// 最近一次完整布局使用的 X 轴轨道尺寸（逻辑像素，不含间距）；不是 flex / grid 容器或尚未完成完整布局时为 null。
+    /// 数组是只读视图，调用方不应修改。
+    /// </summary>
+    public IReadOnlyList<float>? UsedTracksX => _usedTracksX;
+
+    /// <summary>最近一次完整布局使用的 Y 轴轨道尺寸（逻辑像素，不含间距）；含义同 <see cref="UsedTracksX"/>。</summary>
+    public IReadOnlyList<float>? UsedTracksY => _usedTracksY;
+
+    /// <summary>与 <see cref="UsedTracksX"/> 对应的各轨道起点（相对内容盒左边缘）；没有轨道数据时为 null。</summary>
+    public IReadOnlyList<float>? UsedTrackPositionsX => _usedTrackPositionsX;
+
+    /// <summary>与 <see cref="UsedTracksY"/> 对应的各轨道起点（相对内容盒上边缘）；没有轨道数据时为 null。</summary>
+    public IReadOnlyList<float>? UsedTrackPositionsY => _usedTrackPositionsY;
+
+    /// <summary>清除最近一次布局使用的轨道数据（布局不再是 flex / grid 容器时调用）。</summary>
+    internal void ClearUsedTracks()
+    {
+        _usedTracksX = _usedTracksY = null;
+        _usedTrackPositionsX = _usedTrackPositionsY = null;
+    }
 
     internal void ZeroLayout()
     {
