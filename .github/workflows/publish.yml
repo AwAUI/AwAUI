@@ -46,9 +46,9 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -97,7 +97,7 @@ jobs:
           set -euo pipefail
           find artifacts/packages -maxdepth 1 -type f \( -name '*.nupkg' -o -name '*.snupkg' \) -printf '%f\n' | sort
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nuget-packages
           path: |
@@ -116,12 +116,12 @@ jobs:
       contents: read
       id-token: write   # GitHub OIDC token，供 NuGet/login 换取短期 API key
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: nuget-packages
           path: artifacts/packages
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 11.0.x
 
@@ -138,7 +138,7 @@ jobs:
       # 用 OIDC token 换取 1 小时有效的临时 API key（不会保存到仓库）
       - name: NuGet login (OIDC -> temporary API key)
         id: login
-        uses: NuGet/login@v1
+        uses: NuGet/login@v1.2.0
         with:
           user: ${{ vars.NUGET_USER }}
 
