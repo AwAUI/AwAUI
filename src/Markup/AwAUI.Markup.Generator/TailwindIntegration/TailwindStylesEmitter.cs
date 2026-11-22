@@ -14,6 +14,9 @@ namespace AwAUI.Markup.Generator.TailwindIntegration;
 /// }
 /// </code>
 /// 引用了 AwAUI.UI 才生成 <c>Register</c>；AwAUITailwindRegister=false 或 C# 9 以下时不加模块初始化器（由应用自己调用）。
+/// 项目设置 <c>AwAUITailwindRuntime=true</c> 时（design/23 机制 3、6）额外生成入口 CSS 原文 <c>EntryCss</c> 与
+/// <c>CreateRuntime()</c>：它用构建期基线创建 <c>AwAUI.Tailwind.Runtime.TailwindRuntime</c>，之后可对未知类名做运行时补全。
+/// 该选项要求使用方引用 <c>AwAUI.Tailwind</c>，默认关闭，普通构建因此不会增长。
 /// </summary>
 internal static class TailwindStylesEmitter
 {
@@ -46,10 +49,31 @@ internal static class TailwindStylesEmitter
         sb.Append("        public const string SourceName = ").Append(CSharpLiterals.String(sourceName)).Append(";\n\n");
         sb.Append("        /// <summary>生成的样式表。</summary>\n");
         sb.Append("        public const string Css = ").Append(CSharpLiterals.Verbatim(result.Css ?? "")).Append(";\n\n");
+        if (settings.Runtime)
+        {
+            sb.Append("        /// <summary>入口样式表原文：运行时补全用它重建编译器（<see cref=\"Css\"/> 是构建期按当前类名生成的输出）。</summary>\n");
+            sb.Append("        public const string EntryCss = ").Append(CSharpLiterals.Verbatim(entry.File.Text)).Append(";\n\n");
+        }
         sb.Append("        /// <summary>生成了样式的类名（按序数排序）：运行时补全以它们为基线（先 <c>Build([])</c>，再 <c>AddCandidates(Candidates)</c>）。</summary>\n");
         sb.Append("        public static global::System.Collections.Generic.IReadOnlyList<string> Candidates { get; } = new string[]\n        {\n");
         foreach (var c in result.Candidates) sb.Append("            ").Append(CSharpLiterals.String(c)).Append(",\n");
         sb.Append("        };\n");
+        if (settings.Runtime)
+        {
+            sb.Append("\n        /// <summary>\n");
+            sb.Append("        /// 创建运行时补全（<c>AwAUITailwindRuntime=true</c>）：应用需引用 <c>AwAUI.Tailwind</c>。\n");
+            sb.Append("        /// 构建期已生成样式的类名作为基线；之后对新类名调用 <see cref=\"global::AwAUI.Tailwind.Runtime.TailwindRuntime.AddCandidates\"/> 即时补全。\n");
+            sb.Append("        /// 选项取构建期的主题根选择器 / 压缩 / preflight；入口样式表的本地 <c>@import</c> 需要应用自行提供 Resolver。\n");
+            sb.Append("        /// </summary>\n");
+            sb.Append("        public static global::AwAUI.Tailwind.Runtime.TailwindRuntime CreateRuntime()\n");
+            sb.Append("            => new global::AwAUI.Tailwind.Runtime.TailwindRuntime(EntryCss, Candidates, new global::AwAUI.Tailwind.TailwindOptions\n");
+            sb.Append("            {\n");
+            sb.Append("                ThemeRootSelector = ").Append(CSharpLiterals.String(settings.ThemeRoot)).Append(",\n");
+            sb.Append("                Minify = ").Append(settings.Minify ? "true" : "false").Append(",\n");
+            sb.Append("                Preflight = global::AwAUI.Tailwind.PreflightKind.")
+                .Append(settings.OriginalPreflight ? "Tailwind" : "AwAUI").Append(",\n");
+            sb.Append("            });\n");
+        }
         if (info.HasAppStyleSheets)
         {
             bool init = settings.Register && info.LanguageSupportsModuleInitializer;

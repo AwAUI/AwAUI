@@ -39,10 +39,35 @@ public sealed class MarkupSourceGenerator : IIncrementalGenerator
             .Combine(context.CompilationProvider.Select(static (c, _) => c.AssemblyName ?? ""))
             .Select(static (pair, _) => ReadSettings(pair.Left.GlobalOptions, pair.Right));
 
-        var inputs = context.AdditionalTextsProvider
-            .Where(static t => t.Path.EndsWith(".awaui", StringComparison.OrdinalIgnoreCase))
+        var markupFiles = context.AdditionalTextsProvider
+            .Where(static t => t.Path.EndsWith(".awaui", StringComparison.OrdinalIgnoreCase));
+
+        // 目录级 _Imports.awaui（Blazor 的 _Imports.razor）：先收集，再分发给同目录及子目录的文件
+        var imports = markupFiles
+            .Where(static t => GlobalImports.IsImportsFile(t.Path))
+            .Select(static (t, ct) => GlobalImports.Create(t.Path, t.GetText(ct)?.ToString() ?? ""))
+            .Collect();
+
+        // 组件旁的样式文件：X.awaui.css（唯一/作用域）与 X.awaui.global.css（随组件注册的全局样式）
+        var componentStyles = context.AdditionalTextsProvider
+            .Where(static t => IsComponentStylePath(t.Path))
+            .Select(static (t, ct) => (Path: NormalizePath(t.Path), Text: t.GetText(ct)?.ToString() ?? ""))
+            .Collect();
+
+        var inputs = markupFiles
+            .Where(static t => !GlobalImports.IsImportsFile(t.Path))
             .Combine(settings)
-            .Select(static (pair, ct) => FileInput.Create(pair.Left.Path, pair.Left.GetText(ct)?.ToString() ?? "", pair.Right));
+            .Combine(imports)
+            .Combine(componentStyles)
+            .Select(static (pair, ct) =>
+            {
+                var file = pair.Left.Left.Left;
+                var projectSettings = pair.Left.Left.Right;
+                var globalUsings = GlobalImports.Collect(file.Path, pair.Left.Right);
+                var (scoped, global) = ComponentStylesFor(file.Path, pair.Right);
+                return FileInput.Create(file.Path, file.GetText(ct)?.ToString() ?? "", projectSettings,
+                    globalUsings, scoped, global);
+            });
 
         var declarations = inputs.Select(static (input, ct) => Declare(input, ct));
 
@@ -55,14 +80,75 @@ public sealed class MarkupSourceGenerator : IIncrementalGenerator
 
         // Tailwind 构建期接入（design/23）：有 AwAUITailwindStylesheet 入口时生成 TailwindStyles
         TailwindIntegration.TailwindPipeline.Register(context, inputs);
+
+        // 项目级共享样式（<AwAUIGlobalStylesheet>）：生成 AwAUIGlobalStyles 并在模块初始化时登记
+        GlobalStylesPipeline.Register(context);
+    }
+
+    /// <summary>组件样式文件：<c>X.awaui.css</c>（作用域）或 <c>X.awaui.global.css</c>（全局）。</summary>
+    internal static bool IsComponentStylePath(string path) =>
+        path.EndsWith(".awaui.css", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".awaui.global.css", StringComparison.OrdinalIgnoreCase);
+
+    internal static string NormalizePath(string path) => path.Replace('\\', '/');
+
+    /// <summary>为 <paramref name="markupPath"/> 找到同名的作用域 / 全局样式文件内容。</summary>
+    internal static (string? Scoped, string? Global) ComponentStylesFor(
+        string markupPath, ImmutableArray<(string Path, string Text)> styles)
+    {
+        string path = NormalizePath(markupPath);
+        string? scoped = null, global = null;
+        foreach (var style in styles)
+        {
+            if (scoped is null
+                && string.Equals(style.Path, path + ".css", StringComparison.OrdinalIgnoreCase))
+            {
+                scoped = style.Text;
+                continue;
+            }
+            if (global is null
+                && string.Equals(style.Path, path + ".global.css", StringComparison.OrdinalIgnoreCase))
+                global = style.Text;
+        }
+        return (scoped, global);
     }
 
     static ProjectSettings ReadSettings(AnalyzerConfigOptions options, string assemblyName)
     {
         options.TryGetValue("build_property.RootNamespace", out var root);
         options.TryGetValue("build_property.ProjectDir", out var dir);
+        options.TryGetValue("build_property.AwAUIMarkupNamespaces", out var namespaces);
+        options.TryGetValue("build_property.AwAUIMarkupBuiltInNamespaces", out var builtIns);
         if (string.IsNullOrWhiteSpace(root)) root = assemblyName;
-        return new ProjectSettings(SanitizeNamespace(root!.Trim()), string.IsNullOrWhiteSpace(dir) ? null : dir);
+        return new ProjectSettings(SanitizeNamespace(root!.Trim()), string.IsNullOrWhiteSpace(dir) ? null : dir,
+            ParseNamespaces(namespaces), ParseBuiltInNamespaces(builtIns));
+    }
+
+    /// <summary>
+    /// <c>AwAUIMarkupBuiltInNamespaces</c>：替换框架内置标签命名空间（默认 <see cref="CSharpEmitter.SystemNamespaces"/>）。
+    /// 未设置时返回 null（沿用默认值）；设为 <c>none</c> 时返回空列表（禁用内置查找）；否则按分号或逗号解析。
+    /// </summary>
+    internal static EquatableArray<string>? ParseBuiltInNamespaces(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        string trimmed = value!.Trim();
+        if (string.Equals(trimmed, "none", StringComparison.OrdinalIgnoreCase)) return EquatableArray<string>.Empty;
+        return ParseNamespaces(trimmed);
+    }
+
+    /// <summary><c>AwAUIMarkupNamespaces</c>：分号或逗号分隔的命名空间列表；空项与首尾空白被丢弃。</summary>
+    internal static EquatableArray<string> ParseNamespaces(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return EquatableArray<string>.Empty;
+        var list = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var part in value!.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            string ns = part.Trim();
+            if (ns.Length == 0 || !seen.Add(ns)) continue;
+            list.Add(ns);
+        }
+        return new EquatableArray<string>(list);
     }
 
     /// <summary>
@@ -127,6 +213,13 @@ public sealed class MarkupSourceGenerator : IIncrementalGenerator
                     break;
             }
         }
+        // _Imports.awaui 的导入：写在文件自身的 @using 之后，因此文件中的显式 using 优先
+        foreach (var u in input.GlobalUsings)
+        {
+            usingLines.Add(u);
+            usings.Add(u);
+        }
+        int explicitUsingCount = usings.Count;
         usings.AddRange(CSharpEmitter.DefaultUsings);
 
         var sb = new StringBuilder();
@@ -144,7 +237,7 @@ public sealed class MarkupSourceGenerator : IIncrementalGenerator
         sb.Append("\n}\n}\n");
 
         return new FileDeclaration(input, ns, className, typeParams.Count, sb.ToString(),
-            new EquatableArray<string>(usings),
+            new EquatableArray<string>(usings), explicitUsingCount,
             new EquatableArray<string>(CSharpEmitter.CollectComponentTags(analysis.NormalizedRoot)),
             new EquatableArray<string>(CSharpEmitter.CollectBindTargets(analysis.NormalizedRoot)));
     }
@@ -179,7 +272,10 @@ public sealed class MarkupSourceGenerator : IIncrementalGenerator
             ComponentSourcePath = decl.Input.RelativePath,
             Catalog = new ResolvedCatalog(file.Tags),
             ClassInfo = file.ClassInfo,
+            Imports = decl.Input.GlobalUsings,
             EmitNullableRestore = file.NullableDirective,
+            ScopedStyleSheet = decl.Input.ScopedCss,
+            GlobalStyleSheet = decl.Input.GlobalCss,
         };
         return MarkupCompiler.Compile(decl.Input.Text, decl.Input.Path, options);
     }

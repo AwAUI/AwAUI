@@ -176,7 +176,8 @@ public class CodeGenTests
                  data-id="@id" title="t" hidden="@h" dir="rtl" @attributes="extra" @ref="box" @key="k">
                 <img src="a.png" alt="A" width="10" />
                 <input type="password" value="@v" placeholder="p" disabled readonly="false" name="n" @onchange="Changed" @onsubmit="() => Go()" />
-                <span @onclick="Go" @onkeydown="e => Key(e)" @onfocusin="F" @onpointerenter="P" @ontap="T" @onpan="Pan">x</span>
+                <span @onclick="Go" @onkeydown="e => Key(e)" @onfocusin="F" @onpointerenter="P" @ontap="T" @onpan="Pan"
+                      @onlongpress="L" @ondoubletap="D" @onswipe="S" @onpinch="Pi" @onrotate="Ro" @onedgeswipe="Ed">x</span>
             </div>
             """, "A.awaui", new CSharpEmitOptions { EmitLineDirectives = false });
         string cs = c.GeneratedCode;
@@ -213,9 +214,38 @@ public class CodeGenTests
         Assert.Contains(".OnPointerEnter = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.PointerEvent>(P);", cs);
         Assert.Contains(".OnTap = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.TapEvent>(T);", cs);
         Assert.Contains(".OnPan = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.PanEvent>(Pan);", cs);
+        Assert.Contains(".OnLongPress = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.LongPressEvent>(L);", cs);
+        Assert.Contains(".OnDoubleTap = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.DoubleTapEvent>(D);", cs);
+        Assert.Contains(".OnSwipe = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.SwipeEvent>(S);", cs);
+        Assert.Contains(".OnPinch = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.PinchEvent>(Pi);", cs);
+        Assert.Contains(".OnRotate = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.RotateEvent>(Ro);", cs);
+        Assert.Contains(".OnEdgeSwipe = global::AwAUI.UI.EventHandlers.Wrap<global::AwAUI.UI.EdgeSwipeEvent>(Ed);", cs);
         // 只有行为未实现的属性报 AW4012 警告；没有错误
         Assert.False(c.HasErrors, string.Join("\n", c.Diagnostics));
         Assert.Equal(new[] { "hidden" }, c.Diagnostics.Where(d => d.Code == DiagnosticCodes.NotSupportedByRuntime).Select(d => d.Message.Split(' ')[1]));
+    }
+
+    [Fact]
+    public void Gesture_events_compile_against_the_runtime()
+    {
+        var r = new GeneratorHarness()
+            .Awaui("Gestures.awaui", """
+                <div @ontap="e => Count++" @ondoubletap="e => Count++" @onlongpress="e => Count++"
+                     @onpan="e => Count++" @onswipe="e => Count++" @onpinch="e => Count++" @onrotate="e => Count++"
+                     @onedgeswipe="e => Count++">x</div>
+                @code {
+                    int Count;
+                }
+                """)
+            .Run();
+        r.AssertNoErrors();
+        string generated = r.Generated("Gestures.");
+        Assert.Contains("OnLongPress", generated);
+        Assert.Contains("OnDoubleTap", generated);
+        Assert.Contains("OnSwipe", generated);
+        Assert.Contains("OnPinch", generated);
+        Assert.Contains("OnRotate", generated);
+        Assert.Contains("OnEdgeSwipe", generated);
     }
 
     [Fact]
@@ -226,7 +256,7 @@ public class CodeGenTests
                 <textarea @bind="text" />
                 <canvas width="10"><span>inner</span></canvas>
                 <path d="M0 0" />
-                <div @onpinch="W" @ondblclick="D" @onclick="C" />
+                <div @oncontextmenu="W" @ondblclick="D" @onclick="C" />
                 <span @onchange="X" />
             </div>
             """, "U.awaui", new CSharpEmitOptions { EmitLineDirectives = false });
@@ -234,14 +264,14 @@ public class CodeGenTests
         Assert.Equal(5, errors.Count);
         Assert.Contains(errors, m => m.Contains("<canvas>"));
         Assert.Contains(errors, m => m.Contains("<path>"));   // path 只能用在内联 <svg> 中
-        Assert.Contains(errors, m => m.Contains("@onpinch"));
+        Assert.Contains(errors, m => m.Contains("@oncontextmenu"));
         Assert.Contains(errors, m => m.Contains("@ondblclick"));
         Assert.Contains(errors, m => m.Contains("@onchange")); // change 只在 input 上存在
         Assert.Contains("new global::AwAUI.UI.TextArea()", c.GeneratedCode);
         Assert.DoesNotContain("inner", c.GeneratedCode);       // 跳过整个子树
         Assert.DoesNotContain("Path", c.GeneratedCode);
         Assert.Contains(".OnClick = ", c.GeneratedCode);
-        Assert.DoesNotContain("OnPinch", c.GeneratedCode);
+        Assert.DoesNotContain("OnContextMenu", c.GeneratedCode);
     }
 
     [Fact]

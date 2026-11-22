@@ -13,6 +13,8 @@ namespace AwAUI.Markup.Compiler.Styles;
 /// <c>x::part(p)</c> 同理作用在宿主元素上。</item>
 /// <item>函数式伪类不展开：<c>:is(.a, .b)</c> → <c>:is(.a, .b)[s]</c>，<c>:where()</c>、<c>:not()</c>、<c>:has()</c> 相同，所以特异性只增加一个属性选择器。</item>
 /// <item>CSS 嵌套：嵌套规则（含 <c>&amp;</c> 与相对选择器 <c>&gt; .b</c>）同样改写其最后一个复合选择器；<c>&amp;</c> 已带作用域，重复附加无害。</item>
+/// <item>Blazor 的穿透选择器 <c>::deep</c>：作用域加在它前面的复合选择器上，<c>::deep</c> 记号从输出中删掉，
+/// 之后的选择器不限定作用域（<c>.list ::deep .item</c> → <c>.list[aw-xxxxxxxx] .item</c>），用于影响子组件内部。</item>
 /// <item>条件组规则 <c>@media @supports @layer @container @scope @starting-style @document</c> 的内容递归处理；
 /// <c>@keyframes @font-face @property @page @counter-style</c> 等原样保留（其中没有选择器）。</item>
 /// </list>
@@ -336,18 +338,37 @@ public static class ScopedCss
             RewriteComplex(itemStart, end);
         }
 
-        /// <summary>在一个复杂选择器 [start, end) 的最后一个复合选择器中找到插入点并插入作用域。</summary>
+        /// <summary>
+        /// 在一个复杂选择器 [start, end) 的最后一个复合选择器中找到插入点并插入作用域。
+        /// <c>::deep</c>（Blazor 的穿透选择器）把作用域放在它前面的复合选择器上，并把它从输出中删掉；
+        /// <c>::deep</c> 之后的部分不限定作用域（用于影响子组件内部）。
+        /// </summary>
         void RewriteComplex(int start, int end)
         {
             // 去掉末尾的空白与注释
             int last = -1; // 最后一个有意义字符之后的位置
             int compoundStart = -1;
             bool pendingBoundary = true;
+            bool deepHandled = false;
             int depth = 0;
             int i = start;
             while (i < end)
             {
                 char c = _s[i];
+                if (depth == 0 && !deepHandled && IsDeep(i, end) && last > start)
+                {
+                    // .a ::deep .b → .a[scope] .b：作用域在 ::deep 前面的复合选择器上，之后的部分不限定
+                    _out.Append(_s, _copied, last - _copied);
+                    _out.Append(_scope);
+                    _out.Append(_s, last, i - last);
+                    _copied = i + DeepLength;
+                    // 两侧都有空白时吃掉一个，避免留下两个连续空格
+                    if (_copied < end && IsWhitespace(_s[_copied]) && last < i && IsWhitespace(_s[i - 1]))
+                        _copied++;
+                    deepHandled = true;
+                    i = _copied;
+                    continue;
+                }
                 if (c == '/' && i + 1 < end && _s[i + 1] == '*')
                 {
                     i = Math.Min(SkipAtom(i), end);
@@ -385,12 +406,23 @@ public static class ScopedCss
                 i++;
                 last = i;
             }
+            if (deepHandled) return; // ::deep 之后不再插入作用域
             if (compoundStart < 0 || last <= compoundStart) return; // 空选择器或以组合符结尾：保持原样
 
             int insertAt = FindPseudoElement(compoundStart, last);
             _out.Append(_s, _copied, insertAt - _copied);
             _out.Append(_scope);
             _copied = insertAt;
+        }
+
+        const int DeepLength = 6; // "::deep"
+
+        /// <summary><paramref name="i"/> 处是否是完整的 <c>::deep</c> 记号（后面不能紧跟标识符字符）。</summary>
+        bool IsDeep(int i, int end)
+        {
+            if (i + DeepLength > end) return false;
+            if (string.Compare(_s, i, "::deep", 0, DeepLength, StringComparison.OrdinalIgnoreCase) != 0) return false;
+            return i + DeepLength == end || !IsNameChar(_s[i + DeepLength]);
         }
 
         /// <summary>复合选择器 [start, end) 中第一个顶层伪元素的位置；没有时返回 <paramref name="end"/>。</summary>

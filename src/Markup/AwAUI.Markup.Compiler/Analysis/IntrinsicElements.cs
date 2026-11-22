@@ -84,7 +84,7 @@ public static class IntrinsicElements
         "keydown", "keyup", "beforeinput", "input", "change", "submit",
         "focus", "blur", "focusin", "focusout",
         "compositionstart", "compositionupdate", "compositionend",
-        "scroll", "tap", "doubletap", "longpress", "pan", "pinch", "swipe",
+        "scroll", "tap", "doubletap", "longpress", "pan", "pinch", "rotate", "swipe", "edgeswipe",
         "dragstart", "drag", "dragend", "dragenter", "dragleave", "dragover", "drop",
         "resize", "load", "error",
     };

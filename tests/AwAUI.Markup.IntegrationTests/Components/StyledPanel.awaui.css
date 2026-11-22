@@ -1,0 +1,13 @@
+/* 组件唯一样式（Blazor 的 X.razor.css 对应物）：选择器由生成器改写，只匹配 StyledPanel 自己产出的元素。 */
+.styled-panel {
+    display: flex;
+    gap: 6px;
+}
+
+.styled-title {
+    color: #112233;
+}
+
+.styled-badge::before {
+    content: "·";
+}

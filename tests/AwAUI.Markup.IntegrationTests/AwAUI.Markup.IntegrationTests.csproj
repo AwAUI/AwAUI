@@ -15,6 +15,8 @@
   <ItemGroup>
     <!-- Tailwind 构建期接入（design/23）：入口样式表；它只扫描 Tailwind/ 目录（source(none) + @source） -->
     <AwAUITailwindStylesheet Include="Tailwind/app.css" />
+    <!-- 项目级共享样式（Blazor 的 wwwroot/app.css 对应物）：模块初始化时自动登记，所有组件共用 -->
+    <AwAUIGlobalStylesheet Include="Styles/global.css" />
   </ItemGroup>
   <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
 </Project>

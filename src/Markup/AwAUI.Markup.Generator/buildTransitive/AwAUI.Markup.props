@@ -6,6 +6,12 @@
   <ItemGroup>
     <CompilerVisibleProperty Include="RootNamespace" />
     <CompilerVisibleProperty Include="ProjectDir" />
+    <!-- 标签解析（design/17）：项目自己的组件库命名空间；分隔符 ; 或 , -->
+    <CompilerVisibleProperty Include="AwAUIMarkupNamespaces" />
+    <!-- 替换框架内置标签命名空间（默认 AwAUI.Controls;AwAUI.Controls.Primitives）；设为 none 可禁用内置查找 -->
+    <CompilerVisibleProperty Include="AwAUIMarkupBuiltInNamespaces" />
+    <!-- 项目级共享样式（<AwAUIGlobalStylesheet>）是否在模块初始化时自动登记，默认 true -->
+    <CompilerVisibleProperty Include="AwAUIGlobalStylesRegister" />
   </ItemGroup>
   <!--
     Tailwind 构建期接入（design/23 第 3 层）。项目里写：
@@ -19,6 +25,7 @@
       AwAUITailwindAutoSource     false 时不自动扫描 *.awaui 与 C# 文件，只扫描 @source 与 AwAUITailwindSource 指定的文件
       AwAUITailwindMinify         true 时输出压缩的 CSS
       AwAUITailwindPreflight      Tailwind 时使用原版 preflight（默认 AwAUI 版）
+      AwAUITailwindRuntime        true 时额外生成入口 CSS 原文（EntryCss）与 CreateRuntime()，供运行时补全；要求项目引用 AwAUI.Tailwind
   -->
   <ItemGroup>
     <CompilerVisibleProperty Include="AwAUITailwindThemeRoot" />
@@ -26,7 +33,9 @@
     <CompilerVisibleProperty Include="AwAUITailwindAutoSource" />
     <CompilerVisibleProperty Include="AwAUITailwindMinify" />
     <CompilerVisibleProperty Include="AwAUITailwindPreflight" />
+    <CompilerVisibleProperty Include="AwAUITailwindRuntime" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AwAUITailwind" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AwAUIGlobalStylesheet" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ClassName" />
   </ItemGroup>
 </Project>

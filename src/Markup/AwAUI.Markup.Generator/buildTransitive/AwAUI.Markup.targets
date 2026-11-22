@@ -9,6 +9,19 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(EnableDefaultAwauiItems)' == 'true'">
     <AdditionalFiles Include="**/*.awaui" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(AdditionalFiles)" />
+    <!-- 组件样式：X.awaui.css 唯一（作用域）样式，X.awaui.global.css 随组件注册的全局样式（Blazor 的 X.razor.css 对应物） -->
+    <AdditionalFiles Include="**/*.awaui.css" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(AdditionalFiles)" />
+    <AdditionalFiles Include="**/*.awaui.global.css" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(AdditionalFiles)" />
+  </ItemGroup>
+  <!--
+    项目级共享样式（Blazor 的 wwwroot/app.css 对应物）：文件合并为生成的 AwAUIGlobalStyles 类，
+    模块初始化时登记到 AppStyleSheets；<AwAUIGlobalStylesRegister>false</AwAUIGlobalStylesRegister> 关闭自动登记。
+    项目里写：
+      <AwAUIGlobalStylesheet Include="Styles/app.css" />
+  -->
+  <ItemGroup>
+    <AdditionalFiles Remove="@(AwAUIGlobalStylesheet)" />
+    <AdditionalFiles Include="@(AwAUIGlobalStylesheet)" AwAUIGlobalStylesheet="true" />
   </ItemGroup>
   <!--
     Tailwind 项（见 AwAUI.Markup.props）：转成带 AwAUITailwind 元数据的 AdditionalFiles。放在 .targets 中，项目正文里的项此时已经求值。
@@ -23,6 +36,7 @@
   <ItemGroup>
     <!-- dotnet watch：.awaui 与 Tailwind 样式表变化时重新构建 -->
     <Watch Include="@(AdditionalFiles->WithMetadataValue('Extension', '.awaui'))" />
-    <Watch Include="@(AwAUITailwindStylesheet);@(AwAUITailwindImport)" />
+    <Watch Include="@(AdditionalFiles->WithMetadataValue('Extension', '.css'))" />
+    <Watch Include="@(AwAUITailwindStylesheet);@(AwAUITailwindImport);@(AwAUIGlobalStylesheet)" />
   </ItemGroup>
 </Project>

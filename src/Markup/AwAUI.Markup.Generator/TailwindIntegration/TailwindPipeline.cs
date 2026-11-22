@@ -147,7 +147,8 @@ internal static class TailwindPipeline
             !IsFalse(Get(options, "AwAUITailwindRegister")),
             !IsFalse(Get(options, "AwAUITailwindAutoSource")),
             IsTrue(Get(options, "AwAUITailwindMinify")),
-            string.Equals(Get(options, "AwAUITailwindPreflight")?.Trim(), "Tailwind", StringComparison.OrdinalIgnoreCase));
+            string.Equals(Get(options, "AwAUITailwindPreflight")?.Trim(), "Tailwind", StringComparison.OrdinalIgnoreCase),
+            IsTrue(Get(options, "AwAUITailwindRuntime")));
     }
 
     static string? Get(AnalyzerConfigOptions options, string property) =>

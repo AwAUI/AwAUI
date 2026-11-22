@@ -33,6 +33,24 @@ public sealed class CSharpEmitOptions
     /// <summary>语义层面的组件类信息（Props、手写的胶水、State 绑定目标）；为 null 时对 <c>@code</c> 做语法扫描。</summary>
     public ComponentClassInfo? ClassInfo { get; set; }
 
+    /// <summary>
+    /// 目录级 <c>_Imports.awaui</c> 提供的 <c>@using</c>（相当于 Blazor 的 <c>_Imports.razor</c>）：参与标签解析，
+    /// 并以 <c>using</c> 写进生成的 C#（排在文件自身的 <c>@using</c> 之后），使 <c>@code</c> 也能直接使用这些命名空间。
+    /// </summary>
+    public IReadOnlyList<string>? Imports { get; set; }
+
+    /// <summary>
+    /// 外部作用域样式表（<c>X.awaui.css</c> 的内容，源生成器读取后传入）：与 <c>&lt;style&gt;</c> 的内容一起改写选择器，
+    /// 追加在内联作用域样式之后。非空时即使文件里没有 <c>&lt;style&gt;</c>，本组件的元素也会带上作用域标记。
+    /// </summary>
+    public string? ScopedStyleSheet { get; set; }
+
+    /// <summary>
+    /// 外部全局样式表（组件旁的 <c>X.awaui.global.css</c>）：不限定作用域，追加在内联 <c>&lt;style global&gt;</c> 之后。
+    /// 项目级共享样式用 <c>&lt;AwAUIGlobalStylesheet&gt;</c>（生成 <c>AwAUI.Generated.GlobalStyles</c>），不要写在这里。
+    /// </summary>
+    public string? GlobalStyleSheet { get; set; }
+
     /// <summary>是否在类中生成 Props 胶水（<c>PropsEqual</c> / <c>AdoptProps</c> / <c>CanAdoptProps</c>）。</summary>
     public bool EmitPropsGlue { get; set; } = true;
 
@@ -68,6 +86,13 @@ public static class CSharpEmitter
 
     /// <summary>生成文件中默认导入的命名空间（与 Razor 的默认导入相当），使 <c>@code</c> 可以直接写 <c>State&lt;T&gt;</c>、<c>List&lt;T&gt;</c>。</summary>
     internal static readonly string[] DefaultUsings = { "System", "System.Collections.Generic", "System.Linq", "AwAUI.UI" };
+
+    /// <summary>
+    /// 框架内置组件的命名空间：不带点的标签先按这些命名空间解析（在文件的 <c>@using</c> 与 <c>_Imports.awaui</c> 之后、默认导入之前），
+    /// 因此 <c>&lt;Button&gt;</c>、<c>&lt;NumericUpDown&gt;</c> 这样只写类名即可使用 <c>AwAUI.Controls</c> 中的控件，
+    /// 而显式 <c>@using</c> 与带点的全名仍然优先。编译中没有引用这些程序集时会被跳过。
+    /// </summary>
+    internal static readonly string[] SystemNamespaces = { "AwAUI.Controls", "AwAUI.Controls.Primitives" };
 
     /// <summary>HTML 拼写的属性名 → 组件/元素描述类型上的 C# 属性名（不在表中的按连字符分段转 PascalCase）。</summary>
     static readonly Dictionary<string, string> PropertyNames = new(StringComparer.Ordinal)
@@ -151,6 +176,7 @@ public static class CSharpEmitter
                     usings.Add(d.Value);
                 if (item is DirectiveSyntax n && n.DirectiveKind == DirectiveKind.Namespace) ns = n.Value;
             }
+            if (options.Imports != null) usings.AddRange(options.Imports);
             usings.AddRange(DefaultUsings);
             _scope = new ImportScope(ns ?? options.Namespace, usings);
         }
@@ -207,9 +233,11 @@ public static class CSharpEmitter
                 }
             }
 
-            // 样式
+            // 样式：内联 <style> 在前，外部 X.awaui.css / X.awaui.global.css 在后（后者可以覆盖前者）
             string? styleScope = null, scopedCss = null, globalCss = null;
-            if (scopedStyles.Count > 0)
+            string? externalScoped = _options.ScopedStyleSheet;
+            string? externalGlobal = _options.GlobalStyleSheet;
+            if (scopedStyles.Count > 0 || !string.IsNullOrWhiteSpace(externalScoped))
             {
                 _scoped = true;
                 styleScope = ScopedCss.ScopeAttributeFor(ns + "." + className);
@@ -219,15 +247,25 @@ public static class CSharpEmitter
                     if (css.Length > 0) css.Append('\n');
                     css.Append(ScopedCss.Rewrite(s.Content, styleScope));
                 }
+                if (!string.IsNullOrWhiteSpace(externalScoped))
+                {
+                    if (css.Length > 0) css.Append('\n');
+                    css.Append(ScopedCss.Rewrite(externalScoped!, styleScope));
+                }
                 scopedCss = css.ToString();
             }
-            if (globalStyles.Count > 0)
+            if (globalStyles.Count > 0 || !string.IsNullOrWhiteSpace(externalGlobal))
             {
                 var css = new StringBuilder();
                 foreach (var s in globalStyles)
                 {
                     if (css.Length > 0) css.Append('\n');
                     css.Append(s.Content);
+                }
+                if (!string.IsNullOrWhiteSpace(externalGlobal))
+                {
+                    if (css.Length > 0) css.Append('\n');
+                    css.Append(externalGlobal);
                 }
                 globalCss = css.ToString();
             }
@@ -245,11 +283,17 @@ public static class CSharpEmitter
             Line("{");
             _indent++;
             foreach (var u in DefaultUsings) Line("using global::" + u + ";");
+            var emittedUsings = new HashSet<string>(StringComparer.Ordinal);
             foreach (var d in directives)
             {
                 if (d.DirectiveKind != DirectiveKind.Using) continue;
+                emittedUsings.Add(d.Value.Trim());
                 Mapped("using", d.Value, d.ValueSpan.Start, ";");
             }
+            // _Imports.awaui：来自其他文件，没有可以映射的源位置
+            if (_options.Imports != null)
+                foreach (var import in _options.Imports)
+                    if (emittedUsings.Add(import)) Line("using " + import + ";");
             string sourcePath = (_options.ComponentSourcePath ?? _file).Replace('\\', '/');
             Line($"[{UI}ComponentSource({Literal(sourcePath)})]");
             foreach (var a in attributes) Mapped("", a.Value, a.ValueSpan.Start, "");

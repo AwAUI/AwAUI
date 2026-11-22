@@ -1,0 +1,4 @@
+/* 项目级共享样式（Blazor 的 wwwroot/app.css 对应物）：由 <AwAUIGlobalStylesheet> 合并，模块初始化时自动登记。 */
+.awaui-integration-global {
+    color: #0f5f0f;
+}

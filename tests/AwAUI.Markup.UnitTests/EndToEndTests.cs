@@ -582,6 +582,75 @@ public class EndToEndTests
     }
 
     [Fact]
+    public void External_awaui_css_scopes_like_an_inline_style_block()
+    {
+        var r = new GeneratorHarness()
+            .Awaui("Externally.awaui", "<div class=\"outer\"><span class=\"inner\">x</span><Card /></div>")
+            .AdditionalFile("Externally.awaui.css", ".outer { color: red }\n.inner::before { content: \"»\" }")
+            .Awaui("Card.awaui", CardAwaui)
+            .Run();
+        r.AssertNoErrors();
+
+        using var asm = r.Load();
+        var type = asm.Type("TestApp.Externally");
+        string scope = (string)type.GetField("__StyleScope")!.GetRawConstantValue()!;
+        string css = (string)type.GetField("StyleSheetSource")!.GetRawConstantValue()!;
+        Assert.Matches("^aw-[0-9a-f]{8}$", scope);
+        Assert.Equal($".outer[{scope}] {{ color: red }}\n.inner[{scope}]::before {{ content: \"»\" }}", css);
+        Assert.Null(type.GetField("GlobalStyleSheetSource"));
+
+        var root = new UIRoot();
+        root.Mount(asm.Create("TestApp.Externally"));
+        Assert.Equal(scope, root.RootElement.ByClass("outer").Scope);
+        Assert.Equal(scope, root.RootElement.ByClass("inner").Scope);
+        Assert.Null(root.RootElement.ByClass("card").Scope);
+    }
+
+    [Fact]
+    public void External_awaui_global_css_is_registered_with_the_component()
+    {
+        var r = new GeneratorHarness()
+            .Awaui("Externally.awaui", "<div class=\"outer\">x</div>\n<style global>.inline-global { }</style>")
+            .AdditionalFile("Externally.awaui.css", ".outer { color: red }")
+            .AdditionalFile("Externally.awaui.global.css", ".external-global { color: green }")
+            .AdditionalFile("Unrelated.awaui.css", ".unrelated { color: blue }")
+            .Run();
+        r.AssertNoErrors();
+
+        using var asm = r.Load();
+        var type = asm.Type("TestApp.Externally");
+        string css = (string)type.GetField("StyleSheetSource")!.GetRawConstantValue()!;
+        string global = (string)type.GetField("GlobalStyleSheetSource")!.GetRawConstantValue()!;
+        Assert.Contains(".outer[", css);
+        Assert.Contains(".inline-global { }", global);
+        Assert.Contains(".external-global { color: green }", global);
+        Assert.DoesNotContain(".unrelated", css);
+        Assert.DoesNotContain(".unrelated", global);
+    }
+
+    [Fact]
+    public void Project_global_stylesheet_generates_one_shared_registration()
+    {
+        var r = new GeneratorHarness()
+            .AdditionalFile("Styles/app.css", "body { color: #123456; }", ("AwAUIGlobalStylesheet", "true"))
+            .AdditionalFile("Styles/theme.css", ".theme { color: #654321; }", ("AwAUIGlobalStylesheet", "true"))
+            .Run();
+        r.AssertNoErrors();
+
+        string code = r.Generated("AwAUI.GlobalStyles");
+        Assert.Contains("internal static partial class AwAUIGlobalStyles", code);
+        Assert.Contains("[global::System.Runtime.CompilerServices.ModuleInitializer]", code);
+        Assert.Contains("body { color: #123456; }", code);
+        Assert.Contains(".theme { color: #654321; }", code);
+
+        using var asm = r.Load();
+        var type = asm.Type("TestApp.AwAUIGlobalStyles");
+        string css = (string)type.GetField("Css")!.GetRawConstantValue()!;
+        // 按路径排序，构建结果稳定
+        Assert.True(css.IndexOf("body {", StringComparison.Ordinal) < css.IndexOf(".theme {", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Styled_component_inheriting_a_styled_component_compiles_without_warnings()
     {
         // 两者都有 <style>：派生类的样式常量隐藏基类的同名常量，曾报 CS0108（TreatWarningsAsErrors 的项目里是错误）

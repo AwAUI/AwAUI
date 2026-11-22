@@ -1,0 +1,5 @@
+@* 外部样式文件：StyledPanel.awaui.css（作用域）与项目级 Styles/global.css（共享）在真实的 MSBuild 构建中生效 *@
+<div class="styled-panel">
+    <text class="styled-title">@Title</text>
+    <span class="styled-badge">badge</span>
+</div>

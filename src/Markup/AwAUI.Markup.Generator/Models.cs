@@ -49,10 +49,13 @@ internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IRea
 /// <summary>项目级设置（MSBuild 属性）。</summary>
 internal sealed class ProjectSettings : IEquatable<ProjectSettings>
 {
-    public ProjectSettings(string rootNamespace, string? projectDir)
+    public ProjectSettings(string rootNamespace, string? projectDir, EquatableArray<string> tagNamespaces = default,
+        EquatableArray<string>? builtInNamespaces = null)
     {
         RootNamespace = rootNamespace;
         ProjectDir = projectDir;
+        TagNamespaces = tagNamespaces;
+        BuiltInNamespaces = builtInNamespaces;
     }
 
     public string RootNamespace { get; }
@@ -60,22 +63,44 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
     /// <summary>项目目录（以分隔符结尾）；未知时为 null。</summary>
     public string? ProjectDir { get; }
 
-    public bool Equals(ProjectSettings? other) => other is not null && RootNamespace == other.RootNamespace && ProjectDir == other.ProjectDir;
+    /// <summary>
+    /// 额外的标签命名空间（<c>AwAUIMarkupNamespaces</c>，分号或逗号分隔）：与框架内置命名空间一起在
+    /// <c>_Imports.awaui</c> 与项目级 <c>global using</c> 之后解析，用于项目自己的组件库。
+    /// </summary>
+    public EquatableArray<string> TagNamespaces { get; }
+
+    /// <summary>
+    /// 替换框架内置标签命名空间（<c>AwAUIMarkupBuiltInNamespaces</c>）；null 表示沿用默认的
+    /// <see cref="CSharpEmitter.SystemNamespaces"/>，空列表表示禁用内置查找。
+    /// </summary>
+    public EquatableArray<string>? BuiltInNamespaces { get; }
+
+    public bool Equals(ProjectSettings? other) => other is not null && RootNamespace == other.RootNamespace
+        && ProjectDir == other.ProjectDir && TagNamespaces.Equals(other.TagNamespaces)
+        && Nullable.Equals(BuiltInNamespaces, other.BuiltInNamespaces);
 
     public override bool Equals(object? obj) => Equals(obj as ProjectSettings);
 
-    public override int GetHashCode() => RootNamespace.GetHashCode() * 31 + (ProjectDir?.GetHashCode() ?? 0);
+    public override int GetHashCode() => RootNamespace.GetHashCode() * 31 + (ProjectDir?.GetHashCode() ?? 0)
+        + TagNamespaces.GetHashCode() + (BuiltInNamespaces?.GetHashCode() ?? 0);
 }
 
 /// <summary>一个 <c>.awaui</c> 文件的输入：路径、文本与按目录推出的默认命名空间。</summary>
 internal sealed class FileInput : IEquatable<FileInput>
 {
-    public FileInput(string path, string text, string relativePath, string defaultNamespace)
+    public FileInput(string path, string text, string relativePath, string defaultNamespace,
+        EquatableArray<string> globalUsings = default, EquatableArray<string> tagNamespaces = default,
+        EquatableArray<string>? builtInNamespaces = null, string? scopedCss = null, string? globalCss = null)
     {
         Path = path;
         Text = text;
         RelativePath = relativePath;
         DefaultNamespace = defaultNamespace;
+        GlobalUsings = globalUsings;
+        TagNamespaces = tagNamespaces;
+        BuiltInNamespaces = builtInNamespaces ?? new EquatableArray<string>(CSharpEmitter.SystemNamespaces);
+        ScopedCss = scopedCss;
+        GlobalCss = globalCss;
     }
 
     /// <summary>完整路径（写入 <c>#line</c>，诊断位置用它）。</summary>
@@ -89,14 +114,37 @@ internal sealed class FileInput : IEquatable<FileInput>
     /// <summary>项目根命名空间 + 目录（没有 <c>@namespace</c> 时使用）。</summary>
     public string DefaultNamespace { get; }
 
+    /// <summary>
+    /// 目录级 <c>_Imports.awaui</c> 提供的 <c>@using</c>（由外向内累积）；写在文件自身的 <c>@using</c> 之后，
+    /// 因此文件里的显式 using 优先。相当于 Blazor 的 <c>_Imports.razor</c>。
+    /// </summary>
+    public EquatableArray<string> GlobalUsings { get; }
+
+    /// <summary>项目级额外的标签命名空间（<c>AwAUIMarkupNamespaces</c>）；排在框架内置命名空间之前。</summary>
+    public EquatableArray<string> TagNamespaces { get; }
+
+    /// <summary>框架内置标签命名空间（未配置时为 <see cref="CSharpEmitter.SystemNamespaces"/>；可被项目替换或禁用）。</summary>
+    public EquatableArray<string> BuiltInNamespaces { get; }
+
+    /// <summary>同名的 <c>X.awaui.css</c> 的内容（组件唯一的作用域样式）；没有文件时为 null。</summary>
+    public string? ScopedCss { get; }
+
+    /// <summary>组件旁的 <c>X.awaui.global.css</c> 的内容（随组件注册的全局样式）；没有文件时为 null。</summary>
+    public string? GlobalCss { get; }
+
     public bool Equals(FileInput? other) =>
-        other is not null && Path == other.Path && Text == other.Text && RelativePath == other.RelativePath && DefaultNamespace == other.DefaultNamespace;
+        other is not null && Path == other.Path && Text == other.Text && RelativePath == other.RelativePath
+        && DefaultNamespace == other.DefaultNamespace && GlobalUsings.Equals(other.GlobalUsings)
+        && TagNamespaces.Equals(other.TagNamespaces) && BuiltInNamespaces.Equals(other.BuiltInNamespaces)
+        && ScopedCss == other.ScopedCss && GlobalCss == other.GlobalCss;
 
     public override bool Equals(object? obj) => Equals(obj as FileInput);
 
-    public override int GetHashCode() => Path.GetHashCode() * 31 + Text.Length;
+    public override int GetHashCode() => Path.GetHashCode() * 31 + Text.Length
+        + (ScopedCss?.Length ?? 0) * 17 + (GlobalCss?.Length ?? 0) * 13;
 
-    public static FileInput Create(string path, string text, ProjectSettings settings)
+    public static FileInput Create(string path, string text, ProjectSettings settings,
+        EquatableArray<string> globalUsings = default, string? scopedCss = null, string? globalCss = null)
     {
         string normalized = path.Replace('\\', '/');
         // 项目目录之外的文件（链接文件）只取文件名；两种分隔符都认（在类 Unix 系统上 Path.GetFileName 不把 \ 当分隔符）
@@ -116,7 +164,8 @@ internal sealed class FileInput : IEquatable<FileInput>
             if (ns.Length > 0) ns.Append('.');
             ns.Append(seg);
         }
-        return new FileInput(path, text, relative, ns.Length > 0 ? ns.ToString() : "AwAUI.Generated");
+        return new FileInput(path, text, relative, ns.Length > 0 ? ns.ToString() : "AwAUI.Generated", globalUsings,
+            settings.TagNamespaces, settings.BuiltInNamespaces, scopedCss, globalCss);
     }
 
     /// <summary>目录名 → 命名空间段：非法字符替换为 <c>_</c>，数字开头加 <c>_</c>（与 Razor 相同）。</summary>
@@ -134,7 +183,8 @@ internal sealed class FileInput : IEquatable<FileInput>
 internal sealed class FileDeclaration : IEquatable<FileDeclaration>
 {
     public FileDeclaration(FileInput input, string ns, string className, int arity, string skeleton,
-        EquatableArray<string> usings, EquatableArray<string> componentTags, EquatableArray<string> bindTargets)
+        EquatableArray<string> usings, int explicitUsingCount, EquatableArray<string> componentTags,
+        EquatableArray<string> bindTargets)
     {
         Input = input;
         Namespace = ns;
@@ -142,6 +192,7 @@ internal sealed class FileDeclaration : IEquatable<FileDeclaration>
         Arity = arity;
         Skeleton = skeleton;
         Usings = usings;
+        ExplicitUsingCount = explicitUsingCount;
         ComponentTags = componentTags;
         BindTargets = bindTargets;
     }
@@ -159,8 +210,11 @@ internal sealed class FileDeclaration : IEquatable<FileDeclaration>
     /// <summary>只含指令与 <c>@code</c> 成员的类骨架（C#），加入临时编译以便其他文件解析本组件的 Props。</summary>
     public string Skeleton { get; }
 
-    /// <summary>解析标签时的 using（文件的 @using 在前，默认导入在后）。</summary>
+    /// <summary>解析标签时的 using（文件的 @using 与 _Imports.awaui 在前，默认导入在后）。</summary>
     public EquatableArray<string> Usings { get; }
+
+    /// <summary><see cref="Usings"/> 中属于用户的前缀长度（文件的 @using + <c>_Imports.awaui</c>）：框架内置命名空间插在它之后。</summary>
+    public int ExplicitUsingCount { get; }
 
     public EquatableArray<string> ComponentTags { get; }
 
@@ -172,6 +226,7 @@ internal sealed class FileDeclaration : IEquatable<FileDeclaration>
     public bool Equals(FileDeclaration? other) =>
         other is not null && Input.Equals(other.Input) && Namespace == other.Namespace && ClassName == other.ClassName
         && Arity == other.Arity && Skeleton == other.Skeleton && Usings.Equals(other.Usings)
+        && ExplicitUsingCount == other.ExplicitUsingCount
         && ComponentTags.Equals(other.ComponentTags) && BindTargets.Equals(other.BindTargets);
 
     public override bool Equals(object? obj) => Equals(obj as FileDeclaration);

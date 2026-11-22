@@ -99,6 +99,39 @@ public class MarkupBuildTests
     }
 
     [Fact]
+    public void External_awaui_css_is_scoped_and_applied_in_a_real_build()
+    {
+        // Components/StyledPanel.awaui.css 由 MSBuild 自动纳入 AdditionalFiles，并与内联 <style> 一样改写选择器
+        Assert.Contains($".styled-title[{StyledPanel.__StyleScope}]", StyledPanel.StyleSheetSource);
+        Assert.Contains($".styled-badge[{StyledPanel.__StyleScope}]::before", StyledPanel.StyleSheetSource);
+        var root = new UIRoot();
+        root.Mount(new StyledPanel { Title = "Externally styled" });
+        Assert.Equal(StyledPanel.__StyleScope, Find(root, "styled-panel").Scope);
+        Assert.Equal(StyledPanel.__StyleScope, Find(root, "styled-title").Scope);
+        Assert.Equal("Externally styled", Find(root, "styled-title").TextContent);
+    }
+
+    [Fact]
+    public void Project_global_stylesheet_is_registered_and_applies_to_every_component()
+    {
+        // <AwAUIGlobalStylesheet Include="Styles/global.css" /> 在真实构建中生成 AwAUIGlobalStyles 并自动登记
+        Assert.Contains(".awaui-integration-global", AwAUI.Markup.IntegrationTests.AwAUIGlobalStyles.Css);
+        Assert.Contains(AppStyleSheets.Registered, s => s.SourceName == "global");
+
+        var pipeline = new RenderPipeline(new TestTextEngine());
+        pipeline.SetViewport(new Size(400, 300), 1);
+        var root = new UIRoot { Pipeline = pipeline };
+        root.Mount(new Div
+        {
+            Class = "awaui-integration-global",
+            Children = new NodeList([new AwAUI.UI.Text("shared")]),
+        });
+        root.RunFrame();
+        var element = Find(root, "awaui-integration-global");
+        Assert.Equal(Color.Parse("#0f5f0f"), element.ComputedStyle!.ResolveColor(element.ComputedStyle.Color));
+    }
+
+    [Fact]
     public void Todo_list_binds_input_adds_and_removes_keyed_children()
     {
         var root = new UIRoot();

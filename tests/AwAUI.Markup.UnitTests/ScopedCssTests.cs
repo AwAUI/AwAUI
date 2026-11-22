@@ -22,6 +22,14 @@ public class ScopedCssTests
     [InlineData("col || td { }", "col || td[aw-1] { }")]
     public void Selectors_get_the_scope_on_their_last_compound(string css, string expected) => Assert.Equal(expected, R(css));
 
+    [Theory]
+    [InlineData(".list ::deep .item { }", ".list[aw-1] .item { }")]
+    [InlineData(".a > ::deep .b, .c ::deep.d { }", ".a[aw-1] > .b, .c[aw-1] .d { }")]
+    [InlineData(".a::DEEP .b::before { }", ".a[aw-1] .b::before { }")]
+    [InlineData(".a:hover ::deep .b { color: red }", ".a:hover[aw-1] .b { color: red }")]
+    [InlineData(".a::deeper .b { }", ".a::deeper .b[aw-1] { }")]
+    public void Deep_puts_the_scope_on_the_compound_before_it(string css, string expected) => Assert.Equal(expected, R(css));
+
     [Fact]
     public void Conditional_group_rules_are_rewritten_recursively()
     {

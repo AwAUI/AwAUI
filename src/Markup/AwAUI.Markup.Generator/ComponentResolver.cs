@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using AwAUI.Markup.Compiler.Analysis;
 using AwAUI.Markup.Compiler.CodeGen;
@@ -39,7 +40,7 @@ internal static class ComponentResolver
         for (int i = 0; i < files.Length; i++)
             trees[i] = CSharpSyntaxTree.ParseText(files[i].Skeleton, options, path: files[i].Input.Path + ".skeleton.cs", cancellationToken: ct);
         var withSkeletons = compilation.AddSyntaxTrees(trees);
-        var known = new Known(withSkeletons);
+        var known = new Known(withSkeletons, GlobalUsingsOf(compilation));
         var awauiTypes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var f in files) awauiTypes.Add(f.MetadataName);
 
@@ -66,8 +67,9 @@ internal static class ComponentResolver
     /// <summary>运行时中用到的类型。</summary>
     sealed class Known
     {
-        public Known(Compilation c)
+        public Known(Compilation c, ImmutableArray<string> globalUsings)
         {
+            GlobalUsings = globalUsings;
             Node = c.GetTypeByMetadataName("AwAUI.UI.Node");
             Component = c.GetTypeByMetadataName("AwAUI.UI.Component");
             ElementNode = c.GetTypeByMetadataName("AwAUI.UI.ElementNode");
@@ -88,13 +90,60 @@ internal static class ComponentResolver
         public INamedTypeSymbol? State { get; }
         public INamedTypeSymbol? AttributeDictionary { get; }
         public INamedTypeSymbol? CaptureUnmatched { get; }
+
+        /// <summary>项目里的 <c>global using</c>（SDK 隐式 using 与手写的全局 using），按出现顺序。</summary>
+        public ImmutableArray<string> GlobalUsings { get; }
+    }
+
+    static readonly ConditionalWeakTable<Compilation, GlobalUsingsInfo> s_globalUsings = new();
+
+    sealed class GlobalUsingsInfo
+    {
+        public GlobalUsingsInfo(ImmutableArray<string> names) => Names = names;
+
+        public ImmutableArray<string> Names { get; }
+    }
+
+    /// <summary>
+    /// 收集项目级全局导入（<c>&lt;Using Include="..." /&gt;</c> 生成的 <c>global using</c> 或手写的全局 using 语句）。
+    /// 生成的 C# 与项目在同一编译中，本来就能看到这些 using，这里只是把它们加入标签解析的候选。
+    /// </summary>
+    static ImmutableArray<string> GlobalUsingsOf(Compilation compilation) =>
+        s_globalUsings.GetValue(compilation, static c => new GlobalUsingsInfo(CollectGlobalUsings(c))).Names;
+
+    static ImmutableArray<string> CollectGlobalUsings(Compilation compilation)
+    {
+        const string GlobalPrefix = "global::";
+        var usings = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            // 只解析根节点：global using 不能出现在命名空间内
+            if (tree.GetRoot() is not CompilationUnitSyntax root) continue;
+            foreach (var directive in root.Usings)
+            {
+                if (!directive.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)) continue;
+                // 别名与 static using 不引入命名空间
+                if (directive.Alias is not null || directive.StaticKeyword.IsKind(SyntaxKind.StaticKeyword)) continue;
+                string? name = directive.Name?.ToString();
+                if (string.IsNullOrEmpty(name)) continue;
+                if (name!.StartsWith(GlobalPrefix, StringComparison.Ordinal)) name = name.Substring(GlobalPrefix.Length);
+                if (seen.Add(name)) usings.Add(name);
+            }
+        }
+        return usings.Count == 0 ? ImmutableArray<string>.Empty : usings.ToImmutableArray();
     }
 
     // ------------------------------------------------------------ 组件标签
 
     /// <summary>
-    /// 按 C# 的名称查找顺序解析标签：当前命名空间 → 文件的 using（含默认导入）→ 外层命名空间 → 全局；带点的标签另外按全名查找。
+    /// 按 C# 的名称查找顺序解析标签：当前命名空间 → 文件与 <c>_Imports.awaui</c> 的 using → 项目级 <c>global using</c>
+    /// → 项目配置的额外命名空间（<c>AwAUIMarkupNamespaces</c>）→ 框架内置命名空间（<c>AwAUIMarkupBuiltInNamespaces</c>，
+    /// 默认为 <see cref="CSharpEmitter.SystemNamespaces"/>）
+    /// → 默认导入 → 外层命名空间 → 全局；带点的标签另外按全名查找。
     /// 只接受派生自 <c>AwAUI.UI.Node</c> 的类型。
+    /// 内置命名空间插在用户 using 之后：显式 <c>@using</c> 与项目级全局 using 优先，其次是 <c>AwAUI.Controls</c>，最后才默认导入的
+    /// <c>AwAUI.UI</c>。编译中没有引用相应程序集时（如只引用 AwAUI.UI 的测试）这些候选自然落空。
     /// </summary>
     static ComponentInfo? ResolveTag(string tag, FileDeclaration f, Compilation c, Known known)
     {
@@ -103,7 +152,18 @@ internal static class ComponentResolver
         if (tag.IndexOf('.') >= 0) candidates.Add(tag);
         string ns = f.Namespace;
         if (ns.Length > 0) candidates.Add(ns + "." + tag);
-        foreach (var u in f.Usings) candidates.Add(u + "." + tag);
+        int explicitCount = Math.Max(0, Math.Min(f.ExplicitUsingCount, f.Usings.Count));
+        for (int i = 0; i <= f.Usings.Count; i++)
+        {
+            if (i == explicitCount && tag.IndexOf('.') < 0)
+            {
+                foreach (var global in known.GlobalUsings) candidates.Add(global + "." + tag);
+                // 项目配置的额外命名空间（AwAUIMarkupNamespaces）优先于框架内置命名空间
+                foreach (var configured in f.Input.TagNamespaces) candidates.Add(configured + "." + tag);
+                foreach (var system in f.Input.BuiltInNamespaces) candidates.Add(system + "." + tag);
+            }
+            if (i < f.Usings.Count) candidates.Add(f.Usings[i] + "." + tag);
+        }
         for (int dot = ns.LastIndexOf('.'); dot > 0; dot = ns.LastIndexOf('.', dot - 1))
             candidates.Add(ns.Substring(0, dot) + "." + tag);
         candidates.Add(tag);

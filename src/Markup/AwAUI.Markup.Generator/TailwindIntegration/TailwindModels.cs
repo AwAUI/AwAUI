@@ -6,7 +6,7 @@ namespace AwAUI.Markup.Generator.TailwindIntegration;
 /// <summary>Tailwind 接入的项目级设置（MSBuild 属性，见 buildTransitive/AwAUI.Markup.props）。</summary>
 internal sealed class TailwindSettings : IEquatable<TailwindSettings>
 {
-    public TailwindSettings(string assemblyName, string rootNamespace, string? projectDir, string themeRoot, bool register, bool autoSource, bool minify, bool originalPreflight)
+    public TailwindSettings(string assemblyName, string rootNamespace, string? projectDir, string themeRoot, bool register, bool autoSource, bool minify, bool originalPreflight, bool runtime)
     {
         AssemblyName = assemblyName;
         RootNamespace = rootNamespace;
@@ -16,6 +16,7 @@ internal sealed class TailwindSettings : IEquatable<TailwindSettings>
         AutoSource = autoSource;
         Minify = minify;
         OriginalPreflight = originalPreflight;
+        Runtime = runtime;
     }
 
     /// <summary>程序集名（写进来源名，区分不同程序集中同名的入口样式表）。</summary>
@@ -32,9 +33,13 @@ internal sealed class TailwindSettings : IEquatable<TailwindSettings>
     public bool Minify { get; }
     public bool OriginalPreflight { get; }
 
+    /// <summary><c>AwAUITailwindRuntime</c>：额外生成运行时补全所需的入口 CSS 与 <c>CreateRuntime()</c>。默认 false。</summary>
+    public bool Runtime { get; }
+
     public bool Equals(TailwindSettings? other) =>
         other is not null && AssemblyName == other.AssemblyName && RootNamespace == other.RootNamespace && ProjectDir == other.ProjectDir && ThemeRoot == other.ThemeRoot
-        && Register == other.Register && AutoSource == other.AutoSource && Minify == other.Minify && OriginalPreflight == other.OriginalPreflight;
+        && Register == other.Register && AutoSource == other.AutoSource && Minify == other.Minify && OriginalPreflight == other.OriginalPreflight
+        && Runtime == other.Runtime;
 
     public override bool Equals(object? obj) => Equals(obj as TailwindSettings);
 

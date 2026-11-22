@@ -138,6 +138,12 @@ internal static class RuntimeElements
         ["focusout"] = new("OnFocusOut", "FocusEvent"),
         ["tap"] = new("OnTap", "TapEvent"),
         ["pan"] = new("OnPan", "PanEvent"),
+        ["longpress"] = new("OnLongPress", "LongPressEvent"),
+        ["doubletap"] = new("OnDoubleTap", "DoubleTapEvent"),
+        ["swipe"] = new("OnSwipe", "SwipeEvent"),
+        ["pinch"] = new("OnPinch", "PinchEvent"),
+        ["rotate"] = new("OnRotate", "RotateEvent"),
+        ["edgeswipe"] = new("OnEdgeSwipe", "EdgeSwipeEvent"),
         ["scroll"] = new("OnScroll", "ScrollEvent"),
         ["wheel"] = new("OnWheel", "WheelEvent"),
     };
@@ -152,7 +158,8 @@ internal static class RuntimeElements
     /// <summary>运行时中派生自 <c>AwAUI.UI.Event</c> 的事件参数类型（简单名）。</summary>
     static readonly HashSet<string> EventArgTypes = new(StringComparer.Ordinal)
     {
-        "Event", "PointerEvent", "KeyEvent", "FocusEvent", "InputEvent", "SubmitEvent", "TapEvent", "PanEvent", "ScrollEvent", "WheelEvent",
+        "Event", "PointerEvent", "KeyEvent", "FocusEvent", "InputEvent", "SubmitEvent", "TapEvent", "PanEvent",
+        "LongPressEvent", "DoubleTapEvent", "SwipeEvent", "PinchEvent", "RotateEvent", "EdgeSwipeEvent", "ScrollEvent", "WheelEvent",
     };
 
     /// <summary>ARIA 角色名 → <c>AwAUI.UI.Role</c> 成员名。</summary>
