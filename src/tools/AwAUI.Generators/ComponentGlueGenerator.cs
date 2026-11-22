@@ -21,7 +21,8 @@ namespace AwAUI.Generators;
 /// 否则基类上声明的 Props 由派生类一并处理。
 /// </para>
 /// 诊断：AW1006 组件类不是 partial；AW1007 嵌套组件的外层类型不是 partial；AW1009 组件是 file 局部类型；
-/// AW1001 组件内部给自己的 Props 赋值（构造函数除外）。
+/// AW1001 组件内部给自己的 Props 赋值（构造函数除外）；
+/// AW1004 在动态列表（循环或 Select/SelectMany）中创建的组件子项没有设置 Key。
 /// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class ComponentGlueGenerator : IIncrementalGenerator
@@ -53,6 +54,12 @@ public sealed class ComponentGlueGenerator : IIncrementalGenerator
         "组件 '{0}' 是 file 局部类型：它的 partial 声明必须都在同一文件中，无法生成 Props 胶水（PropsEqual/AdoptProps），父组件重建时它的 Props 不会更新。请去掉 'file' 修饰符，或手写这两个方法",
         Category, DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
+    internal static readonly DiagnosticDescriptor MissingKeyInDynamicList = new(
+        "AW1004",
+        "动态列表中的组件子项缺少 Key",
+        "组件 '{0}' 在循环或 Select 中作为列表项创建，但没有设置 Key：请在循环/Select 创建的组件上设置 Key，以便重建时保持状态与焦点",
+        Category, DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
     static readonly SymbolDisplayFormat TypeFormat = SymbolDisplayFormat.FullyQualifiedFormat
         .WithMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
@@ -66,6 +73,15 @@ public sealed class ComponentGlueGenerator : IIncrementalGenerator
             .Where(static r => r is not null);
 
         context.RegisterSourceOutput(results, static (spc, r) => Produce(spc, r!));
+
+        // AW1004：只检查组件实例的构造（普通 Node 不要求 Key）
+        var keyResults = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (node, _) => node is ObjectCreationExpressionSyntax,
+                static (ctx, ct) => AnalyzeDynamicKey((ObjectCreationExpressionSyntax)ctx.Node, ctx.SemanticModel, ct))
+            .Where(static d => d is not null);
+
+        context.RegisterSourceOutput(keyResults, static (spc, d) => spc.ReportDiagnostic(d!.ToDiagnostic()));
     }
 
     static void Produce(SourceProductionContext spc, GlueResult r)
@@ -267,6 +283,176 @@ public sealed class ComponentGlueGenerator : IIncrementalGenerator
             if (p is ConstructorDeclarationSyntax) return false;
             if (p is MethodDeclarationSyntax m && m.Identifier.ValueText == "AdoptProps" && m.Modifiers.Any(SyntaxKind.OverrideKeyword)) return false;
             if (p is BaseTypeDeclarationSyntax) return ReferenceEquals(p, part);
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------ AW1004
+
+    /// <summary>AW1004 的保守判定：只处理循环体或 Select/SelectMany lambda 内、确实作为列表项收集的组件构造。</summary>
+    internal static DiagnosticInfo? AnalyzeDynamicKey(ObjectCreationExpressionSyntax creation, SemanticModel model, CancellationToken ct)
+    {
+        var kind = DynamicKind(creation);
+        if (kind == Dynamism.None) return null;
+        bool projected = kind == Dynamism.Projection;
+
+        // 循环体中的单次构造不算列表：只有作为数组/集合元素、Add/AddRange 实参或迭代器产出时才报告。
+        // Select/SelectMany 的 lambda 本身就在投影序列，元素会被收集。
+        if (!projected && !IsCollectedAsItem(creation)) return null;
+
+        if (HasKey(creation)) return null;
+
+        if (model.GetTypeInfo(creation, ct).Type is not INamedTypeSymbol type) return null;
+        if (type.TypeKind == TypeKind.Error) return null;
+        if (!DerivesFromComponent(type)) return null;
+
+        // 保守起见只检查组件自身成员中的构造（Build 及其局部/嵌套函数）。测试与框架里直接拼装
+        // 描述树的静态辅助方法不在此列，避免对无需保持身份的固定夹具误报。
+        if (!IsInsideComponentType(creation, model, ct)) return null;
+
+        return DiagnosticInfo.Create(MissingKeyInDynamicList, creation.Type.GetLocation(), type.Name);
+    }
+
+    enum Dynamism { None, Loop, Projection }
+
+    static Dynamism DynamicKind(SyntaxNode node)
+    {
+        for (var p = node.Parent; p is not null; p = p.Parent)
+        {
+            if (p is ForEachStatementSyntax forEach && forEach.Statement.Span.Contains(node.Span)) return Dynamism.Loop;
+            // 计数循环（for (int i = ...; ...)）生成的是位置稳定的列表，不要求 Key，避免对框架/示例里
+            // 按索引生成的月份、年份等固定列表误报。
+            if (p is ForStatementSyntax forStatement && forStatement.Statement.Span.Contains(node.Span) && !IsCountedLoop(forStatement))
+                return Dynamism.Loop;
+            if (p is WhileStatementSyntax whileStatement && whileStatement.Statement.Span.Contains(node.Span)) return Dynamism.Loop;
+            if (p is DoStatementSyntax doStatement && doStatement.Statement.Span.Contains(node.Span)) return Dynamism.Loop;
+            if (p is SimpleLambdaExpressionSyntax simple && IsProjectionLambda(simple)) return Dynamism.Projection;
+            if (p is ParenthesizedLambdaExpressionSyntax parenthesized && IsProjectionLambda(parenthesized)) return Dynamism.Projection;
+        }
+        return Dynamism.None;
+    }
+
+    static bool IsInsideComponentType(SyntaxNode node, SemanticModel model, CancellationToken ct)
+    {
+        for (var p = node.Parent; p is not null; p = p.Parent)
+        {
+            if (p is TypeDeclarationSyntax declaration
+                && model.GetDeclaredSymbol(declaration, ct) is INamedTypeSymbol symbol
+                && DerivesFromComponent(symbol))
+                return true;
+        }
+        return false;
+    }
+
+    static bool IsCountedLoop(ForStatementSyntax loop)
+    {
+        if (loop.Declaration is not VariableDeclarationSyntax declaration) return false;
+        var type = declaration.Type is NullableTypeSyntax nullable ? nullable.ElementType : declaration.Type;
+        return type is PredefinedTypeSyntax predefined
+            && predefined.Keyword.Kind() is SyntaxKind.IntKeyword or SyntaxKind.LongKeyword or SyntaxKind.ShortKeyword
+                or SyntaxKind.ByteKeyword or SyntaxKind.SByteKeyword or SyntaxKind.UIntKeyword or SyntaxKind.ULongKeyword
+                or SyntaxKind.UShortKeyword;
+    }
+
+    static bool IsProjectionLambda(LambdaExpressionSyntax lambda) =>
+        lambda.Parent is ArgumentSyntax { Parent: ArgumentListSyntax { Parent: InvocationExpressionSyntax invocation } }
+        && invocation.Expression is MemberAccessExpressionSyntax access
+        && (access.Name.Identifier.ValueText == "Select" || access.Name.Identifier.ValueText == "SelectMany");
+
+    /// <summary>构造是否直接作为一个列表/子项元素被收集。</summary>
+    static bool IsCollectedAsItem(ObjectCreationExpressionSyntax creation)
+    {
+        SyntaxNode node = creation;
+        // 集合表达式 [..] 的元素被包在 ExpressionElementSyntax 中
+        while (node.Parent is ParenthesizedExpressionSyntax || node.Parent is ExpressionElementSyntax) node = node.Parent;
+
+        switch (node.Parent)
+        {
+            case CollectionExpressionSyntax:
+                return true;
+
+            case InitializerExpressionSyntax init:
+                // 数组 / 集合初始化器的元素
+                if (init.IsKind(SyntaxKind.ArrayInitializerExpression) || init.IsKind(SyntaxKind.CollectionInitializerExpression))
+                    return true;
+                // 成员初始化器 Children = { new Foo() }
+                return init.IsKind(SyntaxKind.ObjectInitializerExpression) && init.Parent is AssignmentExpressionSyntax;
+
+            case ArgumentSyntax argument:
+                return IsAddInvocation(argument);
+
+            // var item = new Foo(); ... list.Add(item);
+            case EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax declarator }:
+                return IsAddedLater(creation, declarator.Identifier.ValueText);
+
+            case YieldStatementSyntax:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    static bool IsAddedLater(ObjectCreationExpressionSyntax creation, string name)
+    {
+        var block = creation.Ancestors().OfType<BlockSyntax>().FirstOrDefault();
+        if (block is null) return false;
+
+        foreach (var invocation in block.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            if (invocation.SpanStart <= creation.SpanStart) continue;
+            if (invocation.Expression is not MemberAccessExpressionSyntax access) continue;
+            if (access.Name.Identifier.ValueText != "Add" && access.Name.Identifier.ValueText != "AddRange") continue;
+            foreach (var argument in invocation.ArgumentList.Arguments)
+            {
+                if (argument.Expression is IdentifierNameSyntax id && id.Identifier.ValueText == name) return true;
+            }
+        }
+        return false;
+    }
+
+    static bool IsAddInvocation(ArgumentSyntax argument)
+    {
+        if (argument.Parent is not ArgumentListSyntax { Parent: InvocationExpressionSyntax invocation }) return false;
+        return invocation.Expression is MemberAccessExpressionSyntax access
+            && (access.Name.Identifier.ValueText == "Add" || access.Name.Identifier.ValueText == "AddRange");
+    }
+
+    /// <summary>对象初始化器或构造后的 <c>x.Key = ...</c> 赋值均视为已设置 Key。</summary>
+    static bool HasKey(ObjectCreationExpressionSyntax creation)
+    {
+        var init = creation.Initializer;
+        if (init is not null && init.IsKind(SyntaxKind.ObjectInitializerExpression))
+        {
+            foreach (var expression in init.Expressions)
+            {
+                if (expression is AssignmentExpressionSyntax { Left: IdentifierNameSyntax id } && id.Identifier.ValueText == "Key")
+                    return true;
+            }
+        }
+        return HasPostConstructionKey(creation);
+    }
+
+    static bool HasPostConstructionKey(ObjectCreationExpressionSyntax creation)
+    {
+        string? target = null;
+        if (creation.Parent is EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax declarator })
+            target = declarator.Identifier.ValueText;
+        else if (creation.Parent is AssignmentExpressionSyntax { Left: IdentifierNameSyntax left } assignment && assignment.Right == creation)
+            target = left.Identifier.ValueText;
+        if (target is null) return false;
+
+        var block = creation.Ancestors().OfType<BlockSyntax>().FirstOrDefault();
+        if (block is null) return false;
+
+        foreach (var assignment in block.DescendantNodes().OfType<AssignmentExpressionSyntax>())
+        {
+            if (assignment.SpanStart <= creation.SpanStart) continue;
+            // 可能是别处同名变量，但保守起见按已设置 Key 处理（宁可漏报，不误报）
+            if (assignment.Left is MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax owner, Name: IdentifierNameSyntax name }
+                && owner.Identifier.ValueText == target
+                && name.Identifier.ValueText == "Key")
+                return true;
         }
         return false;
     }

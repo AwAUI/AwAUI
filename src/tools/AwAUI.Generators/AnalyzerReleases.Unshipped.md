@@ -6,6 +6,7 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 AW1001 | AwAUI.Components | Warning | ComponentGlueGenerator
+AW1004 | AwAUI.Components | Warning | ComponentGlueGenerator
 AW1006 | AwAUI.Components | Warning | ComponentGlueGenerator
 AW1007 | AwAUI.Components | Warning | ComponentGlueGenerator
 AW1009 | AwAUI.Components | Warning | ComponentGlueGenerator

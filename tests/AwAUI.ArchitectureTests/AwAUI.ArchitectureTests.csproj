@@ -16,10 +16,13 @@
     <ProjectReference Include="../../src/AwAUI.Text/AwAUI.Text.csproj" />
     <ProjectReference Include="../../src/AwAUI.Layout/AwAUI.Layout.csproj" />
     <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Desktop/AwAUI.Desktop.csproj" />
     <ProjectReference Include="../../src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
     <ProjectReference Include="../../src/AwAUI.Svg/AwAUI.Svg.csproj" />
     <ProjectReference Include="../../src/AwAUI.Tailwind/AwAUI.Tailwind.csproj" />
     <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Controls.DataGrid/AwAUI.Controls.DataGrid.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Mvvm/AwAUI.Mvvm.csproj" />
     <ProjectReference Include="../../src/Rhi/AwAUI.Rhi.Metal/AwAUI.Rhi.Metal.csproj" />
     <ProjectReference Include="../../src/Markup/AwAUI.Markup.Compiler/AwAUI.Markup.Compiler.csproj" />
   </ItemGroup>

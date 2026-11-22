@@ -10,7 +10,9 @@
   </Configurations>
   <Folder Name="/src/">
     <Project Path="src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <Project Path="src/AwAUI.Controls.DataGrid/AwAUI.Controls.DataGrid.csproj" />
     <Project Path="src/AwAUI.Css/AwAUI.Css.csproj" />
+    <Project Path="src/AwAUI.Desktop/AwAUI.Desktop.csproj" />
     <Project Path="src/AwAUI.DevTools/AwAUI.DevTools.csproj" />
     <Project Path="src/AwAUI.Diagnostics/AwAUI.Diagnostics.csproj" />
     <Project Path="src/AwAUI.Foundation/AwAUI.Foundation.csproj" />
@@ -18,6 +20,7 @@
     <Project Path="src/AwAUI.Icons.Lucide/AwAUI.Icons.Lucide.csproj" />
     <Project Path="src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
     <Project Path="src/AwAUI.Layout/AwAUI.Layout.csproj" />
+    <Project Path="src/AwAUI.Mvvm/AwAUI.Mvvm.csproj" />
     <Project Path="src/AwAUI.Platform/AwAUI.Platform.csproj" />
     <Project Path="src/AwAUI.Render/AwAUI.Render.csproj" />
     <Project Path="src/AwAUI.Shadcn/AwAUI.Shadcn.csproj" />
@@ -59,7 +62,10 @@
     <Project Path="samples/BrowserDemo/BrowserDemo.csproj" />
     <Project Path="samples/ControlCatalog/ControlCatalog.csproj" />
     <Project Path="samples/Counter/Counter.csproj" />
+    <Project Path="samples/CustomChrome/CustomChrome.csproj" />
+    <Project Path="samples/DeclarativeDemo/DeclarativeDemo.csproj" />
     <Project Path="samples/GpuDemo/GpuDemo.csproj" />
+    <Project Path="samples/HelloAot/HelloAot.csproj" />
     <Project Path="samples/RenderDemo/RenderDemo.csproj" />
     <Project Path="samples/ShadcnGallery/ShadcnGallery.csproj" />
     <Project Path="samples/TailwindDemo/TailwindDemo.csproj" />
@@ -70,6 +76,8 @@
     <Project Path="tests/AwAUI.ArchitectureTests/AwAUI.ArchitectureTests.csproj" />
     <Project Path="tests/AwAUI.Browser.Tests/AwAUI.Browser.Tests.csproj" />
     <Project Path="tests/AwAUI.Controls.UnitTests/AwAUI.Controls.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Controls.DataGrid.UnitTests/AwAUI.Controls.DataGrid.UnitTests.csproj" />
+    <Project Path="tests/AwAUI.Mvvm.UnitTests/AwAUI.Mvvm.UnitTests.csproj" />
     <Project Path="tests/AwAUI.Css.UnitTests/AwAUI.Css.UnitTests.csproj" />
     <Project Path="tests/AwAUI.DevTools.Tests/AwAUI.DevTools.Tests.csproj" />
     <Project Path="tests/AwAUI.Diagnostics.UnitTests/AwAUI.Diagnostics.UnitTests.csproj" />

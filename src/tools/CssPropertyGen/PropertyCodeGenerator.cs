@@ -45,6 +45,15 @@ internal static class PropertyCodeGenerator
         public string Affects = "";
         public Group Group = null!;
         public int Phase;
+        /// <summary>
+        /// false 表示只参与级联的中间属性（如 <c>padding-inline-start</c>）：解析后由样式引擎按
+        /// <c>direction</c> 映射到物理长属性，不进入 <see cref="ComputedStyle"/> 与动画分派。
+        /// </summary>
+        public bool Computed = true;
+        /// <summary>逻辑属性：LTR 下的物理长属性名；非空时 <see cref="Computed"/> 为 false。</summary>
+        public string? LogicalLtr;
+        /// <summary>逻辑属性：RTL 下的物理长属性名。</summary>
+        public string? LogicalRtl;
     }
 
     sealed class Shorthand
@@ -271,7 +280,13 @@ internal static class PropertyCodeGenerator
                 Animatable = Str(d, "animatable"),
                 Affects = Str(d, "affects"),
                 Phase = (int)(double)d["phase"]!,
+                Computed = !d.TryGetValue("computed", out var computed) || computed is not bool b || b,
             };
+            if (d.TryGetValue("logical", out var logical) && logical is Dictionary<string, object?> lm)
+            {
+                l.LogicalLtr = Str(lm, "ltr");
+                l.LogicalRtl = Str(lm, "rtl");
+            }
             l.Pascal = Pascal(l.Name);
             if (d.TryGetValue("flags", out var flags) && flags is List<object?> fl)
                 foreach (var f in fl)
@@ -290,7 +305,7 @@ internal static class PropertyCodeGenerator
             if (l.Animatable is not ("no" or "discrete" or "by-computed-value")) throw new FormatException($"{l.Name}: animatable 无效");
             if (!names.Add(l.Name)) throw new FormatException($"重复的属性 {l.Name}");
             l.Group = g;
-            g.Members.Add(l);
+            if (l.Computed) g.Members.Add(l);
             longhands.Add(l);
         }
 
@@ -568,11 +583,19 @@ internal static class PropertyCodeGenerator
             w.Line($"/// <summary>{g.Doc}分组。</summary>");
             w.Line($"public {g.Type} {g.Prop} {{ get; }}");
         }
+        var byName = new Dictionary<string, Longhand>(StringComparer.Ordinal);
+        foreach (var l in longhands) byName[l.Name] = l;
         foreach (var l in longhands)
         {
+            string expr;
+            if (l.Computed) expr = $"{l.Group.Prop}.{l.Pascal}";
+            else if (l.LogicalLtr is { } ltr && l.LogicalRtl is { } rtl && byName.TryGetValue(ltr, out var lt) && byName.TryGetValue(rtl, out var rt))
+                // 级联阶段已经按方向映射到物理属性；读取时按同一方向取回，DevTools / getComputedStyle 仍可用逻辑名查询
+                expr = $"TextGroup.Direction == CssDirection.Rtl ? {rt.Group.Prop}.{rt.Pascal} : {lt.Group.Prop}.{lt.Pascal}";
+            else continue;
             w.Line();
             w.Line($"/// <summary><c>{l.Name}</c></summary>");
-            w.Line($"public {Cs(l)} {l.Pascal} => {l.Group.Prop}.{l.Pascal};");
+            w.Line($"public {Cs(l)} {l.Pascal} => {expr};");
         }
         w.Line();
         w.Line("/// <summary>逐分组比较：引用相同的分组直接跳过。</summary>");
@@ -598,8 +621,13 @@ internal static class PropertyCodeGenerator
         w.Open();
         foreach (var l in longhands)
         {
+            string expr;
+            if (l.Computed) expr = $"{l.Group.Prop}.{l.Pascal}";
+            else if (l.LogicalLtr is { } ltr && l.LogicalRtl is { } rtl && byName.TryGetValue(ltr, out var lt) && byName.TryGetValue(rtl, out var rt))
+                expr = $"TextGroup.Direction == CssDirection.Rtl ? {rt.Group.Prop}.{rt.Pascal} : {lt.Group.Prop}.{lt.Pascal}";
+            else continue;
             var t = Types[l.Type];
-            w.Line($"case CssPropertyId.{l.Pascal}: {{ var x = {l.Group.Prop}.{l.Pascal}; return {string.Format(CultureInfo.InvariantCulture, t.Serialize, l.Enum)}; }}");
+            w.Line($"case CssPropertyId.{l.Pascal}: {{ var x = {expr}; return {string.Format(CultureInfo.InvariantCulture, t.Serialize, l.Enum)}; }}");
         }
         w.Line("default: return string.Empty;");
         w.Close();
@@ -661,7 +689,10 @@ internal static class PropertyCodeGenerator
         w.Line("switch (id)");
         w.Open();
         foreach (var l in longhands)
+        {
+            if (!l.Computed) continue;
             w.Line($"case CssPropertyId.{l.Pascal}: {{ var x = source.{l.Group.Prop}.{l.Pascal}; if ({NotEqual(l, $"{l.Group.Name}.{l.Pascal}", "x")}) Mutable{l.Group.Name}().{l.Pascal} = x; return; }}");
+        }
         w.Close();
         w.Close();
         w.Line();
@@ -672,6 +703,7 @@ internal static class PropertyCodeGenerator
         w.Open();
         foreach (var l in longhands)
         {
+            if (!l.Computed) continue;
             var t = Types[l.Type];
             var compute = string.Format(CultureInfo.InvariantCulture, t.Compute, l.Enum, FlagsExpr(l.Flags), B(l.Flags.Contains("NonNegative")));
             w.Line($"case CssPropertyId.{l.Pascal}: {{ var x = {compute}; if ({NotEqual(l, $"{l.Group.Name}.{l.Pascal}", "x")}) Mutable{l.Group.Name}().{l.Pascal} = x; return; }}");
@@ -698,7 +730,11 @@ internal static class PropertyCodeGenerator
         w.Open();
         w.Line("switch (id)");
         w.Open();
-        foreach (var l in longhands) w.Line($"case CssPropertyId.{l.Pascal}: return s.{l.Group.Prop}.{l.Pascal};");
+        foreach (var l in longhands)
+        {
+            if (!l.Computed) continue;
+            w.Line($"case CssPropertyId.{l.Pascal}: return s.{l.Group.Prop}.{l.Pascal};");
+        }
         w.Line("default: throw new System.ArgumentOutOfRangeException(nameof(id));");
         w.Close();
         w.Close();
@@ -719,7 +755,10 @@ internal static class PropertyCodeGenerator
         w.Line("switch (id)");
         w.Open();
         foreach (var l in longhands)
+        {
+            if (!l.Computed) continue;
             w.Line($"case CssPropertyId.{l.Pascal}: {{ var x = ({Cs(l)})value; if ({NotEqual(l, $"b.{l.Group.Name}.{l.Pascal}", "x")}) b.Mutable{l.Group.Name}().{l.Pascal} = x; return; }}");
+        }
         w.Close();
         w.Close();
         w.Line();
