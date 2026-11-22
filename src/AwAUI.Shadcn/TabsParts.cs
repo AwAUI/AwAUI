@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using System.Threading;
 using AwAUI.Controls.Primitives;
+using AwAUI.Css.Values;
 using AwAUI.Layout;
 using AwAUI.Tailwind;
 using AwAUI.UI;
@@ -51,6 +52,8 @@ internal static class TabsParts
     internal static Direction ResolveDirection(Element? element, Direction? direction)
     {
         if (direction is { } explicitDirection) return explicitDirection;
+        // 引擎侧的 direction 会从祖先继承；用计算值优先，未挂载时再退回 dir 属性
+        if (element?.ComputedStyle is { Direction: CssDirection.Rtl }) return Direction.Rtl;
         for (var current = element; current is not null; current = current.Parent)
         {
             var dir = current.GetAttribute("dir");

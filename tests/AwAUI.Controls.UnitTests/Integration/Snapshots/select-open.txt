@@ -1,0 +1,17 @@
+root
+  button aria-controls="@1" aria-disabled="false" aria-expanded="true" aria-haspopup="listbox" aria-required="false" data-size="default" data-slot="select-trigger" data-state="open" id="@0" role="combobox" type="button" state=expanded
+    div data-slot="select-value"
+      #text "Projects"
+    svg aria-hidden="true" data-slot="select-icon"
+  aw-overlay
+    aw-portal
+      div data-aw-popper-content-wrapper=""
+        div aria-labelledby="@0" aria-orientation="vertical" data-align="start" data-side="bottom" data-slot="select-content" data-state="open" id="@1" role="listbox" tabindex="-1"
+          div data-slot="select-viewport" role="presentation"
+            button aria-disabled="false" aria-selected="true" data-highlighted="" data-slot="select-item" data-state="checked" role="option" tabindex="-1" type="button" state=selected
+              div data-slot="select-item-text"
+                text text="Projects"
+              svg aria-hidden="true" data-slot="select-item-indicator"
+            button aria-disabled="false" aria-selected="false" data-slot="select-item" data-state="unchecked" role="option" tabindex="-1" type="button"
+              div data-slot="select-item-text"
+                text text="Activity"

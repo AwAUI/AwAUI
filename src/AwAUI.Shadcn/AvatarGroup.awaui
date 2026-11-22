@@ -1,0 +1,22 @@
+@(BuildGroup())
+
+@code {
+    const string GroupClass =
+        "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background";
+
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildGroup()
+    {
+        var group = new Div
+        {
+            Style = Style, Ref = Ref, Children = Children ?? new NodeList(),
+        };
+        group.MergeAttributes(VisualPart.Attributes("avatar-group", GroupClass, Class, Rest));
+        return group;
+    }
+}

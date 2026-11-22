@@ -1,0 +1,10 @@
+root
+  div data-orientation="horizontal" data-slot="tabs"
+    div aria-orientation="horizontal" data-orientation="horizontal" data-slot="tabs-list" data-variant="default" role="tablist"
+      button aria-controls="@1" aria-selected="true" data-slot="tabs-trigger" data-state="active" id="@0" role="tab" tabindex="0" type="button" state=selected
+        text text="One"
+      button aria-controls="@3" aria-selected="false" data-slot="tabs-trigger" data-state="inactive" id="@2" role="tab" tabindex="-1" type="button"
+        text text="Two"
+    div aria-labelledby="@0" data-orientation="horizontal" data-slot="tabs-content" data-state="active" id="@1" role="tabpanel" tabindex="0"
+      text text="First panel"
+    div aria-hidden="true" aria-labelledby="@2" data-orientation="horizontal" data-slot="tabs-content" data-state="inactive" hidden="" id="@3" role="tabpanel"

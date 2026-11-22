@@ -233,6 +233,15 @@ public sealed partial class SelectContent : Component
     void HandleKey(KeyEvent e)
     {
         if (e.DefaultPrevented || _popup?.IsOpen != true) return;
+        // Native select: Alt+ArrowUp closes the open popup without moving focus.
+        if (e.Key == "ArrowUp"
+            && (e.Modifiers & KeyModifiers.Alt) != 0
+            && (e.Modifiers & (KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift)) == 0)
+        {
+            e.PreventDefault();
+            _popup.SetOpen(false);
+            return;
+        }
         if (e.Key == "Tab" && (e.Modifiers & SelectParts.CommandModifiers) == 0 && MoveFocusFromTrigger(e)) return;
         if (e.Key == "Enter" || (e.Key == " " && !_context.Scope.Search.IsTypingAhead(e.Timestamp)))
         {
@@ -269,6 +278,23 @@ public sealed partial class SelectContent : Component
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Closed native-select behavior for Home/End: move the selection to the first or last enabled option
+    /// (skipping disabled options and disabled optgroups). Works against the hidden inline copy while closed.
+    /// </summary>
+    internal void MoveSelectionEdge(bool end)
+    {
+        if (_viewport.Current is not { } viewport || _context.Disabled) return;
+        SelectItem? match = null;
+        foreach (var (item, element) in Options(viewport, _context.Scope))
+        {
+            if (element.IsDisabled) continue;
+            match = item;
+            if (!end) break;
+        }
+        if (match is not null) _context.Scope.Selection.Set(match.Value);
     }
 
     internal void FindTypedOption(string key, TimeSpan timestamp, bool open)

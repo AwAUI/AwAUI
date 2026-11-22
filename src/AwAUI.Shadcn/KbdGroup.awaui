@@ -1,0 +1,23 @@
+@(BuildGroup())
+
+@code {
+    const string GroupClass = "inline-flex items-center gap-1";
+
+    public string? Class { get; set; }
+    public string? Style { get; set; }
+    public Ref<Element>? Ref { get; set; }
+    public NodeList? Children { get; set; }
+    [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
+
+    Node BuildGroup()
+    {
+        var group = new KeyElement { Style = Style, Ref = Ref, Children = Children ?? new NodeList() };
+        group.MergeAttributes(VisualPart.Attributes("kbd-group", GroupClass, Class, Rest));
+        return group;
+    }
+
+    sealed class KeyElement : ElementNode
+    {
+        protected override Element CreateElement() => new Element("kbd");
+    }
+}

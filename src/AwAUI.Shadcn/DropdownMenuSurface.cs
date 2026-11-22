@@ -34,6 +34,7 @@ internal sealed partial class DropdownMenuSurface : Component
         var submenu = Submenu;
         var reference = submenu?.Content ?? _content;
         var scope = _scope ??= new DropdownMenuParts.Scope(Popup, ParentMenu, reference, ZOrder);
+        bool openAtEnd = TryUse<DropdownMenuParts.OpenIntent>(out var openIntent) && openIntent.Last;
         var attrs = DialogAttributes.ForPart(submenu is null ? "dropdown-menu-content" : "dropdown-menu-sub-content", Rest, Class, ContentClass);
         attrs["data-state"] = TabsParts.OpenState(Open);
         if (!Open) attrs["aria-hidden"] = "true";
@@ -105,7 +106,10 @@ internal sealed partial class DropdownMenuSurface : Component
             OnMountAutoFocus = e =>
             {
                 e.PreventDefault();
-                if (scope.IsOpen) scope.FocusFirst(root.FocusManager.LastInteractionWasKeyboard ? FocusOrigin.Keyboard : FocusOrigin.Programmatic);
+                if (!scope.IsOpen) return;
+                bool last = openAtEnd;
+                if (TryUse<DropdownMenuParts.OpenIntent>(out var intent)) intent.Last = false;
+                scope.FocusFirst(root.FocusManager.LastInteractionWasKeyboard ? FocusOrigin.Keyboard : FocusOrigin.Programmatic, last);
             },
             OnUnmountAutoFocus = e =>
             {

@@ -1,0 +1,15 @@
+root
+  div data-orientation="vertical" data-slot="accordion"
+    div data-orientation="vertical" data-slot="accordion-item" data-state="open"
+      div data-orientation="vertical" data-state="open" role="heading"
+        button aria-controls="@1" aria-expanded="true" data-orientation="vertical" data-slot="accordion-trigger" data-state="open" id="@0" type="button" state=expanded
+          text text="Project"
+          svg aria-hidden="true" data-slot="accordion-indicator"
+      div aria-labelledby="@0" data-slot="accordion-content" data-state="open" id="@1" role="region"
+        div
+          text text="Project details"
+    div data-orientation="vertical" data-slot="accordion-item" data-state="closed"
+      div data-orientation="vertical" data-state="closed" role="heading"
+        button aria-controls="@3" aria-expanded="false" data-orientation="vertical" data-slot="accordion-trigger" data-state="closed" id="@2" type="button"
+          text text="Activity"
+          svg aria-hidden="true" data-slot="accordion-indicator"

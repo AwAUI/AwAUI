@@ -1,0 +1,6 @@
+root
+  div
+    label data-slot="label" for="@0"
+      text text="Email"
+    input aria-describedby="@1" aria-invalid="true" data-slot="input" id="@0" placeholder="ada@example.com" type="text" value="not-an-email"
+    text id="@1" role="alert" text="Enter a valid email address."

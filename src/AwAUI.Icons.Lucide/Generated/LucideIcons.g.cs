@@ -8,6 +8,21 @@ namespace AwAUI.Icons.Lucide;
 /// <remarks>Each document is parsed on first access and shared by subsequent callers.</remarks>
 public static class LucideIcons
 {
+    /// <summary>Gets the Lucide <c>arrow-down</c> icon.</summary>
+    public static SvgDocument ArrowDown => ArrowDownCache.Document;
+
+    /// <summary>Gets the Lucide <c>arrow-left</c> icon.</summary>
+    public static SvgDocument ArrowLeft => ArrowLeftCache.Document;
+
+    /// <summary>Gets the Lucide <c>arrow-right</c> icon.</summary>
+    public static SvgDocument ArrowRight => ArrowRightCache.Document;
+
+    /// <summary>Gets the Lucide <c>bell</c> icon.</summary>
+    public static SvgDocument Bell => BellCache.Document;
+
+    /// <summary>Gets the Lucide <c>calendar</c> icon.</summary>
+    public static SvgDocument Calendar => CalendarCache.Document;
+
     /// <summary>Gets the Lucide <c>check</c> icon.</summary>
     public static SvgDocument Check => CheckCache.Document;
 
@@ -26,11 +41,29 @@ public static class LucideIcons
     /// <summary>Gets the Lucide <c>chevrons-up-down</c> icon.</summary>
     public static SvgDocument ChevronsUpDown => ChevronsUpDownCache.Document;
 
+    /// <summary>Gets the Lucide <c>circle-check</c> icon.</summary>
+    public static SvgDocument CircleCheck => CircleCheckCache.Document;
+
     /// <summary>Gets the Lucide <c>circle</c> icon.</summary>
     public static SvgDocument Circle => CircleCache.Document;
 
+    /// <summary>Gets the Lucide <c>copy</c> icon.</summary>
+    public static SvgDocument Copy => CopyCache.Document;
+
     /// <summary>Gets the Lucide <c>ellipsis</c> icon.</summary>
     public static SvgDocument Ellipsis => EllipsisCache.Document;
+
+    /// <summary>Gets the Lucide <c>folder</c> icon.</summary>
+    public static SvgDocument Folder => FolderCache.Document;
+
+    /// <summary>Gets the Lucide <c>grip-vertical</c> icon.</summary>
+    public static SvgDocument GripVertical => GripVerticalCache.Document;
+
+    /// <summary>Gets the Lucide <c>info</c> icon.</summary>
+    public static SvgDocument Info => InfoCache.Document;
+
+    /// <summary>Gets the Lucide <c>layout-dashboard</c> icon.</summary>
+    public static SvgDocument LayoutDashboard => LayoutDashboardCache.Document;
 
     /// <summary>Gets the Lucide <c>loader-circle</c> icon.</summary>
     public static SvgDocument LoaderCircle => LoaderCircleCache.Document;
@@ -41,17 +74,35 @@ public static class LucideIcons
     /// <summary>Gets the Lucide <c>moon</c> icon.</summary>
     public static SvgDocument Moon => MoonCache.Document;
 
+    /// <summary>Gets the Lucide <c>octagon-x</c> icon.</summary>
+    public static SvgDocument OctagonX => OctagonXCache.Document;
+
     /// <summary>Gets the Lucide <c>panel-left</c> icon.</summary>
     public static SvgDocument PanelLeft => PanelLeftCache.Document;
 
     /// <summary>Gets the Lucide <c>plus</c> icon.</summary>
     public static SvgDocument Plus => PlusCache.Document;
 
+    /// <summary>Gets the Lucide <c>refresh-cw</c> icon.</summary>
+    public static SvgDocument RefreshCw => RefreshCwCache.Document;
+
     /// <summary>Gets the Lucide <c>search</c> icon.</summary>
     public static SvgDocument Search => SearchCache.Document;
 
+    /// <summary>Gets the Lucide <c>settings</c> icon.</summary>
+    public static SvgDocument Settings => SettingsCache.Document;
+
     /// <summary>Gets the Lucide <c>sun</c> icon.</summary>
     public static SvgDocument Sun => SunCache.Document;
+
+    /// <summary>Gets the Lucide <c>thumbs-down</c> icon.</summary>
+    public static SvgDocument ThumbsDown => ThumbsDownCache.Document;
+
+    /// <summary>Gets the Lucide <c>thumbs-up</c> icon.</summary>
+    public static SvgDocument ThumbsUp => ThumbsUpCache.Document;
+
+    /// <summary>Gets the Lucide <c>triangle-alert</c> icon.</summary>
+    public static SvgDocument TriangleAlert => TriangleAlertCache.Document;
 
     /// <summary>Gets the Lucide <c>x</c> icon.</summary>
     public static SvgDocument X => XCache.Document;
@@ -60,6 +111,118 @@ public static class LucideIcons
     public static SvgDocument MoreHorizontal => Ellipsis;
 
     // Explicit static constructors give each icon independent, thread-safe initialization.
+    static class ArrowDownCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static ArrowDownCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 5v14" />
+              <path d="m19 12-7 7-7-7" />
+            </svg>
+            """);
+    }
+
+    static class ArrowLeftCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static ArrowLeftCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m12 19-7-7 7-7" />
+              <path d="M19 12H5" />
+            </svg>
+            """);
+    }
+
+    static class ArrowRightCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static ArrowRightCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+            """);
+    }
+
+    static class BellCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static BellCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+              <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+            </svg>
+            """);
+    }
+
+    static class CalendarCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static CalendarCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M8 2v3" />
+              <path d="M16 2v3" />
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18" />
+            </svg>
+            """);
+    }
+
     static class CheckCache
     {
         internal static readonly SvgDocument Document;
@@ -187,6 +350,28 @@ public static class LucideIcons
             """);
     }
 
+    static class CircleCheckCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static CircleCheckCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            """);
+    }
+
     static class CircleCache
     {
         internal static readonly SvgDocument Document;
@@ -204,6 +389,28 @@ public static class LucideIcons
               stroke-linejoin="round"
             >
               <circle cx="12" cy="12" r="10" />
+            </svg>
+            """);
+    }
+
+    static class CopyCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static CopyCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
             </svg>
             """);
     }
@@ -227,6 +434,100 @@ public static class LucideIcons
               <circle cx="12" cy="12" r="1" />
               <circle cx="19" cy="12" r="1" />
               <circle cx="5" cy="12" r="1" />
+            </svg>
+            """);
+    }
+
+    static class FolderCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static FolderCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+            </svg>
+            """);
+    }
+
+    static class GripVerticalCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static GripVerticalCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="9" cy="12" r="1" />
+              <circle cx="9" cy="5" r="1" />
+              <circle cx="9" cy="19" r="1" />
+              <circle cx="15" cy="12" r="1" />
+              <circle cx="15" cy="5" r="1" />
+              <circle cx="15" cy="19" r="1" />
+            </svg>
+            """);
+    }
+
+    static class InfoCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static InfoCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            """);
+    }
+
+    static class LayoutDashboardCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static LayoutDashboardCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect width="7" height="9" x="3" y="3" rx="1" />
+              <rect width="7" height="5" x="14" y="3" rx="1" />
+              <rect width="7" height="9" x="14" y="12" rx="1" />
+              <rect width="7" height="5" x="3" y="16" rx="1" />
             </svg>
             """);
     }
@@ -294,6 +595,29 @@ public static class LucideIcons
             """);
     }
 
+    static class OctagonXCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static OctagonXCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m15 9-6 6" />
+              <path d="M2.586 16.726A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2h6.624a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586z" />
+              <path d="m9 9 6 6" />
+            </svg>
+            """);
+    }
+
     static class PanelLeftCache
     {
         internal static readonly SvgDocument Document;
@@ -338,6 +662,30 @@ public static class LucideIcons
             """);
     }
 
+    static class RefreshCwCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static RefreshCwCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M8 16H3v5" />
+            </svg>
+            """);
+    }
+
     static class SearchCache
     {
         internal static readonly SvgDocument Document;
@@ -356,6 +704,28 @@ public static class LucideIcons
             >
               <path d="m21 21-4.34-4.34" />
               <circle cx="11" cy="11" r="8" />
+            </svg>
+            """);
+    }
+
+    static class SettingsCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static SettingsCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
             """);
     }
@@ -385,6 +755,73 @@ public static class LucideIcons
               <path d="M20 12h2" />
               <path d="m6.34 17.66-1.41 1.41" />
               <path d="m19.07 4.93-1.41 1.41" />
+            </svg>
+            """);
+    }
+
+    static class ThumbsDownCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static ThumbsDownCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+              <path d="M17 14V2" />
+            </svg>
+            """);
+    }
+
+    static class ThumbsUpCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static ThumbsUpCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+              <path d="M7 10v12" />
+            </svg>
+            """);
+    }
+
+    static class TriangleAlertCache
+    {
+        internal static readonly SvgDocument Document;
+
+        static TriangleAlertCache() => Document = SvgDocument.Parse("""
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
             </svg>
             """);
     }

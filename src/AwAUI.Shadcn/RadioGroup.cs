@@ -45,7 +45,7 @@ public sealed partial class RadioGroupItem : Component
 {
     readonly TabsFocus.Item _item = new();
     readonly Ref<Element> _element = new();
-    const string ItemClass = "inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-input bg-transparent p-0 text-primary shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30";
+    const string ItemClass = "inline-flex aspect-square size-4 shrink-0 items-center justify-center rounded-full border border-input bg-transparent p-0 text-primary shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:ring-destructive/40";
 
     public string Value { get; set; } = "";
     public string? Id { get; set; }
@@ -64,11 +64,17 @@ public sealed partial class RadioGroupItem : Component
         button.TabIndex = group.Focus.GetTabIndex(_item, selected);
         button.Attributes["aria-checked"] = TabsParts.Bool(selected);
         button.Attributes["data-state"] = selected ? "checked" : "unchecked";
+        button.Attributes["data-disabled"] = button.Disabled ? "" : null;
         if (selected)
         {
-            var dot = TabsParts.Style(new Span(), "radio-group-indicator", "pointer-events-none block size-2 rounded-full bg-current", null, null);
-            dot.Attributes["aria-hidden"] = "true";
-            button.Children.Add(dot);
+            // Match the shadcn DOM: an indicator wrapper holding the filled dot. AwAUI 的 Span 是行内文本片段、
+            // 不参与盒子布局，所以这里用 Div 承载尺寸（视觉与官方的 span 相同）。
+            var indicator = TabsParts.Style(new Div(), "radio-group-indicator",
+                "relative flex size-4 items-center justify-center", null, null);
+            indicator.Attributes["aria-hidden"] = "true";
+            indicator.Attributes["data-state"] = "checked";
+            indicator.Children.Add(new Div { Class = "pointer-events-none block size-2 rounded-full bg-primary" });
+            button.Children.Add(indicator);
         }
         void Select()
         {

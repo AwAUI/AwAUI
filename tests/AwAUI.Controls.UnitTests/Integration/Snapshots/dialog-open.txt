@@ -1,0 +1,20 @@
+root
+  button aria-controls="@0" aria-expanded="true" aria-haspopup="dialog" data-slot="dialog-trigger" data-state="open" state=expanded
+    text text="Edit profile"
+  aw-overlay
+    aw-portal
+      div data-slot="dialog-overlay" data-state="open"
+      div aria-describedby="@2" aria-labelledby="@1" aria-modal="true" data-slot="dialog-content" data-state="open" id="@0" role="dialog" tabindex="-1"
+        div data-slot="dialog-header"
+          text data-slot="dialog-title" id="@1" role="heading"
+            text text="Edit profile"
+          text data-slot="dialog-description" id="@2"
+            text text="Change the name shown on the card."
+        input data-slot="input" id="@3" placeholder="Ada Lovelace" type="text" value=""
+        div data-slot="dialog-footer"
+          button data-slot="dialog-close"
+            text text="Cancel"
+          button data-size="default" data-slot="button" data-variant="default"
+            text text="Save changes"
+        button aria-label="Close" data-slot="dialog-close"
+          svg aria-hidden="true" data-slot="dialog-close-icon"

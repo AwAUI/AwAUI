@@ -72,6 +72,9 @@ public sealed partial class AlertDialogContent : Component
     public Action<FocusScopeAutoFocusEvent>? OnOpenAutoFocus { get; set; }
     public Action<FocusScopeAutoFocusEvent>? OnCloseAutoFocus { get; set; }
     public Action<DismissableLayerEvent<Element>>? OnEscapeKeyDown { get; set; }
+    public Action<DismissableLayerEvent<Element>>? OnPointerDownOutside { get; set; }
+    public Action<DismissableLayerEvent<Element>>? OnFocusOutside { get; set; }
+    public Action<DismissableLayerEvent<Element>>? OnInteractOutside { get; set; }
     public string? Class { get; set; }
     public NodeList? Children { get; set; }
     [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
@@ -92,7 +95,14 @@ public sealed partial class AlertDialogContent : Component
                     OnOpenAutoFocus = FocusCancel,
                     OnCloseAutoFocus = OnCloseAutoFocus,
                     OnEscapeKeyDown = OnEscapeKeyDown,
-                    OnInteractOutside = static e => e.PreventDefault(),
+                    OnPointerDownOutside = OnPointerDownOutside,
+                    OnFocusOutside = OnFocusOutside,
+                    // Callbacks run, but an alert dialog never dismisses on an outside interaction.
+                    OnInteractOutside = e =>
+                    {
+                        OnInteractOutside?.Invoke(e);
+                        e.PreventDefault();
+                    },
                 },
             ],
         };

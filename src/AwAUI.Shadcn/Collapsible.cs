@@ -21,7 +21,7 @@ public sealed partial class Collapsible : Component
     protected override Node Build()
     {
         bool open = _open.Sync(Open, DefaultOpen, OpenChanged + OnOpenChange);
-        var root = TabsParts.Style(new Div { Children = Children ?? [] }, "collapsible", "flex flex-col gap-2", Class, Rest);
+        var root = TabsParts.Style(new Div { Children = Children ?? [] }, "collapsible", null, Class, Rest);
         root.Attributes["data-state"] = TabsParts.OpenState(open);
         TabsParts.Disabled(root, Disabled);
         return Provide(new Scope(open, Disabled, _contentId, () => _open.Set(!_open.Value)), root);

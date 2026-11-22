@@ -66,7 +66,7 @@ public sealed partial class PopoverClose : Component
     protected override Node Build() => new PopoverPrimitive.Close
     {
         AsChild = AsChild,
-        Children = Children ?? (AsChild ? null : new NodeList { "Close" }),
+        Children = Children,
         Attributes = DialogAttributes.ForPart("popover-close", Rest, Class),
     };
 }
@@ -82,6 +82,7 @@ public sealed partial class PopoverContent : Component
     public float AlignOffset { get; set; }
     public bool AvoidCollisions { get; set; } = true;
     public float CollisionPadding { get; set; }
+    public float ArrowPadding { get; set; }
     public PopperSticky Sticky { get; set; } = PopperSticky.Partial;
     public bool HideWhenDetached { get; set; }
     public int ZOrder { get; set; }
@@ -108,6 +109,7 @@ public sealed partial class PopoverContent : Component
                 AlignOffset = AlignOffset,
                 AvoidCollisions = AvoidCollisions,
                 CollisionPadding = CollisionPadding,
+                ArrowPadding = ArrowPadding,
                 Sticky = Sticky,
                 HideWhenDetached = HideWhenDetached,
                 OnOpenAutoFocus = OnOpenAutoFocus,
@@ -143,9 +145,10 @@ public sealed partial class PopoverTitle : Component
     public NodeList? Children { get; set; }
     [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
 
+    // The registry renders a plain <div data-slot="popover-title">, not a heading.
     protected override Node Build()
     {
-        var node = new UI.Text { Role = Role.Heading, Children = Children ?? new NodeList() };
+        var node = new Div { Children = Children ?? new NodeList() };
         node.MergeAttributes(DialogAttributes.ForPart("popover-title", Rest, Class, "font-medium"));
         return node;
     }

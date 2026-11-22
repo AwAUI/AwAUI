@@ -1,0 +1,3 @@
+root
+  button data-size="sm" data-slot="button" data-variant="secondary" id="@0"
+    text text="Save"

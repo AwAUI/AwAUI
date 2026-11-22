@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AwAUI.Controls.Primitives;
 using AwAUI.Layout;
+using AwAUI.Tailwind;
 using AwAUI.UI;
 using UIButton = AwAUI.UI.Button;
 
@@ -32,7 +33,8 @@ public sealed partial class Accordion : Component
     {
         var selected = _single.Sync(Value, DefaultValue, ValueChanged);
         var expanded = _multiple.Sync(Values, DefaultValues, ValuesChanged);
-        var root = TabsParts.Style(new Div { Children = Children ?? [] }, "accordion", "w-full", Class, Rest);
+        var root = TabsParts.Style(new Div { Children = Children ?? [] }, "accordion", null, Class, Rest);
+        root.Attributes["data-orientation"] = "vertical";
         return Provide(new Scope(Multiple, Collapsible, Disabled, selected, expanded, _focus, Toggle), root);
     }
 
@@ -73,6 +75,7 @@ public sealed partial class AccordionItem : Component
         var group = Use<Accordion.Scope>();
         bool open = group.IsOpen(Value);
         var root = TabsParts.Style(new Div { Children = Children ?? [] }, "accordion-item", "border-b last:border-b-0", Class, Rest);
+        root.Attributes["data-orientation"] = "vertical";
         root.Attributes["data-state"] = TabsParts.OpenState(open);
         TabsParts.Disabled(root, Disabled || group.Disabled);
         return Provide(new Scope(group, Value, _id, open, Disabled || group.Disabled, _trigger), root);
@@ -102,6 +105,7 @@ public sealed partial class AccordionTrigger : Component
         }
         """;
 
+    public bool Disabled { get; set; }
     public string? Class { get; set; }
     public NodeList? Children { get; set; }
     [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
@@ -109,20 +113,28 @@ public sealed partial class AccordionTrigger : Component
     protected override Node Build()
     {
         var item = Use<AccordionItem.Scope>();
-        var button = TabsParts.Style(new UIButton { Id = item.Id + "-trigger", Disabled = item.Disabled,
+        bool disabled = Disabled || item.Disabled;
+        var button = TabsParts.Style(new UIButton { Id = item.Id + "-trigger", Disabled = disabled,
             Children = new NodeList(Children) }, "accordion-trigger",
-            "flex w-full items-center justify-between gap-4 rounded-md border-0 bg-transparent px-0 py-4 text-left text-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50",
+            "flex flex-1 items-start justify-between gap-4 rounded-md border-0 bg-transparent px-0 py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
             Class, Rest);
         button.Ref = item.Trigger;
         button.Attributes["aria-expanded"] = TabsParts.Bool(item.Open);
         button.Attributes["aria-controls"] = item.Id + "-panel";
-        button.Attributes["aria-disabled"] = item.Disabled || (item.Open && !item.Group.Multiple && !item.Group.Collapsible) ? "true" : null;
+        button.Attributes["aria-disabled"] = disabled ? "true" : null;
+        button.Attributes["data-orientation"] = "vertical";
         button.Attributes["data-state"] = TabsParts.OpenState(item.Open);
-        button.Children.Add(SelectParts.Glyph(SelectParts.ChevronDown, "accordion-indicator", "size-4 shrink-0 text-muted-foreground"));
+        TabsParts.Disabled(button, disabled);
+        button.Children.Add(SelectParts.Glyph(SelectParts.ChevronDown, "accordion-indicator",
+            "pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200"));
         TabsParts.Activate(button, () => item.Group.Toggle(item.Value));
         item.Group.Focus.Wire(button, _item, Orientation.Vertical, null, loop: true, roving: false);
         UseEffect(() => item.Group.Focus.Register(_item, item.Trigger.Current, item.Open), item.Group.Focus, item.Trigger, item.Open, button.Disabled);
-        return new Div { Role = Role.Heading, Children = [button] };
+        var heading = new Div { Role = Role.Heading, Class = "flex", Children = [button] };
+        heading.Attributes["data-orientation"] = "vertical";
+        heading.Attributes["data-state"] = TabsParts.OpenState(item.Open);
+        TabsParts.Disabled(heading, disabled);
+        return heading;
     }
 }
 
@@ -143,9 +155,10 @@ public sealed partial class AccordionContent : Component
     {
         var item = Use<AccordionItem.Scope>();
         // Keep the padding inside the clipping box so the panel can collapse all the way to zero.
-        var body = new Div { Ref = _body, Class = "shrink-0 pb-4", Children = Children ?? [] };
+        // shadcn applies the consumer's class to the inner body, not to the animated content wrapper.
+        var body = new Div { Ref = _body, Class = TailwindMerge.Cn("shrink-0 pt-0 pb-4", Class), Children = Children ?? [] };
         var panel = TabsParts.Style(new Div { Id = item.Id + "-panel", Role = Role.Region, Children = [body] },
-            "accordion-content", "overflow-hidden text-sm", Class, Rest);
+            "accordion-content", "overflow-hidden text-sm", null, Rest);
         panel.Ref = _panel;
         panel.Attributes["aria-labelledby"] = item.Id + "-trigger";
         panel.Attributes["data-state"] = TabsParts.OpenState(item.Open);

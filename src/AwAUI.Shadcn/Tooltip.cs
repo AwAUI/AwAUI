@@ -134,10 +134,15 @@ public sealed partial class TooltipContent : Component
     public float AlignOffset { get; set; }
     public bool AvoidCollisions { get; set; } = true;
     public float CollisionPadding { get; set; }
+    public float ArrowPadding { get; set; }
+    public PopperSticky Sticky { get; set; } = PopperSticky.Partial;
     public bool HideWhenDetached { get; set; }
     public bool ShowArrow { get; set; } = true;
     public int ZOrder { get; set; }
     public Action<DismissableLayerEvent<Element>>? OnEscapeKeyDown { get; set; }
+    public Action<DismissableLayerEvent<Element>>? OnPointerDownOutside { get; set; }
+    public Action<DismissableLayerEvent<Element>>? OnFocusOutside { get; set; }
+    public Action<DismissableLayerEvent<Element>>? OnInteractOutside { get; set; }
     public string? Class { get; set; }
     public NodeList? Children { get; set; }
     [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
@@ -194,7 +199,14 @@ public sealed partial class TooltipContent : Component
                 {
                     Active = context.Open,
                     OnEscapeKeyDown = context.Open ? OnEscapeKeyDown : null,
-                    OnFocusOutside = static e => e.PreventDefault(),
+                    OnPointerDownOutside = context.Open ? OnPointerDownOutside : null,
+                    // The trigger's focus handlers own closing, so the layer never closes on focus alone.
+                    OnFocusOutside = e =>
+                    {
+                        OnFocusOutside?.Invoke(e);
+                        e.PreventDefault();
+                    },
+                    OnInteractOutside = OnInteractOutside,
                     OnDismiss = context.Open ? _ => interaction.Dismiss(shared) : null,
                     Children =
                     [
@@ -208,6 +220,8 @@ public sealed partial class TooltipContent : Component
                             AlignOffset = AlignOffset,
                             AvoidCollisions = AvoidCollisions,
                             CollisionPadding = CollisionPadding,
+                            ArrowPadding = ArrowPadding,
+                            Sticky = Sticky,
                             HideWhenDetached = HideWhenDetached,
                             Attributes = attributes,
                             Children = children,
@@ -256,6 +270,9 @@ internal sealed class TooltipInteraction
         _focused = focused;
         if (focused || !IsHovered) Schedule(shared, null, focused, 0);
     }
+
+    /// <summary>Cancels a pending open/close timer without changing the open state.</summary>
+    internal void CancelPending() => CancelTimer();
 
     internal void Dismiss(OpenableShared shared)
     {

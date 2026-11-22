@@ -7,6 +7,10 @@ public enum ScrollAreaOrientation { Vertical, Horizontal, Both }
 /// <summary>A clipped viewport using the framework's scroll controller and scrollbar rendering.</summary>
 public sealed partial class ScrollArea : Component
 {
+    // A stable controller keeps the viewport registered as a scroll container from the very first frame, so the
+    // content is clipped immediately instead of after the next layout pass. A caller-supplied controller wins.
+    readonly ScrollController _controller = new();
+
     public ScrollAreaOrientation Orientation { get; set; }
     public ScrollController? ScrollController { get; set; }
     public string? Class { get; set; }
@@ -22,8 +26,8 @@ public sealed partial class ScrollArea : Component
             ScrollAreaOrientation.Both => "overflow-auto",
             _ => "overflow-x-hidden overflow-y-auto",
         };
-        var viewport = TabsParts.Style(new Div { ScrollController = ScrollController, TabIndex = 0, Children = Children ?? [] },
-            "scroll-area-viewport", "size-full min-h-0 min-w-0 rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 " + overflow, ViewportClass, null);
+        var viewport = TabsParts.Style(new Div { ScrollController = ScrollController ?? _controller, TabIndex = 0, Children = Children ?? [] },
+            "scroll-area-viewport", "size-full min-h-0 min-w-0 rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-[color,box-shadow] focus-visible:outline-1 " + overflow, ViewportClass, null);
         return TabsParts.Style(new Div { Children = [viewport] }, "scroll-area", "relative overflow-hidden", Class, Rest);
     }
 }

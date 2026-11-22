@@ -1,0 +1,14 @@
+root
+  button aria-controls="@1" aria-disabled="false" aria-expanded="false" aria-haspopup="listbox" aria-required="false" data-size="default" data-slot="select-trigger" data-state="closed" id="@0" role="combobox" type="button"
+    div data-slot="select-value"
+      #text "Projects"
+    svg aria-hidden="true" data-slot="select-icon"
+  div aria-hidden="true" id="@1"
+    div
+      button aria-disabled="false" aria-selected="true" data-slot="select-item" data-state="checked" role="option" tabindex="-1" type="button" state=selected
+        div data-slot="select-item-text"
+          text text="Projects"
+        svg aria-hidden="true" data-slot="select-item-indicator"
+      button aria-disabled="false" aria-selected="false" data-slot="select-item" data-state="unchecked" role="option" tabindex="-1" type="button"
+        div data-slot="select-item-text"
+          text text="Activity"

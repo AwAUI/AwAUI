@@ -1,6 +1,6 @@
 # AwAUI.Shadcn
 
-New York v4 components for AwAUI. The library provides the S1 component families, including text editors, selection, navigation, overlays, tables, and layout. See the [component list](../../design/23-component-library.md#组件清单). Add a project or package reference to `AwAUI.Shadcn` and use the types from C# or `.awaui`. The library registers its generated CSS when loaded; consumers do not need to scan the library for utility classes. Call `ShadcnTheme.Register()` before mounting the root if the application also declares cascade layers. This makes the package stylesheet available before the first component stylesheet. To use additional Tailwind utilities in a caller `Class`, generate those utilities in the application.
+New York v4 components for AwAUI. The library provides the S1 and S2 component families, including text editors, selection, navigation, menus, overlays, tables, forms, dates, and layout. See the [component list](../../design/23-component-library.md#组件清单). Add a project or package reference to `AwAUI.Shadcn` and use the types from C# or `.awaui`. The library registers its generated CSS when loaded; consumers do not need to scan the library for utility classes. Call `ShadcnTheme.Register()` before mounting the root if the application also declares cascade layers. This makes the package stylesheet available before the first component stylesheet. To use additional Tailwind utilities in a caller `Class`, generate those utilities in the application.
 
 ```razor
 @using AwAUI.Shadcn
@@ -24,6 +24,12 @@ For single-line fields, bind `Input` with `@bind-Value` or `Value` and `ValueCha
 <AwAUI.Shadcn.Label Id="workspace-label" For="workspace">Workspace name</AwAUI.Shadcn.Label>
 <AwAUI.Shadcn.Input Id="workspace" @bind-Value="workspaceName" aria-labelledby="workspace-label" />
 ```
+
+Compose `Field` with `FieldLabel`, `FieldDescription`, and `FieldError` for labelled form rows. `InputOTP` edits one logical value through `InputOTPGroup` / `InputOTPSlot` / `InputOTPSeparator` (`MaxLength`, `Pattern`, `DefaultValue` or `Value` / `ValueChanged`); typing advances, Backspace steps back, arrows, Home, and End move focus, and pasting fills several slots. `Form` adds `FormField` / `FormItem` / `FormMessage` on top of `Field` and wires validation and submission through `FormContext`.
+
+`Command` and `Combobox` build filtering pickers from `CommandInput` / `CommandList` / `CommandItem` and `ComboboxTrigger` / `ComboboxContent` / `ComboboxItem`. The menu family (`ContextMenu`, `Menubar`, `NavigationMenu`) reuses the S1 popper primitives: submenus open on `Side.InlineEnd`, Escape and outside pointers close the surface, and focus returns to the trigger. `HoverCard` delays opening and closing through `UIRoot.Clock`, and `Calendar` / `DatePicker` draw their own month grids. `DataTable` describes columns with `DataTableColumn` and supports sorting, filtering, and selection; `Carousel` scroll-snaps; `Resizable` reuses the shared splitter primitive.
+
+`Sonner` is an application-owned `ToastStore` (`Show` / `Dismiss` / `Clear`, `ToastOptions.Variant`, `Duration`) rendered by a `Toaster` viewport. `Drawer` docks on any side and closes by dragging; `Sidebar` provides the provider, trigger, groups, menu buttons, and keyboard shortcut. `Breadcrumb`, `Pagination`, `InputGroup`, `ButtonGroup`, `Item`, and `Empty` are structural parts that forward `Class` and `data-slot` like the S1 components.
 
 When there is no `For`, the label uses the first nested input, checkbox, or switch. Clicking a checkbox or switch label also toggles the associated control. Use `aria-invalid` and `aria-describedby` for validation. `Input` wraps the single-line AwAUI editor. Use `Textarea` with the same value binding for multiline text. `Badge.AsChild` uses the Controls Slot rules for supported children.
 

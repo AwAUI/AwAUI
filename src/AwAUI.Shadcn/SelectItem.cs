@@ -12,9 +12,13 @@ public sealed partial class SelectItem : Component
 {
     const string ItemClass =
         "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-left text-sm outline-hidden select-none scroll-my-1 " +
-        "focus:bg-accent focus:text-accent-foreground data-[disabled]:opacity-50 data-[disabled]:pointer-events-none";
+        "focus:bg-accent focus:text-accent-foreground data-[disabled]:opacity-50 data-[disabled]:pointer-events-none " +
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground";
 
     public string Value { get; set; } = "";
+
+    /// <summary>Allows an empty <see cref="Value"/> (used by <see cref="NativeSelect"/>'s placeholder option).</summary>
+    internal bool AllowEmptyValue { get; set; }
     /// <summary>Overrides typeahead text. Also supplies the label if the item has no text.</summary>
     public string? TextValue { get; set; }
     public bool Disabled { get; set; }
@@ -26,7 +30,8 @@ public sealed partial class SelectItem : Component
 
     protected override Node Build()
     {
-        if (string.IsNullOrEmpty(Value)) throw new ArgumentException("A SelectItem needs a nonempty Value.", nameof(Value));
+        if (string.IsNullOrEmpty(Value) && !AllowEmptyValue)
+            throw new ArgumentException("A SelectItem needs a nonempty Value.", nameof(Value));
         var ctx = Use<SelectContext>();
         var popup = Use<PopoverPrimitive.Context>().Shared;
         Scope = ctx.Scope;

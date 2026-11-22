@@ -162,7 +162,8 @@ public sealed partial class DropdownMenuSubContent : Component
         return DropdownMenuParts.RenderSurface(portal, parent, new DropdownMenuSurface
         {
             Popup = popup.Shared, Open = open, ParentMenu = parent, Submenu = Use<DropdownMenuSubmenu>(),
-            Side = parent.Direction == Direction.Rtl ? Side.Left : Side.Right,
+            // 行内末尾：LTR 在右、RTL 在左；由 Popper 按内容继承的文档方向解析
+            Side = Side.InlineEnd,
             Align = Align, AlignOffset = AlignOffset, SideOffset = SideOffset,
             CollisionPadding = CollisionPadding, AvoidCollisions = AvoidCollisions,
             Class = Class, Rest = Rest, Children = Children,

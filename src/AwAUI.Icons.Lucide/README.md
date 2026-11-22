@@ -15,6 +15,7 @@ var search = new Icon(LucideIcons.Search) { Size = "16px", Label = "Search" };
 - `Check`, `Minus`, `Plus`, `X`, `Circle`
 - `ChevronDown`, `ChevronLeft`, `ChevronRight`, `ChevronUp`, `ChevronsUpDown`
 - `Ellipsis`, `MoreHorizontal`, `LoaderCircle`, `PanelLeft`, `Search`, `Sun`, `Moon`
+- `Bell`, `Settings`, `Folder`, `LayoutDashboard`, `Copy`, `RefreshCw`, `ThumbsUp`, `ThumbsDown`
 
 Each document is parsed on first access and cached. `MoreHorizontal` is an alias for `Ellipsis` and returns the same document. The SVGs retain Lucide's `24 × 24` view box and `currentColor` strokes. `Icon` uses the surrounding text color and defaults to `1em`; omit `Label` for decorative icons. `LoaderCircle` is static artwork; animate it at the call site if needed.
 

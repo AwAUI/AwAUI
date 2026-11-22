@@ -51,7 +51,7 @@ public sealed partial class SheetClose : Component
     protected override Node Build() => new DialogPrimitive.Close
     {
         AsChild = AsChild,
-        Children = Children ?? (AsChild ? null : new NodeList { "Close" }),
+        Children = Children,
         Attributes = DialogAttributes.ForPart("sheet-close", Rest, Class),
     };
 }
@@ -85,6 +85,9 @@ public sealed partial class SheetContent : Component
     const string ContentClass = "fixed z-50 flex flex-col gap-4 bg-background shadow-lg data-[state=closed]:animate-aw-sheet-out data-[state=open]:animate-aw-sheet-in motion-reduce:animate-none!";
     const string RightClass = "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm";
     const string LeftClass = "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm";
+    // 逻辑边：start / end 与 direction 一致（LTR 下 start 在左，RTL 在右）
+    const string InlineStartClass = "inset-y-0 start-0 h-full w-3/4 border-e sm:max-w-sm";
+    const string InlineEndClass = "inset-y-0 end-0 h-full w-3/4 border-s sm:max-w-sm";
     const string TopClass = "inset-x-0 top-0 h-auto border-b";
     const string BottomClass = "inset-x-0 bottom-0 h-auto border-t";
     const string CloseClass = "absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary";
@@ -109,7 +112,9 @@ public sealed partial class SheetContent : Component
             Side.Top => TopClass,
             Side.Bottom => BottomClass,
             Side.Left => LeftClass,
-            _ => RightClass,
+            Side.Right => RightClass,
+            Side.InlineStart => InlineStartClass,
+            _ => InlineEndClass,
         };
         var children = Children;
         if (ShowCloseButton)
@@ -129,7 +134,8 @@ public sealed partial class SheetContent : Component
         var attributes = DialogAttributes.ForPart("sheet-content", Rest, Class, ContentClass + " " + sideClass);
         attributes["data-side"] = Side switch
         {
-            Side.Top => "top", Side.Left => "left", Side.Bottom => "bottom", _ => "right",
+            Side.Top => "top", Side.Left => "left", Side.Bottom => "bottom", Side.Right => "right",
+            Side.InlineStart => "inline-start", _ => "inline-end",
         };
         var panel = new DialogPrimitive.Content
         {

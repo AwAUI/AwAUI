@@ -13,6 +13,8 @@ namespace AwAUI.Shadcn;
 /// <summary>Anchored menu with keyboard navigation and typeahead.</summary>
 public sealed partial class DropdownMenu : Component
 {
+    readonly DropdownMenuParts.OpenIntent _openIntent = new();
+
     public bool? Open { get; set; }
     public bool DefaultOpen { get; set; }
     public bool Modal { get; set; } = true;
@@ -20,14 +22,14 @@ public sealed partial class DropdownMenu : Component
     public Action<bool>? OnOpenChange { get; set; }
     public NodeList? Children { get; set; }
 
-    protected override Node Build() => new PopoverPrimitive.Root
+    protected override Node Build() => Provide(_openIntent, new PopoverPrimitive.Root
     {
         Open = Open,
         DefaultOpen = DefaultOpen,
         Modal = Modal,
         OnOpenChange = OpenChanged + OnOpenChange,
         Children = Children,
-    };
+    });
 }
 
 public sealed partial class DropdownMenuTrigger : Component
@@ -44,11 +46,13 @@ public sealed partial class DropdownMenuTrigger : Component
         var button = TabsParts.Style(new UIButton { Disabled = Disabled, Children = Children ?? [] },
             "dropdown-menu-trigger", null, Class, Rest);
         button.Attributes["aria-haspopup"] = "menu";
+        DropdownMenuParts.OpenIntent? openIntent = TryUse<DropdownMenuParts.OpenIntent>(out var intent) ? intent : null;
         button.OnKeyDown = EventComposition.Compose(button.OnKeyDown, e =>
         {
             if (!button.Disabled && !popup.Open && e.Key is "ArrowDown" or "ArrowUp")
             {
                 e.PreventDefault();
+                if (openIntent is not null) openIntent.Last = e.Key == "ArrowUp";
                 popup.Shared.SetOpen(true);
             }
         });
@@ -168,7 +172,8 @@ public sealed partial class DropdownMenuRadioItem : Component
     {
         var radio = Use<DropdownMenuRadioGroup.Selection>();
         return DropdownMenuParts.Item(Use<DropdownMenuParts.Scope>(), "dropdown-menu-radio-item", Disabled, true,
-            Class, Rest, Children, EventComposition.Compose(OnSelect, _ => radio.Set(Value)), "menuitemradio", Value == radio.Value);
+            Class, Rest, Children, EventComposition.Compose(OnSelect, _ => radio.Set(Value)), "menuitemradio", Value == radio.Value,
+            radio: true);
     }
 }
 
@@ -188,7 +193,15 @@ public sealed partial class DropdownMenuLabel : Component
     public string? Class { get; set; }
     [CaptureUnmatchedAttributes] public AttributeDictionary? Rest { get; set; }
     protected override Node Build() => TabsParts.Style(new UI.Text { Children = Children ?? [] },
-        "dropdown-menu-label", "px-2 py-1.5 text-sm font-medium" + (Inset ? " pl-8" : ""), Class, Rest);
+            "dropdown-menu-label", "px-2 py-1.5 text-sm font-medium" + (Inset ? " pl-8" : ""), Class,
+            Inset ? WithInset(Rest) : Rest);
+
+    static AttributeDictionary WithInset(AttributeDictionary? rest)
+    {
+        var attributes = rest is null ? new AttributeDictionary() : new AttributeDictionary(rest);
+        attributes["data-inset"] = "true";
+        return attributes;
+    }
 }
 
 public sealed partial class DropdownMenuSeparator : Component
@@ -212,6 +225,12 @@ internal static class DropdownMenuParts
 {
     internal sealed record InPortal(OpenableShared Popup, int ZOrder);
     internal readonly record struct MotionState(bool Open);
+
+    /// <summary>Remembers whether the menu was opened with ArrowUp so the surface can focus the last item.</summary>
+    internal sealed class OpenIntent
+    {
+        internal bool Last;
+    }
 
     internal static int PortalOrder(Scope? host, int order)
     {
@@ -274,14 +293,23 @@ internal static class DropdownMenuParts
             return false;
         }
 
-        internal void FocusFirst(FocusOrigin origin) => FocusFirst(content.Current, origin);
+        internal void FocusFirst(FocusOrigin origin, bool last = false) => FocusFirst(content.Current, origin, last);
 
-        internal static void FocusFirst(Element? content, FocusOrigin origin)
+        internal static void FocusFirst(Element? content, FocusOrigin origin, bool last = false)
         {
             if (content is null) return;
             var options = new FocusOptions { Origin = origin };
-            foreach (var item in Items(content))
-                if (item.Focus(options)) return;
+            var items = Items(content);
+            if (last)
+            {
+                for (int i = items.Count - 1; i >= 0; i--)
+                    if (items[i].Focus(options)) return;
+            }
+            else
+            {
+                foreach (var item in items)
+                    if (item.Focus(options)) return;
+            }
             content.Focus(options);
         }
 
@@ -345,17 +373,21 @@ internal static class DropdownMenuParts
     {
         var button = TabsParts.Style(new UIButton { Role = Role.MenuItem, TabIndex = -1, Disabled = disabled,
             Children = new NodeList(children) }, slot,
-            "relative flex w-full cursor-default items-center gap-2 rounded-sm border-0 bg-transparent px-2 py-1.5 text-left text-sm outline-none focus:bg-accent focus:text-accent-foreground disabled:opacity-50" +
-            (inset ? " pl-8" : "") + (destructive ? " text-destructive focus:text-destructive" : "") +
+            "relative flex w-full cursor-default items-center gap-2 rounded-sm border-0 bg-transparent px-2 py-1.5 text-left text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 " +
+            "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground " +
+            "data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:*:[svg]:text-destructive!" +
+            (inset ? " data-[inset]:pl-8" : "") +
             (openHighlight ? " data-[state=open]:bg-accent data-[state=open]:text-accent-foreground" : ""), classes, rest);
         button.Attributes["type"] = "button";
+        button.Attributes["data-variant"] = destructive ? "destructive" : "default";
+        if (inset) button.Attributes["data-inset"] = "true";
         TabsParts.Disabled(button, button.Disabled);
         return button;
     }
 
     internal static Node Item(Scope scope, string slot, bool disabled, bool inset, string? classes,
         AttributeDictionary? rest, NodeList? children, Action<PointerEvent>? select, string? role = null,
-        bool? selected = null, bool destructive = false)
+        bool? selected = null, bool destructive = false, bool radio = false)
     {
         var button = ItemButton(slot, disabled, inset, classes, rest, children, destructive);
         if (role is not null) button.Attributes["role"] = role;
@@ -363,7 +395,15 @@ internal static class DropdownMenuParts
         {
             button.Attributes["aria-checked"] = TabsParts.Bool(isSelected);
             button.Attributes["data-state"] = isSelected ? "checked" : "unchecked";
-            if (isSelected) button.Children.Add(SelectParts.Glyph(LucideIcons.Check, slot + "-indicator", "pointer-events-none absolute left-2 size-4"));
+            button.Children.Add(new Span
+            {
+                Class = "pointer-events-none absolute left-2 flex size-3.5 items-center justify-center",
+                Children = isSelected
+                    ? [radio
+                        ? SelectParts.Glyph(LucideIcons.Circle, slot + "-indicator", "size-2 fill-current")
+                        : SelectParts.Glyph(LucideIcons.Check, slot + "-indicator", "size-4")]
+                    : [],
+            });
         }
         button.OnClick = EventComposition.Compose(button.OnClick, e =>
         {

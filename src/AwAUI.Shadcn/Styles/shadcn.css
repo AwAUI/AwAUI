@@ -133,6 +133,11 @@
     &[data-side=bottom] { --aw-sheet-y: 100%; }
     &[data-side=left] { --aw-sheet-x: -100%; }
     &[data-side=right] { --aw-sheet-x: 100%; }
+    /* 逻辑边：start 滑入 / 滑出的物理方向随 direction 翻转 */
+    &[data-side=inline-start] { --aw-sheet-x: -100%; }
+    &[data-side=inline-end] { --aw-sheet-x: 100%; }
+    &[data-side=inline-start]:dir(rtl) { --aw-sheet-x: 100%; }
+    &[data-side=inline-end]:dir(rtl) { --aw-sheet-x: -100%; }
   }
 
   :is([data-slot=popover-content], [data-slot=tooltip-content], [data-slot=select-content],
