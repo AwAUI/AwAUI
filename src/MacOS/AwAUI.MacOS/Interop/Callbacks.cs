@@ -15,6 +15,15 @@ internal static unsafe class Callbacks
     public static Func<IntPtr, IntPtr, bool>? OnQueryBool;       // -(BOOL)xxx
     public static Func<IntPtr, IntPtr, IntPtr, bool>? OnQueryBoolArg; // -(BOOL)xxx:(id)arg
 
+    // NSAccessibility（design/10「平台桥」）：self 既可能是代理元素，也可能是窗口内容视图。
+    public static Func<IntPtr, IntPtr, IntPtr>? OnA11yObject;              // -(id)xxx
+    public static Func<IntPtr, IntPtr, IntPtr, IntPtr>? OnA11yObjectArg;   // -(id)xxx:(id)arg
+    public static Func<IntPtr, IntPtr, bool>? OnA11yBool;                  // -(BOOL)xxx
+    public static Func<IntPtr, IntPtr, IntPtr, bool>? OnA11yBoolArg;       // -(BOOL)xxx:(id)arg
+    public static Action<IntPtr, IntPtr, IntPtr>? OnA11ySetObject;         // -(void)xxx:(id)arg
+    public static Action<IntPtr, IntPtr, IntPtr, IntPtr>? OnA11ySetObject2; // -(void)xxx:(id)a yyy:(id)b
+    public static Func<IntPtr, IntPtr, NSRect>? OnA11yRect;                // -(NSRect)xxx
+
     // NSTextInputClient（design/04「IME」）：都在主线程上由 NSTextInputContext 调用
     public static Action<IntPtr, IntPtr, NSRange>? OnInsertText;              // insertText:replacementRange:
     public static Action<IntPtr, IntPtr, NSRange, NSRange>? OnSetMarkedText;   // setMarkedText:selectedRange:replacementRange:
@@ -24,6 +33,9 @@ internal static unsafe class Callbacks
     public static Func<IntPtr, NSRange, IntPtr, IntPtr>? OnAttributedSubstring; // attributedSubstringForProposedRange:actualRange:
     public static Func<IntPtr, NSRange, IntPtr, NSRect>? OnFirstRect;           // firstRectForCharacterRange:actualRange:
     public static Func<IntPtr, NSPoint, ulong>? OnCharacterIndex;              // characterIndexForPoint:
+
+    /// <summary>文件面板结束（awPanelDidEnd:returnCode:contextInfo:）：panel、NSModalResponse、contextInfo。</summary>
+    public static Action<IntPtr, long, IntPtr>? OnPanelEnd;
 
     /// <summary>CVDisplayLink 输出回调 (userInfo, inOutputTime)。在 CoreVideo 的后台线程上调用。</summary>
     public static Action<IntPtr, IntPtr>? OnDisplayLinkOutput;
@@ -97,6 +109,46 @@ internal static unsafe class Callbacks
         try { return OnCharacterIndex?.Invoke(self, point) ?? NotFound; } catch (Exception e) { Report(e); return NotFound; }
     }
 
+    static void PanelEndImpl(IntPtr self, IntPtr sel, IntPtr panel, long returnCode, IntPtr contextInfo)
+    {
+        try { OnPanelEnd?.Invoke(panel, returnCode, contextInfo); } catch (Exception e) { Report(e); }
+    }
+
+    static IntPtr A11yObjectImpl(IntPtr self, IntPtr sel)
+    {
+        try { return OnA11yObject?.Invoke(self, sel) ?? IntPtr.Zero; } catch (Exception e) { Report(e); return IntPtr.Zero; }
+    }
+
+    static IntPtr A11yObjectArgImpl(IntPtr self, IntPtr sel, IntPtr arg)
+    {
+        try { return OnA11yObjectArg?.Invoke(self, sel, arg) ?? IntPtr.Zero; } catch (Exception e) { Report(e); return IntPtr.Zero; }
+    }
+
+    static byte A11yBoolImpl(IntPtr self, IntPtr sel)
+    {
+        try { return OnA11yBool?.Invoke(self, sel) == true ? (byte)1 : (byte)0; } catch (Exception e) { Report(e); return 0; }
+    }
+
+    static byte A11yBoolArgImpl(IntPtr self, IntPtr sel, IntPtr arg)
+    {
+        try { return OnA11yBoolArg?.Invoke(self, sel, arg) == true ? (byte)1 : (byte)0; } catch (Exception e) { Report(e); return 0; }
+    }
+
+    static void A11ySetObjectImpl(IntPtr self, IntPtr sel, IntPtr arg)
+    {
+        try { OnA11ySetObject?.Invoke(self, sel, arg); } catch (Exception e) { Report(e); }
+    }
+
+    static void A11ySetObject2Impl(IntPtr self, IntPtr sel, IntPtr arg1, IntPtr arg2)
+    {
+        try { OnA11ySetObject2?.Invoke(self, sel, arg1, arg2); } catch (Exception e) { Report(e); }
+    }
+
+    static NSRect A11yRectImpl(IntPtr self, IntPtr sel)
+    {
+        try { return OnA11yRect?.Invoke(self, sel) ?? default; } catch (Exception e) { Report(e); return default; }
+    }
+
     // CVReturn (*)(CVDisplayLinkRef, const CVTimeStamp* inNow, const CVTimeStamp* inOutputTime,
     //             CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* userInfo)
     static int DisplayLinkOutputImpl(IntPtr link, IntPtr now, IntPtr outputTime, ulong flagsIn, IntPtr flagsOut, IntPtr userInfo)
@@ -122,6 +174,15 @@ internal static unsafe class Callbacks
     [UnmanagedCallersOnly] static IntPtr AttributedSubstringEntry(IntPtr self, IntPtr sel, NSRange r, IntPtr a) => AttributedSubstringImpl(self, sel, r, a);
     [UnmanagedCallersOnly] static NSRect FirstRectEntry(IntPtr self, IntPtr sel, NSRange r, IntPtr a) => FirstRectImpl(self, sel, r, a);
     [UnmanagedCallersOnly] static ulong CharacterIndexEntry(IntPtr self, IntPtr sel, NSPoint p) => CharacterIndexImpl(self, sel, p);
+    [UnmanagedCallersOnly] static void PanelEndEntry(IntPtr self, IntPtr sel, IntPtr panel, long code, IntPtr ctx) => PanelEndImpl(self, sel, panel, code, ctx);
+
+    [UnmanagedCallersOnly] static IntPtr A11yObjectEntry(IntPtr self, IntPtr sel) => A11yObjectImpl(self, sel);
+    [UnmanagedCallersOnly] static IntPtr A11yObjectArgEntry(IntPtr self, IntPtr sel, IntPtr arg) => A11yObjectArgImpl(self, sel, arg);
+    [UnmanagedCallersOnly] static byte A11yBoolEntry(IntPtr self, IntPtr sel) => A11yBoolImpl(self, sel);
+    [UnmanagedCallersOnly] static byte A11yBoolArgEntry(IntPtr self, IntPtr sel, IntPtr arg) => A11yBoolArgImpl(self, sel, arg);
+    [UnmanagedCallersOnly] static void A11ySetObjectEntry(IntPtr self, IntPtr sel, IntPtr arg) => A11ySetObjectImpl(self, sel, arg);
+    [UnmanagedCallersOnly] static void A11ySetObject2Entry(IntPtr self, IntPtr sel, IntPtr a, IntPtr b) => A11ySetObject2Impl(self, sel, a, b);
+    [UnmanagedCallersOnly] static NSRect A11yRectEntry(IntPtr self, IntPtr sel) => A11yRectImpl(self, sel);
 
     public static IntPtr InsertText => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, NSRange, void>)&InsertTextEntry;
     public static IntPtr SetMarkedText => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, NSRange, NSRange, void>)&SetMarkedTextEntry;
@@ -131,6 +192,15 @@ internal static unsafe class Callbacks
     public static IntPtr AttributedSubstring => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, NSRange, IntPtr, IntPtr>)&AttributedSubstringEntry;
     public static IntPtr FirstRect => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, NSRange, IntPtr, NSRect>)&FirstRectEntry;
     public static IntPtr CharacterIndex => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, NSPoint, ulong>)&CharacterIndexEntry;
+    public static IntPtr PanelEnd => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, long, IntPtr, void>)&PanelEndEntry;
+
+    public static IntPtr A11yObject => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr>)&A11yObjectEntry;
+    public static IntPtr A11yObjectArg => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, IntPtr>)&A11yObjectArgEntry;
+    public static IntPtr A11yBool => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, byte>)&A11yBoolEntry;
+    public static IntPtr A11yBoolArg => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, byte>)&A11yBoolArgEntry;
+    public static IntPtr A11ySetObject => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, void>)&A11ySetObjectEntry;
+    public static IntPtr A11ySetObject2 => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, IntPtr, void>)&A11ySetObject2Entry;
+    public static IntPtr A11yRect => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, NSRect>)&A11yRectEntry;
 
     public static IntPtr Event => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr, void>)&EventEntry;
     public static IntPtr DrawRect => (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, NSRect, void>)&DrawRectEntry;
@@ -158,7 +228,25 @@ internal static unsafe class Callbacks
     delegate IntPtr AttributedSubstringFn(IntPtr self, IntPtr sel, NSRange r, IntPtr a);
     delegate NSRect FirstRectFn(IntPtr self, IntPtr sel, NSRange r, IntPtr a);
     delegate ulong CharacterIndexFn(IntPtr self, IntPtr sel, NSPoint p);
+    delegate void PanelEndFn(IntPtr self, IntPtr sel, IntPtr panel, long code, IntPtr ctx);
 
+    delegate IntPtr A11yObjectFn(IntPtr self, IntPtr sel);
+    delegate IntPtr A11yObjectArgFn(IntPtr self, IntPtr sel, IntPtr arg);
+    delegate byte A11yBoolFn(IntPtr self, IntPtr sel);
+    delegate byte A11yBoolArgFn(IntPtr self, IntPtr sel, IntPtr arg);
+    delegate void A11ySetObjectFn(IntPtr self, IntPtr sel, IntPtr arg);
+    delegate void A11ySetObject2Fn(IntPtr self, IntPtr sel, IntPtr a, IntPtr b);
+    delegate NSRect A11yRectFn(IntPtr self, IntPtr sel);
+
+    static readonly A11yObjectFn s_a11yObject = A11yObjectImpl;
+    static readonly A11yObjectArgFn s_a11yObjectArg = A11yObjectArgImpl;
+    static readonly A11yBoolFn s_a11yBool = A11yBoolImpl;
+    static readonly A11yBoolArgFn s_a11yBoolArg = A11yBoolArgImpl;
+    static readonly A11ySetObjectFn s_a11ySetObject = A11ySetObjectImpl;
+    static readonly A11ySetObject2Fn s_a11ySetObject2 = A11ySetObject2Impl;
+    static readonly A11yRectFn s_a11yRect = A11yRectImpl;
+
+    static readonly PanelEndFn s_panelEnd = PanelEndImpl;
     static readonly InsertTextFn s_insertText = InsertTextImpl;
     static readonly SetMarkedTextFn s_setMarkedText = SetMarkedTextImpl;
     static readonly VoidFn s_void = VoidImpl;
@@ -176,6 +264,15 @@ internal static unsafe class Callbacks
     public static IntPtr AttributedSubstring => Marshal.GetFunctionPointerForDelegate(s_attributedSubstring);
     public static IntPtr FirstRect => Marshal.GetFunctionPointerForDelegate(s_firstRect);
     public static IntPtr CharacterIndex => Marshal.GetFunctionPointerForDelegate(s_characterIndex);
+    public static IntPtr PanelEnd => Marshal.GetFunctionPointerForDelegate(s_panelEnd);
+
+    public static IntPtr A11yObject => Marshal.GetFunctionPointerForDelegate(s_a11yObject);
+    public static IntPtr A11yObjectArg => Marshal.GetFunctionPointerForDelegate(s_a11yObjectArg);
+    public static IntPtr A11yBool => Marshal.GetFunctionPointerForDelegate(s_a11yBool);
+    public static IntPtr A11yBoolArg => Marshal.GetFunctionPointerForDelegate(s_a11yBoolArg);
+    public static IntPtr A11ySetObject => Marshal.GetFunctionPointerForDelegate(s_a11ySetObject);
+    public static IntPtr A11ySetObject2 => Marshal.GetFunctionPointerForDelegate(s_a11ySetObject2);
+    public static IntPtr A11yRect => Marshal.GetFunctionPointerForDelegate(s_a11yRect);
 
     public static IntPtr Event => Marshal.GetFunctionPointerForDelegate(s_event);
     public static IntPtr DrawRect => Marshal.GetFunctionPointerForDelegate(s_drawRect);

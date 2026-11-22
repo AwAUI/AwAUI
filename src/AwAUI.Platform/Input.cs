@@ -32,18 +32,30 @@ public readonly struct RawPointerEvent
         PointerButtons changedButton, PointerButtons buttons, KeyModifiers modifiers, TimeSpan timestamp,
         float pressure = 0.5f, float wheelDeltaX = 0, float wheelDeltaY = 0, bool preciseWheel = false)
         : this(type, device, pointerId, position, changedButton, buttons, modifiers, timestamp, pressure, wheelDeltaX, wheelDeltaY, preciseWheel,
-            preciseWheel ? WheelDeltaMode.Pixel : WheelDeltaMode.Line, ScrollPhase.None, ScrollPhase.None)
+            preciseWheel ? WheelDeltaMode.Pixel : WheelDeltaMode.Line, ScrollPhase.None, ScrollPhase.None, isPredicted: false)
+    {
+    }
+
+    /// <summary>
+    /// 带预测标记的构造函数。预测样本（iOS <c>predictedTouchesForTouch</c>、Android 预测事件）由平台在真实样本之前
+    /// 上报，框架可用于降低延迟；应用可以忽略它们。
+    /// </summary>
+    public RawPointerEvent(RawPointerEventType type, PointerType device, long pointerId, Point position,
+        PointerButtons changedButton, PointerButtons buttons, KeyModifiers modifiers, TimeSpan timestamp,
+        float pressure, float wheelDeltaX, float wheelDeltaY, bool preciseWheel, bool isPredicted)
+        : this(type, device, pointerId, position, changedButton, buttons, modifiers, timestamp, pressure, wheelDeltaX, wheelDeltaY, preciseWheel,
+            preciseWheel ? WheelDeltaMode.Pixel : WheelDeltaMode.Line, ScrollPhase.None, ScrollPhase.None, isPredicted)
     {
     }
 
     RawPointerEvent(RawPointerEventType type, PointerType device, long pointerId, Point position,
         PointerButtons changedButton, PointerButtons buttons, KeyModifiers modifiers, TimeSpan timestamp,
-        float pressure, float wheelDeltaX, float wheelDeltaY, bool preciseWheel, WheelDeltaMode mode, ScrollPhase phase, ScrollPhase momentum)
+        float pressure, float wheelDeltaX, float wheelDeltaY, bool preciseWheel, WheelDeltaMode mode, ScrollPhase phase, ScrollPhase momentum, bool isPredicted)
     {
         Type = type; Device = device; PointerId = pointerId; Position = position; ChangedButton = changedButton;
         Buttons = buttons; Modifiers = modifiers; Timestamp = timestamp; Pressure = pressure;
         WheelDeltaX = WheelDeltas.Sanitize(wheelDeltaX); WheelDeltaY = WheelDeltas.Sanitize(wheelDeltaY); PreciseWheel = preciseWheel;
-        WheelDeltaMode = mode; ScrollPhase = phase; MomentumPhase = momentum;
+        WheelDeltaMode = mode; ScrollPhase = phase; MomentumPhase = momentum; IsPredicted = isPredicted;
     }
 
     /// <summary>
@@ -61,7 +73,7 @@ public readonly struct RawPointerEvent
         ScrollPhase phase, ScrollPhase momentumPhase, PointerButtons buttons, KeyModifiers modifiers, TimeSpan timestamp,
         PointerType device = PointerType.Mouse, long pointerId = 0) =>
         new(RawPointerEventType.Wheel, device, pointerId, position, PointerButtons.None, buttons, modifiers, timestamp, 0f,
-            deltaX, deltaY, precise, mode, phase, momentumPhase);
+            deltaX, deltaY, precise, mode, phase, momentumPhase, isPredicted: false);
 
     public RawPointerEventType Type { get; }
     public PointerType Device { get; }
@@ -90,6 +102,12 @@ public readonly struct RawPointerEvent
 
     /// <summary>系统惯性相位（<see cref="ScrollPhase.Began"/> / <see cref="ScrollPhase.Changed"/> / <see cref="ScrollPhase.Ended"/>）；不在惯性中为 None。</summary>
     public ScrollPhase MomentumPhase { get; }
+
+    /// <summary>
+    /// 预测样本（触摸屏在真实采样之前给出的估计）。预测样本不会被应用看到，只用于提前呈现；
+    /// 框架自己的输入路径可以忽略它们。普通事件为 false。
+    /// </summary>
+    public bool IsPredicted { get; }
 }
 
 public enum RawKeyEventType : byte { Down, Up }

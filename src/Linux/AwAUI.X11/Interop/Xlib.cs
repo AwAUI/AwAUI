@@ -25,6 +25,9 @@ internal static unsafe class Xlib
     [DllImport(Lib, ExactSpelling = true)] public static extern ulong XBlackPixel(IntPtr display, int screen);
     [DllImport(Lib, ExactSpelling = true)] public static extern int XImageByteOrder(IntPtr display);
     [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr XResourceManagerString(IntPtr display);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int XScreenCount(IntPtr display);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int XDisplayWidth(IntPtr display, int screen);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int XDisplayHeight(IntPtr display, int screen);
     [DllImport(Lib, ExactSpelling = true)] public static extern int XFree(void* data);
 
     // ------------------------------------------------------------ 视觉与颜色表
@@ -43,12 +46,21 @@ internal static unsafe class Xlib
         int depth, uint @class, IntPtr visual, ulong valueMask, XSetWindowAttributes* attributes);
     [DllImport(Lib, ExactSpelling = true)] public static extern int XDestroyWindow(IntPtr display, ulong window);
     [DllImport(Lib, ExactSpelling = true)] public static extern int XMapWindow(IntPtr display, ulong window);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int XUnmapWindow(IntPtr display, ulong window);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int XMoveWindow(IntPtr display, ulong window, int x, int y);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int XResizeWindow(IntPtr display, ulong window, uint width, uint height);
+    [DllImport(Lib, ExactSpelling = true)]
+    public static extern int XMoveResizeWindow(IntPtr display, ulong window, int x, int y, uint width, uint height);
     [DllImport(Lib, ExactSpelling = true)] public static extern ulong XInternAtom(IntPtr display, byte* name, int onlyIfExists);
     [DllImport(Lib, ExactSpelling = true)] public static extern int XSetWMProtocols(IntPtr display, ulong window, ulong* protocols, int count);
     [DllImport(Lib, ExactSpelling = true)]
     public static extern int XChangeProperty(IntPtr display, ulong window, ulong property, ulong type, int format, int mode,
         byte* data, int nelements);
     [DllImport(Lib, ExactSpelling = true)] public static extern void XSetWMNormalHints(IntPtr display, ulong window, XSizeHints* hints);
+    /// <summary>Bool XTranslateCoordinates(Display*, Window, Window, int, int, int*, int*, Window*)：坐标换算出错（例如跨屏幕）时返回 0。</summary>
+    [DllImport(Lib, ExactSpelling = true)]
+    public static extern int XTranslateCoordinates(IntPtr display, ulong srcWindow, ulong destWindow, int srcX, int srcY,
+        int* destX, int* destY, ulong* child);
 
     // ------------------------------------------------------------ 绘制
     [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr XCreateGC(IntPtr display, ulong drawable, ulong valueMask, void* values);
@@ -150,7 +162,8 @@ internal static unsafe class Xlib
     // 事件掩码
     public const long KeyPressMask = 1L << 0, KeyReleaseMask = 1L << 1, ButtonPressMask = 1L << 2, ButtonReleaseMask = 1L << 3,
         EnterWindowMask = 1L << 4, LeaveWindowMask = 1L << 5, PointerMotionMask = 1L << 6, ExposureMask = 1L << 15,
-        StructureNotifyMask = 1L << 17, FocusChangeMask = 1L << 21, PropertyChangeMask = 1L << 22;
+        StructureNotifyMask = 1L << 17, SubstructureNotifyMask = 1L << 19, SubstructureRedirectMask = 1L << 20,
+        FocusChangeMask = 1L << 21, PropertyChangeMask = 1L << 22;
 
     // 修饰键与按钮状态掩码
     public const uint ShiftMask = 1 << 0, LockMask = 1 << 1, ControlMask = 1 << 2, Mod1Mask = 1 << 3, Mod2Mask = 1 << 4,
@@ -171,16 +184,23 @@ internal static unsafe class Xlib
     public const int ZPixmap = 2;
     public const int LSBFirst = 0, MSBFirst = 1;
     public const int PropModeReplace = 0;
+
+    // ICCCM / EWMH：自绘标题栏（design/04）
+    public const int IconicState = 3;
+    public const long NetWmStateRemove = 0, NetWmStateAdd = 1;
+    public const long NetWmMoveresizeMove = 8, NetWmMoveresizeSourceApplication = 1;
+    public const long MwmHintsDecorations = 2;
     public const int QueuedAlready = 0, QueuedAfterReading = 1, QueuedAfterFlush = 2;
 
     // XGetVisualInfo 的模板掩码
     public const long VisualIDMask = 0x1, VisualScreenMask = 0x2;
 
     // XSizeHints.flags
-    public const long PMinSize = 1L << 4, PMaxSize = 1L << 5;
+    public const long USPosition = 1L << 0, USSize = 1L << 1, PPosition = 1L << 2, PSize = 1L << 3,
+        PMinSize = 1L << 4, PMaxSize = 1L << 5;
 
     // 预定义原子（Xatom.h）
-    public const ulong XA_ATOM = 4, XA_INTEGER = 19, XA_STRING = 31, XA_WM_ICON_NAME = 37, XA_WM_NAME = 39, XA_WM_CLASS = 67;
+    public const ulong XA_ATOM = 4, XA_CARDINAL = 6, XA_INTEGER = 19, XA_STRING = 31, XA_WM_ICON_NAME = 37, XA_WM_NAME = 39, XA_WM_CLASS = 67;
     public const ulong AnyPropertyType = 0, CurrentTime = 0;
 
     // 光标字体（cursorfont.h）

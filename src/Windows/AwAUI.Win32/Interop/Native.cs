@@ -21,13 +21,40 @@ internal static unsafe class User32
     [DllImport(Lib, ExactSpelling = true)] public static extern int ShowWindow(IntPtr hwnd, int cmdShow);
     [DllImport(Lib, ExactSpelling = true)] public static extern int SetWindowTextW(IntPtr hwnd, char* text);
     [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr DefWindowProcW(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr SendMessageW(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int IsZoomed(IntPtr hwnd);
     [DllImport(Lib, ExactSpelling = true)] public static extern int GetClientRect(IntPtr hwnd, RECT* rect);
     [DllImport(Lib, ExactSpelling = true)] public static extern int ScreenToClient(IntPtr hwnd, POINT* point);
     [DllImport(Lib, ExactSpelling = true)]
     public static extern int SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
     [DllImport(Lib, ExactSpelling = true)] public static extern int AdjustWindowRectEx(RECT* rect, uint style, int menu, uint exStyle);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int GetWindowRect(IntPtr hwnd, RECT* rect);
     [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr MonitorFromPoint(POINT point, uint flags);
     [DllImport(Lib, ExactSpelling = true)] public static extern int GetMonitorInfoW(IntPtr monitor, MONITORINFO* info);
+    /// <summary>与 <see cref="GetMonitorInfoW(IntPtr, MONITORINFO*)"/> 相同，但返回带设备名的 MONITORINFOEXW。</summary>
+    [DllImport(Lib, ExactSpelling = true, EntryPoint = "GetMonitorInfoW")]
+    public static extern int GetMonitorInfoExW(IntPtr monitor, MONITORINFOEXW* info);
+    /// <summary>显示器枚举回调：返回非零继续枚举。</summary>
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    public delegate int MonitorEnumProc(IntPtr monitor, IntPtr hdc, RECT* clip, IntPtr data);
+    [DllImport(Lib, ExactSpelling = true)]
+    public static extern int EnumDisplayMonitors(IntPtr hdc, RECT* clip, MonitorEnumProc callback, IntPtr data);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int GetSystemMetrics(int index);
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr LoadIconW(IntPtr instance, IntPtr iconName);
+    [DllImport(Lib, ExactSpelling = true)]
+    public static extern IntPtr CreateIconIndirect(ICONINFO* iconInfo);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int DestroyIcon(IntPtr icon);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int IsIconic(IntPtr hwnd);
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr GetForegroundWindow();
+    [DllImport(Lib, ExactSpelling = true)] public static extern int SetForegroundWindow(IntPtr hwnd);
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr GetActiveWindow();
+    // Get/SetWindowLongPtrW 只在 64 位 user32 上导出；32 位用 Get/SetWindowLongW（调用方按 IntPtr.Size 选择）。
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr GetWindowLongPtrW(IntPtr hwnd, int index);
+    [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr SetWindowLongPtrW(IntPtr hwnd, int index, IntPtr value);
+    [DllImport(Lib, EntryPoint = "GetWindowLongW")] public static extern int GetWindowLongW(IntPtr hwnd, int index);
+    [DllImport(Lib, EntryPoint = "SetWindowLongW")] public static extern int SetWindowLongW(IntPtr hwnd, int index, int value);
+    [DllImport(Lib, ExactSpelling = true)] public static extern uint RegisterClipboardFormatW(char* format);
 
     // ------------------------------------------------------------ 消息循环
     [DllImport(Lib, ExactSpelling = true)] public static extern int GetMessageW(MSG* msg, IntPtr hwnd, uint filterMin, uint filterMax);
@@ -93,6 +120,9 @@ internal static unsafe class Gdi32
     [DllImport(Lib, ExactSpelling = true)]
     public static extern IntPtr CreateDIBSection(IntPtr hdc, BITMAPINFO* info, uint usage, void** bits, IntPtr section, uint offset);
     [DllImport(Lib, ExactSpelling = true)]
+    public static extern IntPtr CreateBitmap(int width, int height, uint planes, uint bitsPerPixel, void* bits);
+    [DllImport(Lib, ExactSpelling = true)] public static extern int SetBitmapBits(IntPtr bitmap, uint bytes, void* bits);
+    [DllImport(Lib, ExactSpelling = true)]
     public static extern int BitBlt(IntPtr hdc, int x, int y, int cx, int cy, IntPtr hdcSrc, int x1, int y1, uint rop);
     [DllImport(Lib, ExactSpelling = true)] public static extern int GdiFlush();
     [DllImport(Lib, ExactSpelling = true)] public static extern int GetDeviceCaps(IntPtr hdc, int index);
@@ -121,6 +151,11 @@ internal static unsafe class Imm32
     [DllImport(Lib, ExactSpelling = true)] public static extern int ImmSetCompositionWindow(IntPtr himc, COMPOSITIONFORM* form);
     [DllImport(Lib, ExactSpelling = true)] public static extern int ImmSetCandidateWindow(IntPtr himc, CANDIDATEFORM* form);
     [DllImport(Lib, ExactSpelling = true)] public static extern int ImmNotifyIME(IntPtr himc, uint action, uint index, uint value);
+    /// <summary>创建不与任何窗口关联的输入上下文；用完必须 <see cref="ImmDestroyContext"/>。</summary>
+    [DllImport(Lib, ExactSpelling = true, SetLastError = true)] public static extern IntPtr ImmCreateContext();
+    [DllImport(Lib, ExactSpelling = true, SetLastError = true)] public static extern int ImmDestroyContext(IntPtr himc);
+    /// <summary>关联输入上下文（<see cref="IntPtr.Zero"/> 表示解除关联）；返回之前关联的上下文。</summary>
+    [DllImport(Lib, ExactSpelling = true, SetLastError = true)] public static extern IntPtr ImmAssociateContext(IntPtr hwnd, IntPtr himc);
     [DllImport(Lib, ExactSpelling = true)] public static extern int ImmAssociateContextEx(IntPtr hwnd, IntPtr himc, uint flags);
 }
 
@@ -128,6 +163,40 @@ internal static unsafe class Imm32
 internal static class Shcore
 {
     [DllImport("shcore.dll", ExactSpelling = true)] public static extern int SetProcessDpiAwareness(int value);
+    /// <summary>按显示器查询 DPI（设计 04）。返回 HRESULT：0 成功。</summary>
+    [DllImport("shcore.dll", ExactSpelling = true)]
+    public static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+}
+
+/// <summary>shell32.dll：启动器与目录选择。</summary>
+internal static unsafe class Shell32
+{
+    const string Lib = "shell32.dll";
+
+    /// <summary>返回值 &gt; 32 表示成功。operation / file / parameters / directory / verb 均为以 NUL 结尾的字符串。</summary>
+    [DllImport(Lib, ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr ShellExecuteW(IntPtr hwnd, char* operation, char* file, char* parameters, char* directory, int showCmd);
+    [DllImport(Lib, ExactSpelling = true)]
+    public static extern IntPtr SHBrowseForFolderW(BROWSEINFOW* info);
+    [DllImport(Lib, ExactSpelling = true)]
+    public static extern int SHGetPathFromIDListW(IntPtr pidl, char* path);
+}
+
+/// <summary>comdlg32.dll：经典打开/保存文件对话框。</summary>
+internal static unsafe class Comdlg32
+{
+    const string Lib = "comdlg32.dll";
+
+    [DllImport(Lib, ExactSpelling = true, SetLastError = true)]
+    public static extern int GetOpenFileNameW(OPENFILENAMEW* info);
+    [DllImport(Lib, ExactSpelling = true, SetLastError = true)]
+    public static extern int GetSaveFileNameW(OPENFILENAMEW* info);
+}
+
+/// <summary>ole32.dll：释放 shell 分配的 PIDL。</summary>
+internal static class Ole32
+{
+    [DllImport("ole32.dll", ExactSpelling = true)] public static extern void CoTaskMemFree(IntPtr memory);
 }
 
 /// <summary>dwmapi.dll：Windows Vista+。</summary>
@@ -141,7 +210,11 @@ internal static class Const
 {
     // 窗口样式
     public const uint WS_OVERLAPPED = 0x00000000;
+    public const uint WS_POPUP = 0x80000000;
     public const uint WS_CAPTION = 0x00C00000;
+    public const uint WS_EX_APPWINDOW = 0x00040000;
+    public const uint WS_EX_TOOLWINDOW = 0x00000080;
+    public const uint WS_EX_TOPMOST = 0x00000008;
     public const uint WS_SYSMENU = 0x00080000;
     public const uint WS_THICKFRAME = 0x00040000;
     public const uint WS_MINIMIZEBOX = 0x00020000;
@@ -155,24 +228,58 @@ internal static class Const
     public static readonly IntPtr HWND_MESSAGE = new(-3);
 
     public const int SW_SHOWNORMAL = 1;
+    public const int SW_SHOWMINIMIZED = 2;
+    public const int SW_SHOWMAXIMIZED = 3;
+    public const int SW_MAXIMIZE = 3;
+    public const int SW_MINIMIZE = 6;
+    public const int SW_RESTORE = 9;
 
     public const uint SWP_NOSIZE = 0x0001;
     public const uint SWP_NOMOVE = 0x0002;
     public const uint SWP_NOZORDER = 0x0004;
     public const uint SWP_NOACTIVATE = 0x0010;
+    public const uint SWP_FRAMECHANGED = 0x0020;
+
+    public static readonly IntPtr HWND_TOP = IntPtr.Zero;
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
+    public static readonly IntPtr HWND_NOTOPMOST = new(-2);
+
+    // GetWindowLong / SetWindowLong 索引
+    public const int GWL_STYLE = -16;
+    public const int GWL_EXSTYLE = -20;
+
+    public const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
+    public const uint MONITORINFOF_PRIMARY = 0x00000001;
+    public const int SM_CXSCREEN = 0;
+    public const int SM_CYSCREEN = 1;
+
+    /// <summary>显示器 DPI 类型：有效 DPI（Per-Monitor V2 下含用户缩放）。</summary>
+    public const int MDT_EFFECTIVE_DPI = 0;
+
+    public const int IDI_APPLICATION = 32512;
+    public const int ICON_SMALL = 0;
+    public const int ICON_BIG = 1;
 
     public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
 
     // 消息
     public const uint WM_DESTROY = 0x0002;
+    public const uint WM_MOVE = 0x0003;
     public const uint WM_SIZE = 0x0005;
+    public const uint WM_ACTIVATE = 0x0006;
     public const uint WM_SETFOCUS = 0x0007;
     public const uint WM_KILLFOCUS = 0x0008;
     public const uint WM_PAINT = 0x000F;
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_ERASEBKGND = 0x0014;
+    public const uint WM_SHOWWINDOW = 0x0018;
+    public const uint WM_ACTIVATEAPP = 0x001C;
     public const uint WM_SETCURSOR = 0x0020;
+    /// <summary>输入语言改变（切换键盘布局 / 输入法）。</summary>
+    public const uint WM_INPUTLANGCHANGE = 0x0051;
     public const uint WM_GETMINMAXINFO = 0x0024;
+    /// <summary>设置窗口的大/小图标（lParam 为 HICON，wParam 为 ICON_BIG / ICON_SMALL）。</summary>
+    public const uint WM_SETICON = 0x007F;
     public const uint WM_NCDESTROY = 0x0082;
     public const uint WM_KEYDOWN = 0x0100;
     public const uint WM_KEYUP = 0x0101;
@@ -192,16 +299,27 @@ internal static class Const
     public const uint WM_XBUTTONUP = 0x020C;
     public const uint WM_MOUSEHWHEEL = 0x020E;
     public const uint WM_CAPTURECHANGED = 0x0215;
+    public const uint WM_NCLBUTTONDOWN = 0x00A1;
     public const uint WM_MOUSELEAVE = 0x02A3;
     public const uint WM_DPICHANGED = 0x02E0;
+    public const uint WM_DISPLAYCHANGE = 0x007E;
+    public const uint WM_THEMECHANGED = 0x031A;
     public const uint WM_APP = 0x8000;
 
+    public const int SIZE_RESTORED = 0;
     public const int SIZE_MINIMIZED = 1;
+    public const int SIZE_MAXIMIZED = 2;
+    public const int WA_INACTIVE = 0;
     public const int HTCLIENT = 1;
+    public const int HTCAPTION = 2;
     public const int WHEEL_DELTA = 120;
     public const uint WM_SETTINGCHANGE = 0x001A;
     public const uint SPI_GETWHEELSCROLLLINES = 0x0068, SPI_SETWHEELSCROLLLINES = 0x0069;
     public const uint SPI_GETWHEELSCROLLCHARS = 0x006C, SPI_SETWHEELSCROLLCHARS = 0x006D;
+    /// <summary>工作区（任务栏位置/大小）变化。</summary>
+    public const uint SPI_SETWORKAREA = 0x002F;
+    /// <summary>「在 Windows 中显示动画」（辅助功能 → 视觉效果）。</summary>
+    public const uint SPI_GETCLIENTAREAANIMATION = 0x1042;
     public const int XBUTTON1 = 0x0001;
     public const int XBUTTON2 = 0x0002;
 
@@ -219,6 +337,7 @@ internal static class Const
     public const int VK_SHIFT = 0x10;
     public const int VK_CONTROL = 0x11;
     public const int VK_MENU = 0x12;
+    public const int VK_SPACE = 0x20;
     public const int VK_LWIN = 0x5B;
     public const int VK_RWIN = 0x5C;
 
@@ -234,6 +353,8 @@ internal static class Const
     public const uint WM_IME_ENDCOMPOSITION = 0x010E;
     public const uint WM_IME_COMPOSITION = 0x010F;
     public const uint WM_IME_SETCONTEXT = 0x0281;
+    /// <summary>输入法产生的字符消息（不应再交给 DefWindowProc，否则会再生成 WM_CHAR）。</summary>
+    public const uint WM_IME_CHAR = 0x0286;
     public const uint GCS_COMPSTR = 0x0008;
     public const uint GCS_COMPATTR = 0x0010;
     public const uint GCS_CURSORPOS = 0x0080;
@@ -248,7 +369,34 @@ internal static class Const
 
     // 剪贴板
     public const uint CF_UNICODETEXT = 13;
+    public const uint CF_HDROP = 15;
+    public const uint CF_DIB = 8;
+    public const uint CF_DIBV5 = 17;
     public const uint GMEM_MOVEABLE = 0x0002;
+
+    // comdlg32 打开/保存标志
+    public const uint OFN_READONLY = 0x00000001;
+    public const uint OFN_OVERWRITEPROMPT = 0x00000002;
+    public const uint OFN_HIDEREADONLY = 0x00000004;
+    public const uint OFN_NOCHANGEDIR = 0x00000008;
+    public const uint OFN_PATHMUSTEXIST = 0x00000800;
+    public const uint OFN_FILEMUSTEXIST = 0x00001000;
+    public const uint OFN_ALLOWMULTISELECT = 0x00000200;
+    public const uint OFN_EXPLORER = 0x00080000;
+
+    // SHBrowseForFolder 标志
+    public const uint BIF_RETURNONLYFSDIRS = 0x00000001;
+    public const uint BIF_EDITBOX = 0x00000010;
+    public const uint BIF_NEWDIALOGSTYLE = 0x00000040;
+    public const uint BIF_USENEWUI = BIF_EDITBOX | BIF_NEWDIALOGSTYLE;
+
+    // GDI
+    public const uint BI_RGB = 0;
+    public const uint BI_BITFIELDS = 3;
+    public const uint DIB_RGB_COLORS = 0;
+    public const uint SRCCOPY = 0x00CC0020;
+    public const int LOGPIXELSX = 88;
+    public const int BLACK_BRUSH = 4;
 
     // 系统光标（MAKEINTRESOURCE）
     public const int IDC_ARROW = 32512;
@@ -259,13 +407,6 @@ internal static class Const
     public const int IDC_SIZENS = 32645;
     public const int IDC_NO = 32648;
     public const int IDC_HAND = 32649;
-
-    // GDI
-    public const uint BI_RGB = 0;
-    public const uint DIB_RGB_COLORS = 0;
-    public const uint SRCCOPY = 0x00CC0020;
-    public const int LOGPIXELSX = 88;
-    public const int BLACK_BRUSH = 4;
 
     // DPI
     public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new(-4);

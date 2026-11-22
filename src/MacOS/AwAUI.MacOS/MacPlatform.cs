@@ -23,6 +23,7 @@ public sealed class MacPlatform : PlatformBackend
     readonly IntPtr _app;
     readonly IntPtr _helper;
     readonly MacReducedMotionPreference? _reducedMotion;
+    readonly MacAppearancePreference? _appearance;
 
     /// <summary>帧时间戳的原点（主机时间，秒）：OnFrame 收到的是相对平台创建时刻的时间。</summary>
     internal readonly double Epoch;
@@ -45,6 +46,9 @@ public sealed class MacPlatform : PlatformBackend
         _dispatcher = new MacDispatcher(_helper);
         _reducedMotion = MacReducedMotionPreference.TryCreate();
         _reducedMotion?.Observe(_helper);
+        _appearance = MacAppearancePreference.TryCreate();
+        _appearance?.Observe(_helper);
+        ObserveNotifications();
         BuildMenu();
         objc_autoreleasePoolPop(pool);
     }
@@ -52,12 +56,40 @@ public sealed class MacPlatform : PlatformBackend
     public override string Name => "macOS";
 
     MacClipboard? _clipboard;
+    MacScreens? _screens;
+    MacStorageProvider? _storageProvider;
+    MacLauncher? _launcher;
 
     /// <summary>系统剪贴板（NSPasteboard）。</summary>
     public override Clipboard Clipboard => _clipboard ??= new MacClipboard(this);
+
+    /// <summary>显示器集合（NSScreen）；布局变化时触发 <see cref="Screens.Changed"/>。</summary>
+    public override Screens Screens => MacScreensService;
+
+    /// <summary>文件与目录选择器（NSOpenPanel / NSSavePanel）。</summary>
+    public override StorageProvider StorageProvider => _storageProvider ??= new MacStorageProvider(this);
+
+    /// <summary>用系统默认程序打开 URI / 文件 / 目录（NSWorkspace）。</summary>
+    public override Launcher Launcher => _launcher ??= new MacLauncher(this);
+
     public override IDispatcher Dispatcher => _dispatcher;
     public IReadOnlyList<MacWindow> Windows => _windows;
     internal IReducedMotionPreference? ReducedMotionPreference => _reducedMotion;
+    internal IAppearancePreference? AppearancePreference => _appearance;
+
+    internal MacScreens MacScreensService => _screens ??= new MacScreens(this);
+
+    /// <summary>主显示器在 Cocoa 坐标中的上边，窗口位置换算使用。</summary>
+    internal double PrimaryScreenTop => MacScreensService.PrimaryTop;
+
+    /// <summary><c>[NSApplication sharedApplication]</c>（应用级图标、激活等）。</summary>
+    internal IntPtr Application => _app;
+
+    public override T? GetService<T>() where T : class
+    {
+        if (this is T self) return self;
+        return Clipboard as T ?? Screens as T ?? StorageProvider as T ?? Launcher as T ?? _dispatcher as T;
+    }
 
     public override WindowImpl CreateWindow(WindowOptions options)
     {
@@ -93,6 +125,31 @@ public sealed class MacPlatform : PlatformBackend
         var ev = SendEvent(Class("NSEvent"), Sel("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"),
             15 /* NSEventTypeApplicationDefined */, default, 0, 0, 0, IntPtr.Zero, 0, 0, 0);
         Send(_app, Sel("postEvent:atStart:"), ev, (IntPtr)1);
+    }
+
+    /// <summary>
+    /// 观察应用级通知：前后台激活（转成 <see cref="IWindowLifecycleEvents.OnActivated"/> / <see cref="IWindowLifecycleEvents.OnLifecycle"/>）
+    /// 与显示器布局变化（刷新 <see cref="Screens"/> 并触发 <see cref="Screens.Changed"/>）。
+    /// </summary>
+    void ObserveNotifications()
+    {
+        var center = Send(Class("NSNotificationCenter"), Sel("defaultCenter"));
+        Observe(center, "NSApplicationDidBecomeActiveNotification", Sel("awAppDidBecomeActive:"));
+        Observe(center, "NSApplicationDidResignActiveNotification", Sel("awAppDidResignActive:"));
+        Observe(center, "NSApplicationDidChangeScreenParametersNotification", Sel("awScreensChanged:"));
+    }
+
+    void Observe(IntPtr center, string notificationName, IntPtr selector)
+    {
+        var name = CG.GetConstant(AppKit, notificationName);
+        if (name != IntPtr.Zero)
+            SendVoid(center, Sel("addObserver:selector:name:object:"), _helper, selector, name, IntPtr.Zero);
+    }
+
+    void SetApplicationActive(bool active)
+    {
+        // 回调可能关闭窗口（OnActivated 里调用 Window.Close）：倒序遍历，避免集合在枚举中变化
+        for (int i = _windows.Count - 1; i >= 0; i--) _windows[i].NotifyApplicationActive(active);
     }
 
     void BuildMenu()
@@ -132,9 +189,11 @@ public sealed class MacPlatform : PlatformBackend
         Callbacks.OnQueryObject = (self, sel) => MacWindow.EmptyArray(); // validAttributesForMarkedText：不使用富文本属性
         Callbacks.OnAttributedSubstring = (self, range, actual) => s_instance?.Find(self)?.AttributedSubstring(range, actual) ?? IntPtr.Zero;
         Callbacks.OnFirstRect = (self, range, actual) => s_instance?.Find(self)?.FirstRect(range, actual) ?? default;
-        Callbacks.OnCharacterIndex = (self, point) => Callbacks.NotFound;
+        Callbacks.OnCharacterIndex = (self, point) =>
+            s_instance?.Find(self)?.CharacterIndex(point) ?? Callbacks.NotFound;
         Callbacks.OnQueryBoolArg = (self, sel, arg) =>
             sel == Sel("windowShouldClose:") ? s_instance?.Find(self)?.ShouldClose() ?? true : true;
+        Callbacks.OnPanelEnd = (panel, code, context) => MacStorageProvider.OnPanelEnd(panel, code, context);
 
         const string ev = "v@:@";
         var viewEvents = new[]
@@ -166,6 +225,14 @@ public sealed class MacPlatform : PlatformBackend
         methods.Add(("doCommandBySelector:", Callbacks.Event, "v@::"));
         DefineClass("AwAUIView", "NSView", methods, new[] { "NSTextInputClient" });
 
+        // 无边框窗口（WindowDecorations.None）：NSWindow 对 Borderless 默认返回 NO，无法成为 key window；
+        // 自绘标题栏的窗口需要键盘焦点与拖动，因此用一个允许 key / main 的子类。
+        DefineClass("AwAUIWindow", "NSWindow", new (string, IntPtr, string)[]
+        {
+            ("canBecomeKeyWindow", Callbacks.Bool, "c@:"),
+            ("canBecomeMainWindow", Callbacks.Bool, "c@:"),
+        });
+
         DefineClass("AwAUIWindowDelegate", "NSObject", new (string, IntPtr, string)[]
         {
             ("windowShouldClose:", Callbacks.BoolArg, "c@:@"),
@@ -179,13 +246,29 @@ public sealed class MacPlatform : PlatformBackend
             ("windowDidResize:", Callbacks.Event, ev),
             ("windowWillStartLiveResize:", Callbacks.Event, ev),
             ("windowDidEndLiveResize:", Callbacks.Event, ev),
+            // 窗口状态 / 位置：用户拖动、最小化、缩放与全屏切换
+            ("windowDidMove:", Callbacks.Event, ev),
+            ("windowDidMiniaturize:", Callbacks.Event, ev),
+            ("windowDidDeminiaturize:", Callbacks.Event, ev),
+            ("windowDidEnterFullScreen:", Callbacks.Event, ev),
+            ("windowDidExitFullScreen:", Callbacks.Event, ev),
+        });
+
+        // 文件面板完成：-(void)awPanelDidEnd:(id)panel returnCode:(NSInteger)code contextInfo:(void *)ctx
+        DefineClass("AwAUIStorageDelegate", "NSObject", new (string, IntPtr, string)[]
+        {
+            ("awPanelDidEnd:returnCode:contextInfo:", Callbacks.PanelEnd, "v@:@q^v"),
         });
 
         DefineClass("AwAUIHelper", "NSObject", new (string, IntPtr, string)[]
         {
             ("awDrain:", Callbacks.Event, ev),
             ("awQuit:", Callbacks.Event, ev),
+            ("awAppDidBecomeActive:", Callbacks.Event, ev),
+            ("awAppDidResignActive:", Callbacks.Event, ev),
+            ("awScreensChanged:", Callbacks.Event, ev),
             (MacReducedMotionPreference.ChangedSelector, Callbacks.Event, ev),
+            (MacAppearancePreference.ChangedSelector, Callbacks.Event, ev),
         });
     }
 
@@ -199,6 +282,11 @@ public sealed class MacPlatform : PlatformBackend
             else if (sel == Sel("awQuit:")) Exit();
             else if (sel == Sel(MacReducedMotionPreference.ChangedSelector) && _reducedMotion is { } preference)
                 _dispatcher.Post(preference.Refresh);
+            else if (sel == Sel(MacAppearancePreference.ChangedSelector) && _appearance is { } appearance)
+                _dispatcher.Post(appearance.Refresh);
+            else if (sel == Sel("awAppDidBecomeActive:")) SetApplicationActive(true);
+            else if (sel == Sel("awAppDidResignActive:")) SetApplicationActive(false);
+            else if (sel == Sel("awScreensChanged:")) _screens?.OnScreensChanged();
             return;
         }
         Find(self)?.HandleEvent(sel, arg);

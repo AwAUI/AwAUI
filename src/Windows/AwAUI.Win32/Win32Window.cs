@@ -12,7 +12,7 @@ namespace AwAUI.Win32;
 /// GPU 呈现（D3D11 交换链）在 M2 加入，届时 <see cref="Surface"/> 额外提供对应能力。
 /// 坐标约定：<see cref="ClientSize"/> 与指针位置为逻辑像素 = 物理像素 / (DPI / 96)。
 /// </summary>
-public sealed unsafe class Win32Window : WindowImpl
+public sealed unsafe class Win32Window : WindowImpl, IWindowChrome
 {
     /// <summary>Windows 桌面使用常驻的经典滚动条。</summary>
     public override ScrollbarStyle PreferredScrollbarStyle => ScrollbarStyle.Classic;
@@ -21,6 +21,12 @@ public sealed unsafe class Win32Window : WindowImpl
     readonly Win32Surface _surface;
     readonly uint _style;
     readonly uint _exStyle;
+    readonly WindowState _initialState;
+    readonly bool _topmost;
+    readonly double? _minWidth;
+    readonly double? _minHeight;
+    readonly double? _maxWidth;
+    readonly double? _maxHeight;
 
     IntPtr _hwnd;
     uint _dpi = USER_DEFAULT_SCREEN_DPI;
@@ -30,19 +36,50 @@ public sealed unsafe class Win32Window : WindowImpl
     bool _inPaint;
     bool _framePending;
     bool _closed;
+    bool _shown;
+    bool _fullScreen;
+    uint _savedStyle;
+    RECT _savedRect;
+    IntPtr _windowIcon;
+    WindowState _lastReportedState = WindowState.Normal;
+    Point _lastWindowPosition;
+    bool _hasWindowPosition;
+    bool _hasReportedActivation;
+    bool _lastActivation;
     bool _tracking;
     PointerButtons _buttons;
     Point _lastPosition;
     Utf16Assembler _chars;
+    /// <summary>刚由输入法提交结果串：随后投递的 WM_CHAR 是同一结果，丢弃（下一次 WM_KEYUP 清除）。</summary>
+    bool _ignoreWmChar;
     Win32TextInput? _textInput;
     IntPtr _cursor;
+    Win32AccessibilityBridge? _accessibility;
 
     internal Win32Window(Win32Platform platform, WindowOptions options)
     {
         _platform = platform;
         _surface = new Win32Surface(this);
-        _style = options.Resizable ? WS_OVERLAPPEDWINDOW : WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
-        _exStyle = 0;
+        _initialState = options.State;
+        _topmost = options.Topmost;
+        _minWidth = options.MinWidth;
+        _minHeight = options.MinHeight;
+        _maxWidth = options.MaxWidth;
+        _maxHeight = options.MaxHeight;
+        // 无边框：WS_POPUP 没有非客户区，客户区铺满整个窗口；WS_EX_APPWINDOW 让它在任务栏出现。
+        bool borderless = options.Decorations == WindowDecorations.None;
+        _style = borderless
+            ? WS_POPUP
+            : options.Resizable ? WS_OVERLAPPEDWINDOW : WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+        uint exStyle = borderless ? WS_EX_APPWINDOW : 0;
+        if (!options.ShowInTaskbar)
+        {
+            // 工具窗口不出现在任务栏；去掉 WS_EX_APPWINDOW 以免两者抵消。
+            exStyle &= ~WS_EX_APPWINDOW;
+            exStyle |= WS_EX_TOOLWINDOW;
+        }
+        if (options.Topmost) exStyle |= WS_EX_TOPMOST;
+        _exStyle = exStyle;
         _cursor = LoadCursor(CursorShape.Arrow);
 
         IntPtr hwnd;
@@ -61,12 +98,17 @@ public sealed unsafe class Win32Window : WindowImpl
             throw new InvalidOperationException($"CreateWindowExW failed, error {Marshal.GetLastWin32Error()}.");
         _hwnd = hwnd;
 
-        // 窗口创建后才能知道它所在显示器的 DPI：据此把逻辑客户区尺寸换算为窗口尺寸，并在工作区居中
+        // 窗口创建后才能知道它所在显示器的 DPI：据此把逻辑客户区尺寸换算为窗口尺寸，并按要求放置
         _dpi = Win32Platform.GetWindowDpi(hwnd);
-        SetInitialBounds(options.Size);
+        SetInitialBounds(options);
         UpdateClientSize();
         _lastSize = ClientSize;
         _lastScale = RenderScale;
+        _lastWindowPosition = Position;
+        _hasWindowPosition = true;
+
+        if (_topmost) SetTopmost(true);
+        if (options.Icon is { } icon) ApplyIcon(icon);
     }
 
     public override NativeSurface Surface => _surface;
@@ -82,11 +124,276 @@ public sealed unsafe class Win32Window : WindowImpl
 
     public override double RenderScale => _dpi / (double)USER_DEFAULT_SCREEN_DPI;
 
+    // ---------------------------------------------------------------- 几何、状态与激活（design/04）
+
+    /// <summary>窗口左上角的屏幕逻辑坐标（含边框）。</summary>
+    public override Point Position
+    {
+        get
+        {
+            if (_closed || _hwnd == IntPtr.Zero) return default;
+            // 最小化时 GetWindowRect 返回 (-32000, -32000)：改为报告进入最小化前的最后一个位置。
+            if (_hasWindowPosition && User32.IsIconic(_hwnd) != 0) return _lastWindowPosition;
+            RECT r;
+            if (User32.GetWindowRect(_hwnd, &r) == 0) return default;
+            double scale = RenderScale;
+            return new Point((float)(r.Left / scale), (float)(r.Top / scale));
+        }
+    }
+
+    public override void SetPosition(Point position)
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        if (!_platform.Dispatcher.CheckAccess()) { _platform.Dispatcher.Post(() => SetPosition(position)); return; }
+        double scale = RenderScale;
+        User32.SetWindowPos(_hwnd, IntPtr.Zero, ToPhysical(position.X, scale), ToPhysical(position.Y, scale), 0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
+    public override AwAUI.Platform.WindowState WindowState
+    {
+        get
+        {
+            if (_closed || _hwnd == IntPtr.Zero) return AwAUI.Platform.WindowState.Normal;
+            if (_fullScreen) return AwAUI.Platform.WindowState.FullScreen;
+            if (User32.IsIconic(_hwnd) != 0) return AwAUI.Platform.WindowState.Minimized;
+            if (User32.IsZoomed(_hwnd) != 0) return AwAUI.Platform.WindowState.Maximized;
+            return AwAUI.Platform.WindowState.Normal;
+        }
+    }
+
+    public override void SetWindowState(AwAUI.Platform.WindowState state)
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        if (!_platform.Dispatcher.CheckAccess()) { _platform.Dispatcher.Post(() => SetWindowState(state)); return; }
+        if (state != AwAUI.Platform.WindowState.FullScreen && _fullScreen) ExitFullScreen();
+        switch (state)
+        {
+            case AwAUI.Platform.WindowState.FullScreen:
+                EnterFullScreen();
+                break;
+            case AwAUI.Platform.WindowState.Minimized:
+                User32.ShowWindow(_hwnd, SW_MINIMIZE);
+                break;
+            case AwAUI.Platform.WindowState.Maximized:
+                User32.ShowWindow(_hwnd, SW_MAXIMIZE);
+                break;
+            default:
+                User32.ShowWindow(_hwnd, SW_RESTORE);
+                break;
+        }
+        RaiseStateChangedIfNeeded();
+        if (WindowState != AwAUI.Platform.WindowState.Minimized) RaisePositionChangedIfNeeded();
+    }
+
+    public override bool Topmost
+    {
+        get
+        {
+            if (_closed || _hwnd == IntPtr.Zero) return false;
+            uint ex = (uint)(ulong)GetWindowLongPtr(_hwnd, GWL_EXSTYLE);
+            return (ex & WS_EX_TOPMOST) != 0;
+        }
+        set
+        {
+            if (_closed || _hwnd == IntPtr.Zero) return;
+            if (!_platform.Dispatcher.CheckAccess()) { _platform.Dispatcher.Post(() => Topmost = value); return; }
+            SetTopmost(value);
+        }
+    }
+
+    public override bool IsActive => !_closed && _hwnd != IntPtr.Zero && User32.GetForegroundWindow() == _hwnd;
+
+    public override void Activate()
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        if (!_platform.Dispatcher.CheckAccess()) { _platform.Dispatcher.Post(Activate); return; }
+        if (User32.IsIconic(_hwnd) != 0) User32.ShowWindow(_hwnd, SW_RESTORE);
+        User32.SetForegroundWindow(_hwnd);
+    }
+
+    public override Thickness SafeAreaInsets => Thickness.Zero;
+
+    public override Screens Screens => _platform.Screens;
+    public override StorageProvider StorageProvider => _platform.StorageProvider;
+    public override Launcher Launcher => _platform.Launcher;
+
+    public override void Invalidate(in Rect rect)
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        var copy = rect; // in 参数不能被 lambda 捕获
+        if (!_platform.Dispatcher.CheckAccess()) { _platform.Dispatcher.Post(() => Invalidate(copy)); return; }
+        if (copy.IsEmpty || !copy.IsFinite)
+        {
+            User32.InvalidateRect(_hwnd, null, 0);
+            return;
+        }
+        double scale = RenderScale;
+        var rc = new RECT(
+            ToPhysical(copy.Left, scale), ToPhysical(copy.Top, scale),
+            ToPhysical(copy.Right, scale), ToPhysical(copy.Bottom, scale));
+        User32.InvalidateRect(_hwnd, &rc, 0);
+    }
+
+    static int ToPhysical(double logical, double scale)
+    {
+        double value = Math.Round(logical * scale);
+        if (double.IsNaN(value)) return 0;
+        if (value > int.MaxValue / 2.0) return int.MaxValue / 2;
+        if (value < int.MinValue / 2.0) return int.MinValue / 2;
+        return (int)value;
+    }
+
+    void SetTopmost(bool topmost)
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        User32.SetWindowPos(_hwnd, topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
+    static IntPtr GetWindowLongPtr(IntPtr hwnd, int index) =>
+        IntPtr.Size == 8 ? User32.GetWindowLongPtrW(hwnd, index) : new IntPtr(User32.GetWindowLongW(hwnd, index));
+
+    static IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value) =>
+        IntPtr.Size == 8 ? User32.SetWindowLongPtrW(hwnd, index, value) : new IntPtr(User32.SetWindowLongW(hwnd, index, value.ToInt32()));
+
+    void EnterFullScreen()
+    {
+        if (_fullScreen || _closed) return;
+        // 先还原：保存的是普通状态的矩形，退出全屏时回到这里，再由调用方的目标状态决定是否最大化。
+        if (User32.IsIconic(_hwnd) != 0 || User32.IsZoomed(_hwnd) != 0) User32.ShowWindow(_hwnd, SW_RESTORE);
+        RECT saved;
+        if (User32.GetWindowRect(_hwnd, &saved) != 0) _savedRect = saved;
+        _savedStyle = (uint)(ulong)GetWindowLongPtr(_hwnd, GWL_STYLE);
+        uint style = (_savedStyle & ~(WS_OVERLAPPEDWINDOW)) | WS_POPUP;
+        SetWindowLongPtr(_hwnd, GWL_STYLE, new IntPtr(style));
+
+        var monitor = User32.MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST);
+        var info = new MONITORINFO { cbSize = (uint)sizeof(MONITORINFO) };
+        RECT bounds = _savedRect;
+        if (monitor != IntPtr.Zero && User32.GetMonitorInfoW(monitor, &info) != 0) bounds = info.rcMonitor;
+
+        _fullScreen = true;
+        User32.SetWindowPos(_hwnd, HWND_TOP, bounds.Left, bounds.Top, bounds.Width, bounds.Height,
+            SWP_FRAMECHANGED | SWP_NOACTIVATE);
+        UpdateClientSize();
+        CheckResize();
+        RaiseStateChangedIfNeeded();
+    }
+
+    void ExitFullScreen()
+    {
+        if (!_fullScreen || _closed) return;
+        _fullScreen = false;
+        SetWindowLongPtr(_hwnd, GWL_STYLE, new IntPtr(_savedStyle));
+        User32.SetWindowPos(_hwnd, IntPtr.Zero, _savedRect.Left, _savedRect.Top, _savedRect.Width, _savedRect.Height,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        UpdateClientSize();
+        CheckResize();
+        RaiseStateChangedIfNeeded();
+    }
+
+    // ---------------------------------------------------------------- 窗口图标
+
+    /// <summary>把窗口图标位图转成 HICON 并设为 WM_SETICON 的大/小图标（窗口类已注册默认图标）。</summary>
+    void ApplyIcon(Bitmap bitmap)
+    {
+        var icon = CreateIcon(bitmap);
+        if (icon == IntPtr.Zero) return;
+        _windowIcon = icon;
+        User32.SendMessageW(_hwnd, WM_SETICON, new IntPtr(ICON_BIG), icon);
+        User32.SendMessageW(_hwnd, WM_SETICON, new IntPtr(ICON_SMALL), icon);
+    }
+
+    /// <summary>
+    /// Bitmap（预乘 RGBA）→ HICON：32 位自下而上的颜色 DIB（直通 BGRA）+ 1 位 AND 掩码（alpha == 0 处置位）。
+    /// 失败时返回 <see cref="IntPtr.Zero"/>，由窗口保留默认图标。
+    /// </summary>
+    static unsafe IntPtr CreateIcon(Bitmap bitmap)
+    {
+        int width = bitmap.Width, height = bitmap.Height;
+        long pixels = (long)width * height;
+        if (width <= 0 || height <= 0 || pixels > Win32Dib.MaxPixels) return IntPtr.Zero;
+
+        byte[] rgba;
+        try { rgba = bitmap.ToRgbaUnpremultiplied(); }
+        catch (Exception e) when (e is not OutOfMemoryException) { return IntPtr.Zero; }
+
+        var info = new BITMAPINFO
+        {
+            bmiHeader = new BITMAPINFOHEADER
+            {
+                biSize = (uint)sizeof(BITMAPINFOHEADER),
+                biWidth = width,
+                biHeight = height, // 正数：自下而上，CreateDIBSection 的内存首行是最底行
+                biPlanes = 1,
+                biBitCount = 32,
+                biCompression = BI_RGB,
+                biSizeImage = (uint)(width * height * 4),
+            },
+        };
+        void* colorBits;
+        var color = Gdi32.CreateDIBSection(IntPtr.Zero, &info, DIB_RGB_COLORS, &colorBits, IntPtr.Zero, 0);
+        if (color == IntPtr.Zero || colorBits == null) return IntPtr.Zero;
+
+        int maskStride = ((width + 15) / 16) * 2;
+        var maskBits = new byte[maskStride * height];
+        byte* dst = (byte*)colorBits;
+        for (int row = 0; row < height; row++)
+        {
+            int srcRow = (height - 1 - row) * width * 4;
+            int maskRow = row * maskStride;
+            for (int x = 0; x < width; x++)
+            {
+                int s = srcRow + x * 4;
+                *dst++ = rgba[s + 2]; // B
+                *dst++ = rgba[s + 1]; // G
+                *dst++ = rgba[s];     // R
+                *dst++ = rgba[s + 3]; // A
+                if (rgba[s + 3] == 0) maskBits[maskRow + (x >> 3)] |= (byte)(0x80 >> (x & 7));
+            }
+        }
+
+        // 单色位图：1 位 = 透明（AND 掩码）。初值为 0（不透明），再写入透明位。
+        var mask = Gdi32.CreateBitmap(width, height, 1, 1, null);
+        if (mask == IntPtr.Zero)
+        {
+            Gdi32.DeleteObject(color);
+            return IntPtr.Zero;
+        }
+        fixed (byte* mb = maskBits)
+            Gdi32.SetBitmapBits(mask, (uint)maskBits.Length, mb);
+
+        var iconInfo = new ICONINFO { fIcon = 1, hbmMask = mask, hbmColor = color };
+        var icon = User32.CreateIconIndirect(&iconInfo);
+        Gdi32.DeleteObject(mask);
+        Gdi32.DeleteObject(color);
+        return icon;
+    }
+
+    public override T? GetFeature<T>() where T : class =>
+        base.GetFeature<T>() ?? _platform.AppearancePreference as T ?? _platform.ReducedMotionPreference as T;
+
     /// <summary>HWND 句柄（窗口销毁后为 <see cref="IntPtr.Zero"/>）。</summary>
     public IntPtr Handle => _hwnd;
 
     /// <summary>输入法桥（IMM32）。</summary>
     public override TextInputMethod TextInput => _textInput ??= new Win32TextInput(this);
+
+    /// <summary>
+    /// UI Automation bridge（design/10）。惰性创建；环境变量 <c>AWAUI_WIN32_UIA=0</c> 或 UIA 不可用时返回 null。
+    /// </summary>
+    public override AccessibilityBridge? Accessibility
+    {
+        get
+        {
+            if (_accessibility is not null) return _accessibility;
+            if (_closed || _hwnd == IntPtr.Zero) return null;
+            _accessibility = _platform.CreateAccessibilityBridge(this);
+            if (_accessibility is not null) _accessibility.RefreshGeometry(_hwnd, RenderScale);
+            return _accessibility;
+        }
+    }
 
     /// <summary>平台剪贴板（CF_UNICODETEXT）。</summary>
     public override Clipboard Clipboard => _platform.Clipboard;
@@ -100,7 +407,34 @@ public sealed unsafe class Win32Window : WindowImpl
     {
         if (_closed) return;
         if (!_platform.Dispatcher.CheckAccess()) { _platform.Dispatcher.Post(Show); return; }
-        User32.ShowWindow(_hwnd, SW_SHOWNORMAL);
+        if (_shown)
+        {
+            // 再次 Show 只负责把最小化的窗口带回前台。
+            if (User32.IsIconic(_hwnd) != 0) User32.ShowWindow(_hwnd, SW_RESTORE);
+            return;
+        }
+        _shown = true;
+
+        if (_initialState == AwAUI.Platform.WindowState.FullScreen)
+        {
+            User32.ShowWindow(_hwnd, SW_SHOWNORMAL);
+            EnterFullScreen();
+        }
+        else
+        {
+            int command = _initialState switch
+            {
+                AwAUI.Platform.WindowState.Minimized => SW_SHOWMINIMIZED,
+                AwAUI.Platform.WindowState.Maximized => SW_SHOWMAXIMIZED,
+                _ => SW_SHOWNORMAL,
+            };
+            User32.ShowWindow(_hwnd, command);
+        }
+
+        // 桌面没有安全区（刘海、软键盘占位）；向框架报告一次零内边距。
+        (Events as IWindowLifecycleEvents)?.OnSafeAreaChanged(Thickness.Zero);
+        RaiseStateChangedIfNeeded();
+        if (WindowState != AwAUI.Platform.WindowState.Minimized) RaisePositionChangedIfNeeded();
     }
 
     public override void Close()
@@ -121,6 +455,32 @@ public sealed unsafe class Win32Window : WindowImpl
         fixed (char* p = title ?? "")
             User32.SetWindowTextW(_hwnd, p);
     }
+
+    // ------------------------------------------------------------ 自绘标题栏（design/04）
+
+    public void BeginDragMove()
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        // 交还给 DefWindowProc 的移动循环；拖动结束后 WM_CAPTURECHANGED 会让框架清除按下状态
+        User32.ReleaseCapture();
+        User32.SendMessageW(_hwnd, WM_NCLBUTTONDOWN, new IntPtr(HTCAPTION), IntPtr.Zero);
+    }
+
+    public void Minimize()
+    {
+        if (_closed) return;
+        if (_fullScreen) ExitFullScreen();
+        User32.ShowWindow(_hwnd, SW_MINIMIZE);
+    }
+
+    public void ToggleMaximize()
+    {
+        if (_closed) return;
+        if (_fullScreen) ExitFullScreen();
+        User32.ShowWindow(_hwnd, User32.IsZoomed(_hwnd) != 0 ? SW_RESTORE : SW_MAXIMIZE);
+    }
+
+    public bool IsMaximized => !_closed && User32.IsZoomed(_hwnd) != 0;
 
     public override void RequestFrame()
     {
@@ -160,28 +520,65 @@ public sealed unsafe class Win32Window : WindowImpl
 
     // ---------------------------------------------------------------- 尺寸与 DPI
 
-    void SetInitialBounds(Size logical)
+    void SetInitialBounds(WindowOptions options)
     {
+        // 目标显示器决定缩放：显式位置按其所在显示器，居中用主显示器，未给信息时用窗口当前 DPI。
         double scale = RenderScale;
-        var r = new RECT(0, 0, (int)Math.Round(logical.Width * scale), (int)Math.Round(logical.Height * scale));
-        Win32Platform.AdjustWindowRect(&r, _style, _exStyle, _dpi);
+        Point? requested = options.Position;
+        Screen? targetScreen = null;
+        if (requested is Point position)
+        {
+            try { targetScreen = _platform.Screens.FromPoint(position); }
+            catch (Exception e) when (e is DllNotFoundException or EntryPointNotFoundException) { }
+            if (targetScreen is not null) scale = targetScreen.Scaling;
+        }
+        else if (options.StartupLocation is WindowStartupLocation.CenterScreen or WindowStartupLocation.CenterOwner)
+        {
+            try { targetScreen = _platform.Screens.Primary; scale = targetScreen.Scaling; }
+            catch (Exception e) when (e is DllNotFoundException or EntryPointNotFoundException) { }
+        }
+
+        var r = new RECT(0, 0, ToPhysical(options.Size.Width, scale), ToPhysical(options.Size.Height, scale));
+        Win32Platform.AdjustWindowRect(&r, _style, _exStyle, (uint)Math.Max(96, Math.Round(scale * USER_DEFAULT_SCREEN_DPI)));
         int width = r.Width, height = r.Height;
 
         uint flags = SWP_NOZORDER | SWP_NOACTIVATE;
         int x = 0, y = 0;
-        var monitor = User32.MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST);
-        var info = new MONITORINFO { cbSize = (uint)sizeof(MONITORINFO) };
-        if (monitor != IntPtr.Zero && User32.GetMonitorInfoW(monitor, &info) != 0)
+        if (requested is Point p)
         {
-            var work = info.rcWork;
-            x = work.Left + Math.Max(0, (work.Width - width) / 2);
-            y = work.Top + Math.Max(0, (work.Height - height) / 2);
+            x = ToPhysical(p.X, scale);
+            y = ToPhysical(p.Y, scale);
+        }
+        else if (targetScreen is not null)
+        {
+            // CenterScreen / CenterOwner（没有所有者窗口时等同 CenterScreen）：主显示器工作区居中。
+            var work = targetScreen.WorkingArea;
+            x = ToPhysical(work.X, scale) + Math.Max(0, (ToPhysical(work.Width, scale) - width) / 2);
+            y = ToPhysical(work.Y, scale) + Math.Max(0, (ToPhysical(work.Height, scale) - height) / 2);
         }
         else
         {
-            flags |= SWP_NOMOVE;
+            var monitor = User32.MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST);
+            var info = new MONITORINFO { cbSize = (uint)sizeof(MONITORINFO) };
+            if (monitor != IntPtr.Zero && User32.GetMonitorInfoW(monitor, &info) != 0)
+            {
+                var work = info.rcWork;
+                x = work.Left + Math.Max(0, (work.Width - width) / 2);
+                y = work.Top + Math.Max(0, (work.Height - height) / 2);
+            }
+            else
+            {
+                flags |= SWP_NOMOVE;
+            }
         }
         User32.SetWindowPos(_hwnd, IntPtr.Zero, x, y, width, height, flags);
+    }
+
+    /// <summary>窗口移动/缩放/DPI 变化后刷新无障碍边界换算的客户区原点。</summary>
+    void RefreshAccessibilityGeometry()
+    {
+        if (_accessibility is null || _closed || _hwnd == IntPtr.Zero) return;
+        _accessibility.RefreshGeometry(_hwnd, RenderScale);
     }
 
     void UpdateClientSize()
@@ -198,6 +595,49 @@ public sealed unsafe class Win32Window : WindowImpl
         _lastSize = size;
         _lastScale = scale;
         Events?.OnResized(size, scale);
+    }
+
+    /// <summary>WM_GETMINMAXINFO：把逻辑像素的最小/最大尺寸换算为窗口的物理轨迹尺寸。</summary>
+    void ApplyMinMaxInfo(MINMAXINFO* info)
+    {
+        if (info == null) return;
+        double scale = RenderScale;
+        if (_minWidth.HasValue) info->ptMinTrackSize.X = Math.Max(0, ToPhysical(_minWidth.Value, scale));
+        if (_minHeight.HasValue) info->ptMinTrackSize.Y = Math.Max(0, ToPhysical(_minHeight.Value, scale));
+        if (_maxWidth.HasValue) info->ptMaxTrackSize.X = Math.Max(0, ToPhysical(_maxWidth.Value, scale));
+        if (_maxHeight.HasValue) info->ptMaxTrackSize.Y = Math.Max(0, ToPhysical(_maxHeight.Value, scale));
+        if (info->ptMaxTrackSize.X < info->ptMinTrackSize.X) info->ptMaxTrackSize.X = info->ptMinTrackSize.X;
+        if (info->ptMaxTrackSize.Y < info->ptMinTrackSize.Y) info->ptMaxTrackSize.Y = info->ptMinTrackSize.Y;
+    }
+
+    /// <summary>用户经标题栏/系统菜单改变状态（WM_SIZE）、或平台进入/退出全屏时报告。</summary>
+    void RaiseStateChangedIfNeeded()
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        var state = WindowState;
+        if (state == _lastReportedState) return;
+        _lastReportedState = state;
+        (Events as IWindowStateEvents)?.OnWindowStateChanged(state);
+    }
+
+    /// <summary>用户拖动窗口或系统移动窗口时报告位置；只在逻辑坐标变化时触发。</summary>
+    void RaisePositionChangedIfNeeded()
+    {
+        if (_closed || _hwnd == IntPtr.Zero) return;
+        var position = Position;
+        if (_hasWindowPosition && position == _lastWindowPosition) return;
+        _hasWindowPosition = true;
+        _lastWindowPosition = position;
+        (Events as IWindowStateEvents)?.OnPositionChanged(position);
+    }
+
+    /// <summary>WM_ACTIVATE / WM_ACTIVATEAPP 的去重激活回调。</summary>
+    void RaiseActivated(bool active)
+    {
+        if (_hasReportedActivation && _lastActivation == active) return;
+        _hasReportedActivation = true;
+        _lastActivation = active;
+        (Events as IWindowLifecycleEvents)?.OnActivated(active);
     }
 
     // ---------------------------------------------------------------- 窗口过程
@@ -222,13 +662,54 @@ public sealed unsafe class Win32Window : WindowImpl
             case WM_ERASEBKGND:
                 return new IntPtr(1); // 整个客户区都由帧缓冲覆盖，跳过擦除以免闪烁
 
+            case WM_MOVE:
+                RaisePositionChangedIfNeeded();
+                RefreshAccessibilityGeometry();
+                return IntPtr.Zero;
+
             case WM_SIZE:
                 // 最小化时客户区为 0×0：保留原尺寸，避免帧缓冲来回重建
                 if ((int)(long)wParam != SIZE_MINIMIZED)
                 {
                     _clientPx = new PixelSize(LoWord(lParam), HiWord(lParam));
                     CheckResize();
+                    RaisePositionChangedIfNeeded();
+                    RefreshAccessibilityGeometry();
                 }
+                RaiseStateChangedIfNeeded();
+                return IntPtr.Zero;
+
+            case WM_SHOWWINDOW:
+                if ((long)wParam != 0)
+                {
+                    RaisePositionChangedIfNeeded();
+                    RefreshAccessibilityGeometry();
+                }
+                break;
+
+            case WM_ACTIVATE:
+            {
+                bool active = LoWord(wParam) != WA_INACTIVE;
+                RaiseActivated(active);
+                (Events as IWindowLifecycleEvents)?.OnLifecycle(active ? AppLifecycle.Active : AppLifecycle.Inactive);
+                RaisePositionChangedIfNeeded();
+                break;
+            }
+
+            case WM_ACTIVATEAPP:
+            {
+                bool appActive = (long)wParam != 0;
+                RaiseActivated(appActive);
+                (Events as IWindowLifecycleEvents)?.OnLifecycle(appActive ? AppLifecycle.Foreground : AppLifecycle.Background);
+                break;
+            }
+
+            case WM_GETMINMAXINFO:
+                ApplyMinMaxInfo((MINMAXINFO*)lParam.ToPointer());
+                return IntPtr.Zero;
+
+            case WM_DISPLAYCHANGE:
+                _platform.RefreshScreens();
                 return IntPtr.Zero;
 
             case WM_DPICHANGED:
@@ -239,6 +720,8 @@ public sealed unsafe class Win32Window : WindowImpl
                     SWP_NOZORDER | SWP_NOACTIVATE);
                 UpdateClientSize();
                 CheckResize();
+                RaisePositionChangedIfNeeded();
+                RefreshAccessibilityGeometry();
                 RequestFrame();
                 return IntPtr.Zero;
             }
@@ -282,9 +765,15 @@ public sealed unsafe class Win32Window : WindowImpl
                 return IntPtr.Zero;
 
             case WM_SETTINGCHANGE:
-                // 滚轮行数等系统设置变化：下次滚动时重新读取
+                // 外观（ImmersiveColorSet）、辅助功能与滚轮行数等系统设置变化
+                _platform.RefreshPreferences();
                 if ((uint)(long)wParam is SPI_SETWHEELSCROLLLINES or SPI_SETWHEELSCROLLCHARS) _wheelSettingsRead = false;
+                if ((uint)(long)wParam == SPI_SETWORKAREA) _platform.RefreshScreens();
                 return User32.DefWindowProcW(hwnd, msg, wParam, lParam);
+
+            case WM_THEMECHANGED:
+                _platform.RefreshPreferences();
+                break;
 
             case WM_CAPTURECHANGED:
                 // 捕获被其他窗口夺走（如弹出菜单、Alt+Tab）且仍有按键按下：取消当前指针序列
@@ -299,14 +788,25 @@ public sealed unsafe class Win32Window : WindowImpl
             case WM_KEYUP:
             case WM_SYSKEYDOWN:
             case WM_SYSKEYUP:
+                if (msg == WM_KEYUP) _ignoreWmChar = false; // 上一次输入法提交之后的那一个 WM_CHAR 已经过去
                 OnKey(msg, wParam, lParam);
                 // WM_SYS* 交给系统处理 Alt+F4、Alt+空格 等
                 if (msg == WM_SYSKEYDOWN || msg == WM_SYSKEYUP) break;
                 return IntPtr.Zero;
 
             case WM_CHAR:
-                OnChar(wParam, lParam);
+                // 组合中的 WM_CHAR（拼音等）与结果串的重复投递不交给客户端
+                if (!ShouldIgnoreChar()) OnChar(wParam, lParam);
                 return IntPtr.Zero;
+
+            case WM_IME_CHAR:
+                // 输入法的字符已经由 WM_IME_COMPOSITION / WM_CHAR 处理；交给 DefWindowProc 会再生成一个 WM_CHAR
+                return IntPtr.Zero;
+
+            case WM_INPUTLANGCHANGE:
+                // 切换输入语言：丢弃半个代理对与待丢弃的 WM_CHAR，并清除旧布局残留的死键
+                ResetInputState();
+                return User32.DefWindowProcW(hwnd, msg, wParam, lParam);
 
             case WM_SYSCHAR:
                 // Alt+字母：没有菜单可匹配，交给系统只会响起提示音；仅 Alt+空格 保留给系统菜单
@@ -315,12 +815,24 @@ public sealed unsafe class Win32Window : WindowImpl
 
             case WM_SETFOCUS:
                 Events?.OnFocusChanged(true);
+                _accessibility?.OnWindowFocusChanged(true);
                 return IntPtr.Zero;
 
             case WM_KILLFOCUS:
                 _chars.Reset();
+                _ignoreWmChar = false;
                 Events?.OnFocusChanged(false);
+                _accessibility?.OnWindowFocusChanged(false);
                 return IntPtr.Zero;
+
+            case Win32UiaConstants.WmGetObject:
+                // UIA 根对象：把 COM provider 交给系统；其他对象（MSAA）仍走 DefWindowProc。
+                if (_accessibility is not null && Win32AccessibilityBridge.IsRootObjectRequest(lParam))
+                {
+                    var accessibilityResult = _accessibility.HandleGetObject(hwnd, wParam, lParam);
+                    if (accessibilityResult != IntPtr.Zero) return accessibilityResult;
+                }
+                break;
 
             case WM_CLOSE:
                 // 用户点击关闭按钮 / Alt+F4：询问框架，同意后销毁窗口
@@ -389,6 +901,16 @@ public sealed unsafe class Win32Window : WindowImpl
         _framePending = false;
         _buttons = PointerButtons.None;
         _tracking = false;
+        // 窗口销毁前解除输入法关联并销毁自建的输入上下文
+        _textInput?.Release(_hwnd);
+        // 无障碍桥先断开 UIA，再释放 provider 引用
+        _accessibility?.Dispose();
+        _accessibility = null;
+        if (_windowIcon != IntPtr.Zero)
+        {
+            User32.DestroyIcon(_windowIcon);
+            _windowIcon = IntPtr.Zero;
+        }
         try
         {
             Events?.OnClosed();
@@ -582,6 +1104,34 @@ public sealed unsafe class Win32Window : WindowImpl
         }
         mods = Win32Keys.ResolveModifiers(shift, control, alt, meta, altGrText);
         logical ??= KeyValues.FromPhysicalKey(physical, mods);
+    }
+
+    /// <summary>输入法刚提交了结果串：抑制随后由 IMM32 重复投递的 WM_CHAR（下一次 WM_KEYUP 清除）。</summary>
+    internal void IgnoreNextChar() => _ignoreWmChar = true;
+
+    /// <summary>组合期间的 WM_CHAR（组合中的拼音、结果串的重复投递）不交给客户端。</summary>
+    bool ShouldIgnoreChar() => _ignoreWmChar || _textInput?.Client?.Composition is not null;
+
+    /// <summary>切换输入语言后丢弃陈旧的输入状态：半个代理对、待丢弃的 WM_CHAR，以及旧布局残留的死键。</summary>
+    void ResetInputState()
+    {
+        _chars.Reset();
+        _ignoreWmChar = false;
+        FlushDeadKey();
+    }
+
+    /// <summary>
+    /// 消费键盘布局中尚未落定的死键。ToUnicodeEx 的 flags = 0（而不是 TranslateKey 使用的 4）会改变内核状态：
+    /// 用一个空格把死键组合掉，结果本身丢弃。切换输入语言后，旧布局的死键不会带进新布局。
+    /// </summary>
+    static void FlushDeadKey()
+    {
+        var state = stackalloc byte[256];
+        if (User32.GetKeyboardState(state) == 0) return;
+        var buffer = new char[8];
+        uint scan = User32.MapVirtualKeyW(VK_SPACE, MAPVK_VK_TO_VSC_EX);
+        fixed (char* p = buffer)
+            User32.ToUnicodeEx(VK_SPACE, scan, state, p, buffer.Length, 0, User32.GetKeyboardLayout(0));
     }
 
     void OnChar(IntPtr wParam, IntPtr lParam)

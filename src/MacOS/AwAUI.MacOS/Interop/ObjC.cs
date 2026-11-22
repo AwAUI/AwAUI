@@ -53,7 +53,25 @@ internal static unsafe class ObjC
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void Send(IntPtr self, IntPtr sel, IntPtr a, IntPtr b, byte c);
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void SendRectBool(IntPtr self, IntPtr sel, NSRect a, byte b);
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void SendDoubleArg(IntPtr self, IntPtr sel, double a);
+    /// <summary>-(id)xxx:(double)a（如 numberWithDouble:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern IntPtr SendDouble(IntPtr self, IntPtr sel, double a);
+    /// <summary>-(void)xxx:(id)a（如 setAccessibilityValue:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void SendVoid(IntPtr self, IntPtr sel, IntPtr a);
+    /// <summary>-(void)xxx:(id)a yyy:(id)b（如 setObject:forKey:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void SendVoid(IntPtr self, IntPtr sel, IntPtr a, IntPtr b);
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void Send(IntPtr self, IntPtr sel, NSSize a);
+    /// <summary>-(void)xxx:(NSPoint)p（如 setFrameOrigin:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern void Send(IntPtr self, IntPtr sel, NSPoint a);
+    /// <summary>-(id)xxx:(id)a yyy:(NSSize)b（如 initWithCGImage:size:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern IntPtr Send(IntPtr self, IntPtr sel, IntPtr a, NSSize b);
+    /// <summary>-(id)xxx:(NSInteger)a yyy:(id)b（如 representationUsingType:properties:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern IntPtr Send(IntPtr self, IntPtr sel, long a, IntPtr b);
+    /// <summary>-(void)xxx:(id)a yyy:(id)b zzz:(id)c www:(id)d vvv:(id)e uuu:(id)f（如 beginForDirectory:file:types:modelessDelegate:didEndSelector:contextInfo:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern void SendVoid(IntPtr self, IntPtr sel, IntPtr a, IntPtr b, IntPtr c, IntPtr d, IntPtr e, IntPtr f);
+    /// <summary>-(void)xxx:(id)a yyy:(id)b zzz:(id)c www:(id)d vvv:(id)e uuu:(id)f ttt:(id)g（如 beginSheetForDirectory:file:types:modalForWindow:modalDelegate:didEndSelector:contextInfo:）。</summary>
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern void SendVoid(IntPtr self, IntPtr sel, IntPtr a, IntPtr b, IntPtr c, IntPtr d, IntPtr e, IntPtr f, IntPtr g);
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern IntPtr Send(IntPtr self, IntPtr sel, NSRect rect);
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern IntPtr Send(IntPtr self, IntPtr sel, NSRect rect, ulong style, ulong backing, byte defer);
     [DllImport(Lib, EntryPoint = "objc_msgSend")] public static extern IntPtr Send(IntPtr self, IntPtr sel, NSRect rect, ulong options, IntPtr owner, IntPtr userInfo);
@@ -211,6 +229,86 @@ internal static unsafe class ObjC
     public static void Release(IntPtr obj)
     {
         if (obj != IntPtr.Zero) Send(obj, Sel("release"));
+    }
+
+    /// <summary>把 +1 引用交给当前自动释放池（用于回调返回 id 时遵循 Cocoa 的内存管理约定）。</summary>
+    public static IntPtr Autorelease(IntPtr obj) => obj == IntPtr.Zero ? obj : Send(obj, Sel("autorelease"));
+
+    /// <summary>创建自动释放的 NSString。</summary>
+    public static IntPtr NewAutoreleasedString(string s) => Autorelease(NewString(s));
+
+    /// <summary>[NSNumber numberWithDouble:]（自动释放）。</summary>
+    public static IntPtr NewNumber(double value) => SendDouble(Class("NSNumber"), Sel("numberWithDouble:"), value);
+
+    /// <summary>[NSNumber numberWithInteger:]（自动释放）。</summary>
+    public static IntPtr NewInteger(long value) => Send(Class("NSNumber"), Sel("numberWithInteger:"), value);
+
+    /// <summary>[NSValue valueWithRect:]（自动释放）；兼容旧式 AXFrame 属性值。</summary>
+    public static IntPtr NewRectValue(NSRect rect) => Send(Class("NSValue"), Sel("valueWithRect:"), rect);
+
+    /// <summary>创建可变的 autoreleased NSArray。</summary>
+    public static IntPtr NewMutableArray() => Send(Class("NSMutableArray"), Sel("array"));
+
+    /// <summary>[array addObject:item]。</summary>
+    public static void ArrayAdd(IntPtr array, IntPtr item)
+    {
+        if (array != IntPtr.Zero && item != IntPtr.Zero) Send(array, Sel("addObject:"), item);
+    }
+
+    /// <summary>创建可变的 autoreleased NSDictionary。</summary>
+    public static IntPtr NewMutableDictionary() => Send(Class("NSMutableDictionary"), Sel("dictionary"));
+
+    /// <summary>[dict setObject:value forKey:key]。</summary>
+    public static void DictionarySet(IntPtr dict, IntPtr value, IntPtr key)
+    {
+        if (dict != IntPtr.Zero && value != IntPtr.Zero && key != IntPtr.Zero)
+            SendVoid(dict, Sel("setObject:forKey:"), value, key);
+    }
+
+    /// <summary>在已注册的类上添加方法（无障碍桥在运行时给 AwAUIView 补充 NSAccessibility 方法）。</summary>
+    public static bool AddMethod(IntPtr cls, string selector, IntPtr imp, string types)
+    {
+        if (cls == IntPtr.Zero || imp == IntPtr.Zero) return false;
+        fixed (byte* s = Utf8(selector))
+        fixed (byte* t = Utf8(types))
+            return class_addMethod(cls, sel_registerName(s), imp, t) != 0;
+    }
+
+    // ---------------------------------------------------------------- NSAccessibility
+
+    /// <summary>AppKit 框架路径（NSAccessibility 的 C 函数与通知常量都在这里）。</summary>
+    public const string AppKit = "/System/Library/Frameworks/AppKit.framework/AppKit";
+
+    [DllImport(AppKit, EntryPoint = "NSAccessibilityPostNotification")]
+    static extern void PostAccessibilityNotificationNative(IntPtr element, IntPtr notification);
+
+    [DllImport(AppKit, EntryPoint = "NSAccessibilityPostNotificationWithUserInfo")]
+    static extern void PostAccessibilityNotificationWithUserInfoNative(IntPtr element, IntPtr notification, IntPtr userInfo);
+
+    /// <summary>投递 NSAccessibility 通知；入口不可用时返回 false（不抛异常）。</summary>
+    public static bool PostAccessibilityNotification(IntPtr element, IntPtr notification)
+    {
+        if (element == IntPtr.Zero || notification == IntPtr.Zero) return false;
+        try
+        {
+            PostAccessibilityNotificationNative(element, notification);
+            return true;
+        }
+        catch (EntryPointNotFoundException) { return false; }
+        catch (DllNotFoundException) { return false; }
+    }
+
+    /// <summary>投递带 userInfo 的 NSAccessibility 通知（播报）；入口不可用时返回 false。</summary>
+    public static bool PostAccessibilityNotificationWithUserInfo(IntPtr element, IntPtr notification, IntPtr userInfo)
+    {
+        if (element == IntPtr.Zero || notification == IntPtr.Zero) return false;
+        try
+        {
+            PostAccessibilityNotificationWithUserInfoNative(element, notification, userInfo);
+            return true;
+        }
+        catch (EntryPointNotFoundException) { return false; }
+        catch (DllNotFoundException) { return false; }
     }
 
     static byte[] Utf8(string s)

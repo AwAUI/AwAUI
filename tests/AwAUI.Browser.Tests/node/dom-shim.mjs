@@ -63,7 +63,20 @@ class FakeElement extends FakeEventTarget {
     }
     setAttribute(n, v) { this.attributes.set(n, String(v)); if (n === 'id') this.id = String(v); }
     getAttribute(n) { return this.attributes.has(n) ? this.attributes.get(n) : null; }
-    appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+    removeAttribute(n) { this.attributes.delete(n); if (n === 'id') this.id = ''; }
+    appendChild(c) {
+        // 与真实 DOM 一致：已经挂在别处（或同一父节点）时先摘下来再追加，避免重复。
+        if (c.parentNode) c.parentNode.removeChild(c);
+        c.parentNode = this;
+        this.children.push(c);
+        return c;
+    }
+    removeChild(c) {
+        const i = this.children.indexOf(c);
+        if (i >= 0) this.children.splice(i, 1);
+        if (c.parentNode === this) c.parentNode = null;
+        return c;
+    }
     remove() {
         if (!this.parentNode) return;
         const list = this.parentNode.children;

@@ -122,6 +122,81 @@ internal struct MONITORINFO
     public uint dwFlags;
 }
 
+/// <summary>MONITORINFOEXW（winuser.h）：MONITORINFO + 32 个字符的设备名，104 字节。</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct MONITORINFOEXW
+{
+    public uint cbSize;
+    public RECT rcMonitor;
+    public RECT rcWork;
+    public uint dwFlags;
+    public fixed char szDevice[32];
+}
+
+/// <summary>ICONINFO（winuser.h）：x64 为 32 字节，x86 为 20 字节。</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ICONINFO
+{
+    public int fIcon;
+    public uint xHotspot;
+    public uint yHotspot;
+    public IntPtr hbmMask;
+    public IntPtr hbmColor;
+}
+
+/// <summary>OPENFILENAMEW（commdlg.h）：与位数无关的字段顺序；指针随进程位数变化。</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct OPENFILENAMEW
+{
+    public uint lStructSize;
+    public IntPtr hwndOwner;
+    public IntPtr hInstance;
+    public char* lpstrFilter;
+    public char* lpstrCustomFilter;
+    public uint nMaxCustFilter;
+    public uint nFilterIndex;
+    public char* lpstrFile;
+    public uint nMaxFile;
+    public char* lpstrFileTitle;
+    public uint nMaxFileTitle;
+    public char* lpstrInitialDir;
+    public char* lpstrTitle;
+    public uint Flags;
+    public ushort nFileOffset;
+    public ushort nFileExtension;
+    public char* lpstrDefExt;
+    public IntPtr lCustData;
+    public IntPtr lpfnHook;
+    public char* lpTemplateName;
+    public IntPtr pvReserved;
+    public uint dwReserved;
+    public uint FlagsEx;
+}
+
+/// <summary>BROWSEINFOW（shlobj.h）：x64 为 56 字节，x86 为 32 字节。</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct BROWSEINFOW
+{
+    public IntPtr hwndOwner;
+    public IntPtr pidlRoot;
+    public char* pszDisplayName;
+    public char* lpszTitle;
+    public uint ulFlags;
+    public IntPtr lpfn;
+    public IntPtr lParam;
+    public int iImage;
+}
+
+/// <summary>DROPFILES（shellapi.h）：20 字节；文件列表紧随其后（偏移 pFiles）。</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct DROPFILES
+{
+    public uint pFiles;
+    public POINT pt;
+    public int fNC;
+    public int fWide;
+}
+
 /// <summary>COMPOSITIONFORM（imm.h）：28 字节。</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct COMPOSITIONFORM

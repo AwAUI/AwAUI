@@ -9,11 +9,15 @@ namespace AwAUI.Win32;
 /// <summary>
 /// Windows 的输入法桥（design/04「IME」，先 IMM32，TSF 以后再做）：
 /// <list type="bullet">
-/// <item>有客户端时窗口关联默认输入上下文（<c>ImmAssociateContextEx(IACE_DEFAULT)</c>），没有客户端或客户端是密码框时取消关联，输入法关闭。</item>
+/// <item>有客户端时创建并关联输入上下文（<c>ImmCreateContext</c> + <c>ImmAssociateContext</c>；失败时退回
+/// <c>ImmAssociateContextEx(IACE_DEFAULT)</c>），没有客户端时解除关联；窗口销毁时销毁自建的上下文。密码框也保留关联，
+/// 预编辑的遮罩由 UI 层负责。</item>
 /// <item>预编辑由框架自己画：<c>WM_IME_SETCONTEXT</c> 去掉 <c>ISC_SHOWUICOMPOSITIONWINDOW</c>，<c>WM_IME_STARTCOMPOSITION</c> /
 /// <c>WM_IME_COMPOSITION</c> / <c>WM_IME_ENDCOMPOSITION</c> 不交给 DefWindowProc；组合字符串（GCS_COMPSTR、GCS_CURSORPOS、
 /// GCS_COMPATTR 的转换文节）→ <see cref="ITextInputClient.SetComposition"/>，结果字符串（GCS_RESULTSTR）→ <see cref="ITextInputClient.Commit"/>。
 /// 候选窗仍由输入法显示。</item>
+/// <item>结果串只在 GCS_RESULTSTR 提交一次；IMM32 随后重复投递的 WM_CHAR 与组合期间的 WM_CHAR 由窗口抑制（见
+/// <see cref="Win32Window.IgnoreNextChar"/>）。<c>WM_IME_ENDCOMPOSITION</c> 没有结果串时把当前组合提交为文本。</item>
 /// <item>候选窗位置：<see cref="NotifyStateChanged"/> 以客户端的插入点矩形调用 <c>ImmSetCompositionWindow(CFS_POINT)</c> 与
 /// <c>ImmSetCandidateWindow(CFS_EXCLUDE)</c>（设备像素）。</item>
 /// <item><see cref="ResetComposition"/>：<c>ImmNotifyIME(NI_COMPOSITIONSTR, CPS_CANCEL)</c>。</item>
@@ -24,19 +28,81 @@ public sealed unsafe class Win32TextInput : TextInputMethod
 {
     readonly Win32Window _window;
 
+    /// <summary>自建的输入上下文；<see cref="IntPtr.Zero"/> 表示尚未创建或已销毁。</summary>
+    IntPtr _himc;
+    /// <summary>当前窗口是否关联着输入上下文（自建的，或后备路径由系统创建的）。</summary>
+    bool _associated;
+
     internal Win32TextInput(Win32Window window) => _window = window;
 
-    /// <summary>当前客户端是否允许输入法组合（有客户端且不是密码框）。</summary>
-    public bool UsesInputMethod => Client is { } c && !c.Options.IsPassword;
+    /// <summary>当前是否有文本输入客户端。密码框同样使用输入法（预编辑的遮罩由 UI 层负责）。</summary>
+    public bool UsesInputMethod => Client is not null;
 
     protected override void OnClientChanged(ITextInputClient? oldClient, ITextInputClient? newClient)
     {
         var hwnd = _window.Handle;
         if (hwnd == IntPtr.Zero) return;
         if (oldClient is not null) Cancel(hwnd);
-        // 0：解除关联（输入法关闭，按键直接产生 WM_CHAR）；IACE_DEFAULT：恢复窗口的默认输入上下文
-        Imm32.ImmAssociateContextEx(hwnd, IntPtr.Zero, UsesInputMethod ? IACE_DEFAULT : 0);
-        if (UsesInputMethod) UpdateWindows();
+        if (newClient is not null)
+        {
+            Associate(hwnd);
+            UpdateWindows();
+        }
+        else
+        {
+            Disassociate(hwnd);
+        }
+    }
+
+    /// <summary>
+    /// 让窗口关联输入上下文。优先显式创建（<c>ImmCreateContext</c>）再关联（<c>ImmAssociateContext</c>）；从未有过上下文的窗口
+    /// 不会由 <c>ImmAssociateContextEx(IACE_DEFAULT)</c> 自动创建，所以后者只作失败时的后备。
+    /// </summary>
+    void Associate(IntPtr hwnd)
+    {
+        if (_himc == IntPtr.Zero) _himc = Imm32.ImmCreateContext();
+        if (_himc != IntPtr.Zero)
+        {
+            Imm32.ImmAssociateContext(hwnd, _himc);
+            // ImmAssociateContext 的返回值是之前关联的上下文（可能为 0），不能据此判断成功：用 ImmGetContext 验证
+            if (HasContext(hwnd))
+            {
+                _associated = true;
+                return;
+            }
+        }
+        _associated = false;
+        // 后备：让系统为窗口创建并关联默认输入上下文
+        if (Imm32.ImmAssociateContextEx(hwnd, IntPtr.Zero, IACE_DEFAULT) != 0 || HasContext(hwnd))
+            _associated = true;
+    }
+
+    /// <summary>解除关联但保留自建的上下文，下一次有客户端时直接复用。</summary>
+    void Disassociate(IntPtr hwnd)
+    {
+        if (!_associated) return;
+        Imm32.ImmAssociateContext(hwnd, IntPtr.Zero);
+        _associated = false;
+    }
+
+    /// <summary>窗口销毁前解除关联并销毁自建的输入上下文。</summary>
+    internal void Release(IntPtr hwnd)
+    {
+        if (_associated && hwnd != IntPtr.Zero) Imm32.ImmAssociateContext(hwnd, IntPtr.Zero);
+        _associated = false;
+        if (_himc != IntPtr.Zero)
+        {
+            Imm32.ImmDestroyContext(_himc);
+            _himc = IntPtr.Zero;
+        }
+    }
+
+    static bool HasContext(IntPtr hwnd)
+    {
+        var himc = Imm32.ImmGetContext(hwnd);
+        if (himc == IntPtr.Zero) return false;
+        Imm32.ImmReleaseContext(hwnd, himc);
+        return true;
     }
 
     public override void NotifyStateChanged() => UpdateWindows();
@@ -98,28 +164,45 @@ public sealed unsafe class Win32TextInput : TextInputMethod
                 OnComposition(hwnd, (uint)(long)lParam);
                 return true;
             case WM_IME_ENDCOMPOSITION:
-                // 结束而没有结果字符串（取消，或结果已经在 WM_IME_COMPOSITION 中提交）：清除预编辑
-                if (Client is { Composition: not null } c) c.SetComposition(string.Empty, default);
+                // 没有结果串（取消，或某些输入法只在结束时提交）：当前组合非空时作为文本提交，再清空
+                HandleCompositionEnd();
                 return true;
         }
         return false;
     }
 
+    void HandleCompositionEnd()
+    {
+        if (Client is { Composition: { } composition } client)
+        {
+            var text = client.GetText(composition);
+            if (text.Length > 0) client.Commit(text);
+            else client.SetComposition(string.Empty, default);
+        }
+    }
+
+    /// <summary>
+    /// 读取 WM_IME_COMPOSITION 的字符串。先在持有 HIMC 期间把结果串、组合串与选区读入局部变量，释放上下文之后再回调客户端：
+    /// 客户端可能在回调中重入消息循环、切换客户端或销毁窗口。
+    /// </summary>
     void OnComposition(IntPtr hwnd, uint flags)
     {
+        string? result = null;
+        string? composition = null;
+        TextInputRange compositionSelection = default;
         var himc = Imm32.ImmGetContext(hwnd);
         if (himc == IntPtr.Zero) return;
         try
         {
-            if ((flags & GCS_RESULTSTR) != 0 && Client is { } c1)
+            if ((flags & GCS_RESULTSTR) != 0)
             {
-                var result = ReadString(himc, GCS_RESULTSTR, Clipboard.MaxTextLength);
-                if (result.Length > 0) c1.Commit(result);
-                else if (c1.Composition is not null) c1.SetComposition(string.Empty, default);
+                result = ReadString(himc, GCS_RESULTSTR, Clipboard.MaxTextLength);
+                // 在回调之前置位：客户端重入消息循环时，IMM32 重复投递的 WM_CHAR 同样会被抑制
+                _window.IgnoreNextChar();
             }
-            if ((flags & GCS_COMPSTR) != 0 && Client is { } c2 && UsesInputMethod)
+            if ((flags & GCS_COMPSTR) != 0)
             {
-                var comp = ReadString(himc, GCS_COMPSTR, ImeComposition.MaxLength);
+                composition = ReadString(himc, GCS_COMPSTR, ImeComposition.MaxLength);
                 int cursor = (flags & GCS_CURSORPOS) != 0 ? Imm32.ImmGetCompositionStringW(himc, GCS_CURSORPOS, null, 0) : -1;
                 byte[]? attrs = null;
                 int count = 0;
@@ -132,13 +215,22 @@ public sealed unsafe class Win32TextInput : TextInputMethod
                         fixed (byte* p = attrs) count = Imm32.ImmGetCompositionStringW(himc, GCS_COMPATTR, p, (uint)attrs.Length);
                     }
                 }
-                c2.SetComposition(comp, ImeComposition.Selection(attrs, count, cursor, comp.Length));
+                compositionSelection = ImeComposition.Selection(attrs, count, cursor, composition.Length);
             }
         }
         finally
         {
             Imm32.ImmReleaseContext(hwnd, himc);
         }
+
+        // 上下文已释放：下面可能重入消息循环
+        if (result is not null && Client is { } resultClient)
+        {
+            if (result.Length > 0) resultClient.Commit(result);
+            else if (resultClient.Composition is not null) resultClient.SetComposition(string.Empty, default);
+        }
+        if (composition is not null && Client is { } compositionClient)
+            compositionClient.SetComposition(composition, compositionSelection);
     }
 
     static string ReadString(IntPtr himc, uint index, int maxChars)
@@ -156,10 +248,12 @@ public sealed unsafe class Win32TextInput : TextInputMethod
 }
 
 /// <summary>
-/// Windows 剪贴板（CF_UNICODETEXT）。读写同步完成（返回已完成的任务）；剪贴板被其他程序占用时短暂重试，仍失败则返回 null / false。
-/// 写入时 LF 转为 CRLF，读取时规范回 LF；读取长度以 GlobalSize 与 <see cref="Clipboard.MaxTextLength"/> 为界。
+/// Windows 剪贴板。文本基线为 CF_UNICODETEXT；HTML（"HTML Format"）、CF_DIB 图片与 CF_HDROP 文件列表在
+/// <c>Win32Clipboard.Rich.cs</c> 的同一 partial 类里实现。读写同步完成（返回已完成的任务）；剪贴板被其他程序占用时
+/// 短暂重试，仍失败则返回 null / false。写入时 LF 转为 CRLF，读取时规范回 LF；读取长度以 GlobalSize 与
+/// <see cref="Clipboard.MaxTextLength"/> 为界。
 /// </summary>
-public sealed unsafe class Win32Clipboard : Clipboard
+public sealed unsafe partial class Win32Clipboard : Clipboard
 {
     readonly Win32Platform _platform;
 

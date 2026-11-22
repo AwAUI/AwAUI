@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
+using AwAUI.Graphics;
 using AwAUI.Platform;
 using AwAUI.X11.Interop;
 using static AwAUI.X11.Interop.Xlib;
@@ -10,10 +13,17 @@ namespace AwAUI.X11;
 /// X11 剪贴板：CLIPBOARD 选择（ICCCM）。一个不可见的 InputOnly 窗口作为选择所有者与转换结果的接收者，协议的状态机在
 /// <see cref="X11SelectionServer"/>（复制：回答其他程序的 SelectionRequest，大数据走 INCR）与 <see cref="X11SelectionReader"/>
 /// （粘贴：XConvertSelection → SelectionNotify → 读属性，INCR 分块，UTF8_STRING 被拒绝时退回 STRING）。
-/// 我们自己拥有 CLIPBOARD 时直接返回保存的文本。读取有超时（2 秒）与大小上限；只在平台线程上运行，其他线程的调用被投递过去。
+/// 支持纯文本、<c>text/html</c>、<c>image/png</c> 与 <c>text/uri-list</c>；我们自己拥有 CLIPBOARD 时直接返回保存的内容。
+/// 读取有超时（2 秒）与大小上限；只在平台线程上运行，其他线程的调用被投递过去。
 /// </summary>
 public sealed unsafe class X11Clipboard : Clipboard
 {
+    /// <summary>读取 PNG 图片的字节上限（32 MB；解码后的像素另有上限）。</summary>
+    public const int MaxImageBytes = 32 * 1024 * 1024;
+
+    /// <summary>读取 HTML 的字节上限（4 字节/码元 × <see cref="Clipboard.MaxTextLength"/>）。</summary>
+    public const long MaxHtmlBytes = 4L * MaxTextLength;
+
     readonly X11Platform _platform;
     readonly XlibSelectionIO _io;
     readonly X11SelectionServer _server;
@@ -25,7 +35,8 @@ public sealed unsafe class X11Clipboard : Clipboard
         var d = platform.Display;
         var atoms = new X11SelectionAtoms(InternAtom(d, "CLIPBOARD"), InternAtom(d, "TARGETS"), InternAtom(d, "UTF8_STRING"),
             InternAtom(d, "text/plain;charset=utf-8"), XA_STRING, InternAtom(d, "TEXT"), InternAtom(d, "INCR"), XA_ATOM,
-            InternAtom(d, "AWAUI_SELECTION"));
+            InternAtom(d, "AWAUI_SELECTION"), InternAtom(d, "text/html"), InternAtom(d, "image/png"),
+            InternAtom(d, "text/uri-list"));
         _io = new XlibSelectionIO(platform) { Atoms = atoms };
         _server = new X11SelectionServer(_io, atoms);
         _reader = new X11SelectionReader(_io, atoms);
@@ -34,14 +45,16 @@ public sealed unsafe class X11Clipboard : Clipboard
     /// <summary>选择窗口的 XID。</summary>
     internal ulong Window => _io.Window;
 
+    bool Owns() => XGetSelectionOwner(_platform.Display, _io.Atoms.Clipboard) == _io.Window;
+
     public override Task<string?> GetTextAsync()
     {
         var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         Run(() =>
         {
-            if (_server.Text is { } own && XGetSelectionOwner(_platform.Display, _io.Atoms.Clipboard) == _io.Window)
+            if (Owns())
             {
-                tcs.TrySetResult(own);
+                tcs.TrySetResult(_server.Text);
                 return;
             }
             _reader.Request(LibC.MonotonicTicks(), r => tcs.TrySetResult(r));
@@ -56,11 +69,165 @@ public sealed unsafe class X11Clipboard : Clipboard
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         Run(() =>
         {
-            bool ok = _server.Own(LimitLength(text), _platform.LastEventTime);
+            bool ok = _server.Own(new X11ClipboardData { Text = LimitLength(text) }, _platform.LastEventTime);
             XFlush(_platform.Display);
             tcs.TrySetResult(ok);
         }, tcs);
         return tcs.Task;
+    }
+
+    public override Task<string?> GetHtmlAsync()
+    {
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Run(() =>
+        {
+            if (Owns())
+            {
+                tcs.TrySetResult(_server.Html);
+                return;
+            }
+            _reader.RequestBytes(_io.Atoms.Html, MaxHtmlBytes, LibC.MonotonicTicks(), data =>
+            {
+                if (data is null || data.Length == 0) { tcs.TrySetResult(null); return; }
+                tcs.TrySetResult(LimitLength(Encoding.UTF8.GetString(data)));
+            });
+            XFlush(_platform.Display);
+        }, tcs);
+        return tcs.Task;
+    }
+
+    public override Task<bool> SetHtmlAsync(string html)
+    {
+        if (html is null) throw new ArgumentNullException(nameof(html));
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Run(() =>
+        {
+            string limited = LimitLength(html);
+            string plain = X11ClipboardFormats.HtmlToPlainText(limited);
+            var data = new X11ClipboardData
+            {
+                Html = limited,
+                Text = plain.Length > 0 ? LimitLength(plain) : null,
+            };
+            bool ok = _server.Own(data, _platform.LastEventTime);
+            XFlush(_platform.Display);
+            tcs.TrySetResult(ok);
+        }, tcs);
+        return tcs.Task;
+    }
+
+    public override Task<Bitmap?> GetImageAsync()
+    {
+        var tcs = new TaskCompletionSource<Bitmap?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Run(() =>
+        {
+            if (Owns())
+            {
+                tcs.TrySetResult(DecodePng(_server.Png));
+                return;
+            }
+            _reader.RequestBytes(_io.Atoms.ImagePng, MaxImageBytes, LibC.MonotonicTicks(), data =>
+                tcs.TrySetResult(DecodePng(data)));
+            XFlush(_platform.Display);
+        }, tcs);
+        return tcs.Task;
+    }
+
+    public override Task<bool> SetImageAsync(Bitmap image)
+    {
+        if (image is null) throw new ArgumentNullException(nameof(image));
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Run(() =>
+        {
+            if ((long)image.Width * image.Height > X11Png.MaxPixels)
+            {
+                tcs.TrySetResult(false);
+                return;
+            }
+            byte[] png;
+            try { png = X11Png.Encode(image); }
+            catch (Exception e) when (e is ArgumentException or OutOfMemoryException)
+            {
+                tcs.TrySetResult(false);
+                return;
+            }
+            bool ok = _server.Own(new X11ClipboardData { Png = png }, _platform.LastEventTime);
+            XFlush(_platform.Display);
+            tcs.TrySetResult(ok);
+        }, tcs);
+        return tcs.Task;
+    }
+
+    public override Task<IReadOnlyList<StorageFile>> GetFilesAsync()
+    {
+        var tcs = new TaskCompletionSource<IReadOnlyList<StorageFile>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Run(() =>
+        {
+            if (Owns())
+            {
+                tcs.TrySetResult(FilesFromUriList(_server.UriList));
+                return;
+            }
+            _reader.RequestBytes(_io.Atoms.UriList, X11ClipboardFormats.MaxUriListLength, LibC.MonotonicTicks(), data =>
+                tcs.TrySetResult(FilesFromUriList(data is null ? null : Encoding.UTF8.GetString(data))));
+            XFlush(_platform.Display);
+        }, tcs);
+        return tcs.Task;
+    }
+
+    public override Task<bool> SetFilesAsync(IReadOnlyList<StorageFile> files)
+    {
+        if (files is null) throw new ArgumentNullException(nameof(files));
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Run(() =>
+        {
+            var paths = new List<string>(Math.Min(files.Count, X11ClipboardFormats.MaxUriListItems));
+            foreach (var file in files)
+            {
+                if (paths.Count >= X11ClipboardFormats.MaxUriListItems) break;
+                string? path = file?.Path;
+                if (path is not null) paths.Add(path);
+            }
+            string? uriList = X11ClipboardFormats.BuildUriList(paths);
+            if (uriList is null)
+            {
+                tcs.TrySetResult(false);
+                return;
+            }
+            string? text = X11ClipboardFormats.BuildTextFileList(paths);
+            bool ok = _server.Own(new X11ClipboardData { UriList = uriList, Text = text }, _platform.LastEventTime);
+            XFlush(_platform.Display);
+            tcs.TrySetResult(ok);
+        }, tcs);
+        return tcs.Task;
+    }
+
+    static Bitmap? DecodePng(byte[]? png)
+    {
+        if (png is null || png.Length == 0) return null;
+        try { return X11Png.Decode(png); }
+        catch (Exception e) when (e is System.IO.InvalidDataException or NotSupportedException or ArgumentException or OutOfMemoryException)
+        {
+            return null;
+        }
+    }
+
+    static IReadOnlyList<StorageFile> FilesFromUriList(string? text)
+    {
+        var paths = X11ClipboardFormats.ParseUriList(text);
+        if (paths.Count == 0) return Array.Empty<StorageFile>();
+        var files = new List<StorageFile>(paths.Count);
+        foreach (var path in paths)
+        {
+            try
+            {
+                if (System.IO.File.Exists(path)) files.Add(new X11StorageFile(path));
+            }
+            catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException or ArgumentException)
+            {
+            }
+        }
+        return files;
     }
 
     void Run<T>(Action action, TaskCompletionSource<T> tcs)

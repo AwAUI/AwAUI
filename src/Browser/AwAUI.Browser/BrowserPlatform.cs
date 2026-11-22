@@ -25,6 +25,9 @@ public sealed class BrowserPlatform : PlatformBackend
     readonly Dictionary<int, BrowserWindow> _windows = new();
     readonly TaskCompletionSource<bool> _exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly BrowserClipboard _clipboard = new();
+    BrowserScreens? _screens;
+    BrowserLauncher? _launcher;
+    BrowserStorageProvider? _storage;
     int _nextHandle = 1;
 
     BrowserPlatform() { }
@@ -98,6 +101,7 @@ public sealed class BrowserPlatform : PlatformBackend
         string id = BrowserInterop.CreateCanvas(options.Size.Width, options.Size.Height);
         var window = AttachCanvas(id, new BrowserWindowOptions { OwnsCanvas = true });
         window.SetTitle(options.Title);
+        window.ApplyOptions(options);
         return window;
     }
 
@@ -109,7 +113,24 @@ public sealed class BrowserPlatform : PlatformBackend
 
     public override void Exit() => _exit.TrySetResult(true);
 
-    public override T? GetService<T>() where T : class => _clipboard as T;
+    /// <summary>
+    /// 可选服务：剪贴板、显示器、文件选择器与 Launcher。已知服务按需创建；其它类型返回 null。
+    /// </summary>
+    public override T? GetService<T>() where T : class
+    {
+        // 与 macOS / Headless 一致：具体类型（BrowserClipboard、BrowserScreens……）也能取到。
+        if (this is T self) return self;
+        return Clipboard as T ?? Screens as T ?? StorageProvider as T ?? Launcher as T;
+    }
+
+    /// <summary>浏览器只有一个逻辑显示器，见 <see cref="BrowserScreens"/>。</summary>
+    public override Screens Screens => _screens ??= new BrowserScreens();
+
+    /// <summary>用新的浏览上下文打开受支持的 URI。</summary>
+    public override Launcher Launcher => _launcher ??= new BrowserLauncher();
+
+    /// <summary>隐藏的 &lt;input type=file&gt; 与 File System Access / 下载回退。</summary>
+    public override StorageProvider StorageProvider => _storage ??= new BrowserStorageProvider();
 
     /// <summary>剪贴板（异步 API，尽力而为：读取需要权限或用户手势）。</summary>
     public override BrowserClipboard Clipboard => _clipboard;
@@ -119,6 +140,9 @@ public sealed class BrowserPlatform : PlatformBackend
     internal void Remove(BrowserWindow window) => _windows.Remove(window.Handle);
 
     internal void DrainDispatcher() => _dispatcher.Drain();
+
+    /// <summary>JS 报告显示器信息可能变化（分辨率 / 方向 / 窗口尺寸）。</summary>
+    internal void RefreshScreens() => _screens?.Refresh();
 }
 
 /// <summary>

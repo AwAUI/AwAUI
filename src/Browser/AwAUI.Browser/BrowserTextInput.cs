@@ -1,6 +1,8 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using AwAUI.Browser.Interop;
+using AwAUI.Graphics;
 using AwAUI.Platform;
 
 namespace AwAUI.Browser;
@@ -149,6 +151,105 @@ public sealed class BrowserClipboard : Clipboard
         try { return await BrowserInterop.ClipboardWriteText(LimitLength(text)).ConfigureAwait(true); }
         catch (Exception e) when (e is not OutOfMemoryException) { return false; }
     }
+
+    /// <summary>
+    /// 读取 HTML 片段（design/04 富剪贴板）：需要 <c>navigator.clipboard.read</c> 的权限与用户手势，
+    /// 不可用、被拒绝、没有 HTML 格式或超时时返回 null。
+    /// </summary>
+    public override async Task<string?> GetHtmlAsync()
+    {
+        try
+        {
+            var html = await BrowserInterop.ClipboardReadHtml().ConfigureAwait(true);
+            return string.IsNullOrEmpty(html) ? null : LimitLength(html!);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+    }
+
+    /// <summary>写入 HTML 片段（同时生成纯文本回退）；<c>ClipboardItem</c> 不可用或被拒绝时返回 false。</summary>
+    public override async Task<bool> SetHtmlAsync(string html)
+    {
+        if (html is null) throw new ArgumentNullException(nameof(html));
+        try { return await BrowserInterop.ClipboardWriteHtml(LimitLength(html)).ConfigureAwait(true); }
+        catch (Exception e) when (e is not OutOfMemoryException) { return false; }
+    }
+
+    /// <summary>读写的图片像素上限（16M 像素 ≈ 64 MB RGBA，与移动端 canvas 的面积上限一致）。</summary>
+    const long MaxImagePixels = 16L * 1024 * 1024;
+
+    /// <summary>
+    /// 读取剪贴板图片：JS 把位图绘制到 canvas、取出非预乘 RGBA 像素并写入 WASM 堆中的固定缓冲区。
+    /// 没有图片、权限被拒绝或尺寸超过 <see cref="MaxImagePixels"/> 时返回 null；调用方负责释放位图。
+    /// </summary>
+    public override async Task<Bitmap?> GetImageAsync()
+    {
+        try
+        {
+            var info = await BrowserInterop.ClipboardReadImageInfo().ConfigureAwait(true);
+            if (!TryParseImageInfo(info, out int width, out int height, out int id)) return null;
+            long pixels = (long)width * height;
+            if (pixels <= 0 || pixels > MaxImagePixels)
+            {
+                BrowserInterop.ClipboardDiscardImage(id);
+                return null;
+            }
+            int length = checked(width * height * 4);
+            var rgba = new byte[length];
+            var pinned = GCHandle.Alloc(rgba, GCHandleType.Pinned);
+            try
+            {
+                if (!BrowserInterop.ClipboardTakeImage(id, Address(pinned), length)) return null;
+            }
+            finally
+            {
+                pinned.Free();
+            }
+            return Bitmap.FromRgbaUnpremultiplied(rgba, new PixelSize(width, height));
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+    }
+
+    /// <summary>
+    /// 写入剪贴板图片（PNG）：先把非预乘 RGBA 像素同步复制到 JS，再由 JS 编码并调用
+    /// <c>navigator.clipboard.write</c>。需要用户手势与权限，失败时返回 false。
+    /// </summary>
+    public override async Task<bool> SetImageAsync(Bitmap image)
+    {
+        if (image is null) throw new ArgumentNullException(nameof(image));
+        try
+        {
+            long pixels = (long)image.Width * image.Height;
+            if (pixels <= 0 || pixels > MaxImagePixels) return false;
+            byte[] rgba = image.ToRgbaUnpremultiplied();
+            int id;
+            var pinned = GCHandle.Alloc(rgba, GCHandleType.Pinned);
+            try
+            {
+                id = BrowserInterop.ClipboardStageImage(image.Width, image.Height, Address(pinned), rgba.Length);
+            }
+            finally
+            {
+                pinned.Free();
+            }
+            if (id <= 0) return false;
+            return await BrowserInterop.ClipboardWriteStagedImage(id).ConfigureAwait(true);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { return false; }
+    }
+
+    static bool TryParseImageInfo(string? info, out int width, out int height, out int id)
+    {
+        width = height = id = 0;
+        if (string.IsNullOrEmpty(info)) return false;
+        var parts = info!.Split(',');
+        return parts.Length >= 3
+            && int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out width)
+            && int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out height)
+            && int.TryParse(parts[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out id)
+            && id > 0;
+    }
+
+    static int Address(GCHandle pinned) => checked((int)pinned.AddrOfPinnedObject().ToInt64());
 
     /// <summary>
     /// 用户在窗口中粘贴（paste 事件）。有订阅者时由它处理；否则交给窗口的文本输入客户端（替换选区），

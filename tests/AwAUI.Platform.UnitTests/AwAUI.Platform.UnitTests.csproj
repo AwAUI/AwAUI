@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="../../src/Windows/AwAUI.Win32/Input/**/*.cs" Link="Platforms/Win32/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../src/Linux/AwAUI.X11/Input/**/*.cs" Link="Platforms/X11/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../src/Linux/AwAUI.X11/Settings/**/*.cs" Link="Platforms/X11/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../src/MacOS/AwAUI.MacOS/KeyMap.cs" Link="Platforms/MacOS/KeyMap.cs" />
     <Compile Include="../../src/MacOS/AwAUI.MacOS/Input/**/*.cs" Link="Platforms/MacOS/Input/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

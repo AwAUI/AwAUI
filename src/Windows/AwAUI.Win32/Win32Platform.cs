@@ -35,6 +35,8 @@ public sealed unsafe class Win32Platform : PlatformBackend
     internal readonly Stopwatch Clock = Stopwatch.StartNew();
     Win32Window? _creating;
     bool _running;
+    readonly Win32AppearancePreference _appearance = new();
+    readonly Win32ReducedMotionPreference _reducedMotion = new();
 
     public Win32Platform()
     {
@@ -45,8 +47,9 @@ public sealed unsafe class Win32Platform : PlatformBackend
         EnableDpiAwareness();
 
         Instance = Kernel32.GetModuleHandleW(null);
-        WindowClass = RegisterClass(WindowClassName, CS_HREDRAW | CS_VREDRAW, User32.LoadCursorW(IntPtr.Zero, new IntPtr(IDC_ARROW)));
-        ushort messageClass = RegisterClass(MessageClassName, 0, IntPtr.Zero);
+        var appIcon = User32.LoadIconW(IntPtr.Zero, new IntPtr(IDI_APPLICATION));
+        WindowClass = RegisterClass(WindowClassName, CS_HREDRAW | CS_VREDRAW, User32.LoadCursorW(IntPtr.Zero, new IntPtr(IDC_ARROW)), appIcon);
+        ushort messageClass = RegisterClass(MessageClassName, 0, IntPtr.Zero, IntPtr.Zero);
 
         // 先赋值 s_instance，窗口过程才能把消息路由到这里；仅消息窗口在创建期间的消息走 DefWindowProc
         s_instance = this;
@@ -58,14 +61,48 @@ public sealed unsafe class Win32Platform : PlatformBackend
             throw new InvalidOperationException($"CreateWindowExW (message window) failed, error {error}.");
         }
         _dispatcher = new Win32Dispatcher(_messageWindow);
+        RefreshPreferences();
+    }
+
+    internal IAppearancePreference AppearancePreference => _appearance;
+    internal IReducedMotionPreference ReducedMotionPreference => _reducedMotion;
+
+    /// <summary>重新读取外观与辅助功能偏好（<see cref="Const.WM_SETTINGCHANGE"/> / <see cref="Const.WM_THEMECHANGED"/> 后）。只报告变化。</summary>
+    internal void RefreshPreferences()
+    {
+        _appearance.Refresh();
+        _reducedMotion.Refresh();
     }
 
     public override string Name => "Win32";
 
     Win32Clipboard? _clipboard;
+    Win32Screens? _screens;
+    Win32StorageProvider? _storage;
+    Win32Launcher? _launcher;
 
-    /// <summary>系统剪贴板（CF_UNICODETEXT）。</summary>
+    /// <summary>系统剪贴板（文本、HTML、图片、文件）。</summary>
     public override Clipboard Clipboard => _clipboard ??= new Win32Clipboard(this);
+
+    /// <summary>显示器集合（Per-Monitor V2）。</summary>
+    public override Screens Screens => _screens ??= new Win32Screens();
+
+    /// <summary>文件与目录选择器（comdlg32 / shell32）。</summary>
+    public override StorageProvider StorageProvider => _storage ??= new Win32StorageProvider(this);
+
+    /// <summary>打开 URI / 文件 / 目录（ShellExecuteW）。</summary>
+    public override Launcher Launcher => _launcher ??= new Win32Launcher(this);
+
+    public override T? GetService<T>() where T : class
+    {
+        // 与 macOS / Headless 一致：具体类型（Win32Screens、Win32Clipboard……）也能取到，
+        // 调用方不必知道服务属性声明成哪个抽象类型。
+        if (this is T self) return self;
+        return Clipboard as T ?? Screens as T ?? StorageProvider as T ?? Launcher as T;
+    }
+
+    /// <summary>显示器布局变化（WM_DISPLAYCHANGE / SPI_SETWORKAREA）后刷新。</summary>
+    internal void RefreshScreens() => _screens?.Refresh();
 
     /// <summary>仅消息窗口（剪贴板的所有者窗口）。</summary>
     internal IntPtr MessageWindow => _messageWindow;
@@ -79,6 +116,24 @@ public sealed unsafe class Win32Platform : PlatformBackend
         var w = new Win32Window(this, options);
         _windows.Add(w);
         return w;
+    }
+
+    /// <summary>
+    /// 创建窗口的 UI Automation 桥（design/10）。环境变量 <c>AWAUI_WIN32_UIA=0</c> 关闭；
+    /// 初始化失败时记录并返回 null，窗口其余功能不受影响。
+    /// </summary>
+    internal Win32AccessibilityBridge? CreateAccessibilityBridge(Win32Window window)
+    {
+        if (!Win32AccessibilityBridge.IsEnabled) return null;
+        try
+        {
+            return new Win32AccessibilityBridge(this, window);
+        }
+        catch (Exception e)
+        {
+            try { Console.Error.WriteLine("[AwAUI.Win32.UIA] failed to create accessibility bridge: " + e); } catch { }
+            return null;
+        }
     }
 
     public override void Run()
@@ -151,7 +206,7 @@ public sealed unsafe class Win32Platform : PlatformBackend
         return User32.DefWindowProcW(hwnd, msg, wParam, lParam);
     }
 
-    ushort RegisterClass(string name, uint style, IntPtr cursor)
+    ushort RegisterClass(string name, uint style, IntPtr cursor, IntPtr icon)
     {
         fixed (char* pName = name)
         {
@@ -161,6 +216,7 @@ public sealed unsafe class Win32Platform : PlatformBackend
                 style = style,
                 lpfnWndProc = Interop.WndProc.Pointer,
                 hInstance = Instance,
+                hIcon = icon,
                 hCursor = cursor,
                 lpszClassName = pName,
             };

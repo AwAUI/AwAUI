@@ -31,6 +31,10 @@ public sealed unsafe class X11Platform : PlatformBackend, IDisposable
     IntPtr _im;
     bool _imCallbacks;
     X11Clipboard? _clipboard;
+    X11SettingsPreference? _preferences;
+    X11Screens? _screens;
+    X11StorageProvider? _storageProvider;
+    X11Launcher? _launcher;
     ulong _lastRawTime;
     long _lastFrame;
     volatile bool _exit;
@@ -85,12 +89,31 @@ public sealed unsafe class X11Platform : PlatformBackend, IDisposable
             NetWmName = InternAtom(_display, "_NET_WM_NAME");
             NetWmIconName = InternAtom(_display, "_NET_WM_ICON_NAME");
             Utf8String = InternAtom(_display, "UTF8_STRING");
+            // 自绘标题栏（design/04）：无边框、拖动、最小化与最大化
+            MotifWmHints = InternAtom(_display, "_MOTIF_WM_HINTS");
+            WmChangeState = InternAtom(_display, "WM_CHANGE_STATE");
+            NetWmMoveresize = InternAtom(_display, "_NET_WM_MOVERESIZE");
+            NetWmState = InternAtom(_display, "_NET_WM_STATE");
+            NetWmStateMaximizedVert = InternAtom(_display, "_NET_WM_STATE_MAXIMIZED_VERT");
+            NetWmStateMaximizedHorz = InternAtom(_display, "_NET_WM_STATE_MAXIMIZED_HORZ");
+            NetWmStateAbove = InternAtom(_display, "_NET_WM_STATE_ABOVE");
+            NetWmStateFullscreen = InternAtom(_display, "_NET_WM_STATE_FULLSCREEN");
+            NetWmStateHidden = InternAtom(_display, "_NET_WM_STATE_HIDDEN");
+            NetWmStateSkipTaskbar = InternAtom(_display, "_NET_WM_STATE_SKIP_TASKBAR");
+            NetWmStateSkipPager = InternAtom(_display, "_NET_WM_STATE_SKIP_PAGER");
+            NetActiveWindow = InternAtom(_display, "_NET_ACTIVE_WINDOW");
+            NetWmIcon = InternAtom(_display, "_NET_WM_ICON");
+            NetWorkarea = InternAtom(_display, "_NET_WORKAREA");
+            NetCurrentDesktop = InternAtom(_display, "_NET_CURRENT_DESKTOP");
+            WmState = InternAtom(_display, "WM_STATE");
 
             int supported = 0;
             DetectableAutoRepeat = XkbSetDetectableAutoRepeat(_display, 1, &supported) != 0 && supported != 0;
 
             InitSharedMemory(displayName!);
             InitInputMethod();
+            _preferences = new X11SettingsPreference(_display, Root);
+            _screens = new X11Screens(this);
             _dispatcher = new X11Dispatcher();
         }
         catch
@@ -106,6 +129,12 @@ public sealed unsafe class X11Platform : PlatformBackend, IDisposable
 
     /// <summary>系统剪贴板（CLIPBOARD 选择）。第一次访问时创建选择窗口；只能在平台线程上首次访问。</summary>
     public override Clipboard Clipboard => _clipboard ??= new X11Clipboard(this);
+
+    /// <summary>XSETTINGS 的浅色 / 深色外观（没有设置管理器时为浅色）。</summary>
+    internal IAppearancePreference? AppearancePreference => _preferences;
+
+    /// <summary>XSETTINGS 的 <c>Gtk/EnableAnimations</c> 反向映射（为 0 即减少动效）。</summary>
+    internal IReducedMotionPreference? ReducedMotionPreference => _preferences;
 
     /// <summary>最近一个输入事件的服务器时间（选择协议要求用真实时间戳而不是 CurrentTime）；还没有输入事件时为 0。</summary>
     internal ulong LastEventTime => _lastRawTime;
@@ -140,6 +169,39 @@ public sealed unsafe class X11Platform : PlatformBackend, IDisposable
     internal ulong NetWmName { get; }
     internal ulong NetWmIconName { get; }
     internal ulong Utf8String { get; }
+    internal ulong MotifWmHints { get; }
+    internal ulong WmChangeState { get; }
+    internal ulong NetWmMoveresize { get; }
+    internal ulong NetWmState { get; }
+    internal ulong NetWmStateMaximizedVert { get; }
+    internal ulong NetWmStateMaximizedHorz { get; }
+    internal ulong NetWmStateAbove { get; }
+    internal ulong NetWmStateFullscreen { get; }
+    internal ulong NetWmStateHidden { get; }
+    internal ulong NetWmStateSkipTaskbar { get; }
+    internal ulong NetWmStateSkipPager { get; }
+    internal ulong NetActiveWindow { get; }
+    internal ulong NetWmIcon { get; }
+    internal ulong NetWorkarea { get; }
+    internal ulong NetCurrentDesktop { get; }
+    internal ulong WmState { get; }
+
+    /// <summary>显示器集合（平台线程上创建；布局变化时触发 <see cref="Screens.Changed"/>）。</summary>
+    public override Screens Screens => _screens!;
+
+    /// <summary>文件与目录选择器（zenity / kdialog；都没有时为 null 语义的空结果）。</summary>
+    public override StorageProvider StorageProvider => _storageProvider ??= new X11StorageProvider();
+
+    /// <summary>用默认程序打开 URI / 文件（xdg-open）。</summary>
+    public override Launcher Launcher => _launcher ??= new X11Launcher();
+
+    /// <summary>可选服务查询：剪贴板、显示器、文件选择器与启动器。</summary>
+    public override T? GetService<T>() where T : class
+    {
+        // 与 macOS / Headless 一致：具体类型（X11Screens、X11Clipboard……）也能取到。
+        if (this is T self) return self;
+        return Clipboard as T ?? Screens as T ?? StorageProvider as T ?? Launcher as T;
+    }
 
     public override WindowImpl CreateWindow(WindowOptions options)
     {
@@ -250,6 +312,9 @@ public sealed unsafe class X11Platform : PlatformBackend, IDisposable
             XRefreshKeyboardMapping(ev); // 键盘布局变化：更新 XLookupString 使用的映射
             return;
         }
+        // 显示器布局事件（XRandR）与根窗口的工作区/尺寸变化先于 XSETTINGS：后者会消费所有根窗口 PropertyNotify
+        if (_screens is not null && _screens.HandleEvent(ev)) return;
+        if (_preferences is not null && _preferences.HandleEvent(ev)) return;
         if (_clipboard is not null && _clipboard.HandleEvent(ev)) return;
         if (!_windowsByHandle.TryGetValue(ev->xany.window, out var w)) return;
         if (ShmEventBase >= 0 && ev->type == ShmEventBase + XShm.ShmCompletion)

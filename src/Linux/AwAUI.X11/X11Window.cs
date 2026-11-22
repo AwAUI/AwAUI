@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using AwAUI.Graphics;
 using AwAUI.Platform;
@@ -15,7 +16,7 @@ namespace AwAUI.X11;
 /// </para>
 /// 所有成员只能在平台线程上调用（<see cref="RequestFrame"/> 除外，它会转投到平台线程）。
 /// </summary>
-public sealed unsafe class X11Window : WindowImpl
+public sealed unsafe class X11Window : WindowImpl, IWindowChrome
 {
     /// <summary>Linux 桌面使用常驻的经典滚动条。</summary>
     public override ScrollbarStyle PreferredScrollbarStyle => ScrollbarStyle.Classic;
@@ -48,6 +49,14 @@ public sealed unsafe class X11Window : WindowImpl
     PointerButtons _buttons;
     bool _inside;
     bool _leavePending;    // 按住按钮拖出窗口：离开推迟到全部按钮抬起（与 Win32 的捕获语义一致）
+    int _lastRootX, _lastRootY; // 最近一次指针事件的根窗口坐标（_NET_WM_MOVERESIZE）
+
+    // 窗口模型（design/04「窗口状态与几何」）
+    Point _position;
+    WindowState _windowState;
+    bool _topmost;
+    bool _startMinimized;                 // 首次映射后再发 WM_CHANGE_STATE IconicState
+    readonly HashSet<ulong> _preMapStates = new(); // 映射前写在 _NET_WM_STATE 属性里的状态（映射后改为 ClientMessage）
 
     // 键盘
     readonly bool[] _keyDown = new bool[256];
@@ -62,6 +71,32 @@ public sealed unsafe class X11Window : WindowImpl
         if (px.IsEmpty) px = new PixelSize(Math.Max(1, px.Width), Math.Max(1, px.Height));
         _clientPx = px;
 
+        // 首次显示的几何（design/04）：Position / StartupLocation 在主显示器工作区内换算为根窗口坐标
+        var start = X11WindowGeometry.ResolveStartupPosition(options, platform.Screens.Primary);
+        _position = start;
+        int startX = X11WindowGeometry.ToPixelCoordinate(start.X, scale);
+        int startY = X11WindowGeometry.ToPixelCoordinate(start.Y, scale);
+
+        // 初始状态 / 置顶 / 任务栏可见性：映射前写入 _NET_WM_STATE 属性（EWMH 要求映射后改用 ClientMessage）
+        _windowState = options.State;
+        _topmost = options.Topmost;
+        _startMinimized = options.State == WindowState.Minimized;
+        if (options.State == WindowState.Maximized)
+        {
+            _preMapStates.Add(platform.NetWmStateMaximizedVert);
+            _preMapStates.Add(platform.NetWmStateMaximizedHorz);
+        }
+        else if (options.State == WindowState.FullScreen)
+        {
+            _preMapStates.Add(platform.NetWmStateFullscreen);
+        }
+        if (options.Topmost) _preMapStates.Add(platform.NetWmStateAbove);
+        if (!options.ShowInTaskbar)
+        {
+            _preMapStates.Add(platform.NetWmStateSkipTaskbar);
+            _preMapStates.Add(platform.NetWmStateSkipPager);
+        }
+
         var attributes = new XSetWindowAttributes
         {
             background_pixmap = 0,           // None：服务器不清背景，缩放时不闪烁
@@ -69,9 +104,9 @@ public sealed unsafe class X11Window : WindowImpl
             bit_gravity = NorthWestGravity,  // 缩放时保留左上角内容，等待新帧
             colormap = visual.Colormap,
             event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask
-                | EnterWindowMask | LeaveWindowMask | ExposureMask | StructureNotifyMask | FocusChangeMask,
+                | EnterWindowMask | LeaveWindowMask | ExposureMask | StructureNotifyMask | FocusChangeMask | PropertyChangeMask,
         };
-        _window = XCreateWindow(_display, platform.Root, 0, 0, (uint)px.Width, (uint)px.Height, 0, visual.Depth, InputOutput,
+        _window = XCreateWindow(_display, platform.Root, startX, startY, (uint)px.Width, (uint)px.Height, 0, visual.Depth, InputOutput,
             visual.Visual, CWBackPixmap | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap, &attributes);
         if (_window == 0) throw new InvalidOperationException("XCreateWindow failed.");
 
@@ -79,15 +114,20 @@ public sealed unsafe class X11Window : WindowImpl
         XSetWMProtocols(_display, _window, &deleteWindow, 1);
         SetClassHint();
         SetTitle(options.Title);
-        if (!options.Resizable)
+        ApplyNormalHints(options, px, startX, startY);
+        if (_preMapStates.Count > 0) WritePreMapStates();
+        if (options.Icon is Bitmap icon) SetIcon(icon);
+        if (options.Decorations == WindowDecorations.None)
         {
-            var hints = new XSizeHints
-            {
-                flags = PMinSize | PMaxSize,
-                min_width = px.Width, max_width = px.Width,
-                min_height = px.Height, max_height = px.Height,
-            };
-            XSetWMNormalHints(_display, _window, &hints);
+            // Motif 提示：窗口管理器不画标题栏与边框（必须在 map 之前设置）。未识别的 WM 仍可能加边框。
+            long* hints = stackalloc long[5];
+            hints[0] = MwmHintsDecorations; // flags
+            hints[1] = 0;                   // functions
+            hints[2] = 0;                   // decorations = 0
+            hints[3] = 0;                   // input_mode
+            hints[4] = 0;                   // status
+            XChangeProperty(_display, _window, _platform.MotifWmHints, _platform.MotifWmHints, 32, PropModeReplace,
+                (byte*)hints, 5);
         }
 
         _gc = XCreateGC(_display, _window, 0, null);
@@ -103,8 +143,299 @@ public sealed unsafe class X11Window : WindowImpl
 
     public override double RenderScale => _platform.Scale;
 
+    public override T? GetFeature<T>() where T : class =>
+        base.GetFeature<T>() ?? _platform.AppearancePreference as T ?? _platform.ReducedMotionPreference as T;
+
+    // ------------------------------------------------------------ 窗口模型（design/04）
+
+    /// <summary>窗口左上角在根窗口中的逻辑坐标；首次映射使用请求的位置，之后跟随 ConfigureNotify。</summary>
+    public override Point Position => _position;
+
+    public override WindowState WindowState => _windowState;
+
+    public override bool Topmost
+    {
+        get => _topmost;
+        set => SetTopmost(value);
+    }
+
+    public override bool IsActive => _focused;
+
+    /// <summary>桌面窗口没有刘海或软键盘占位。</summary>
+    public override Thickness SafeAreaInsets => Thickness.Zero;
+
+    public override Screens Screens => _platform.Screens;
+
+    public override StorageProvider StorageProvider => _platform.StorageProvider;
+
+    public override Launcher Launcher => _platform.Launcher;
+
+    public override void SetPosition(Point position)
+    {
+        if (_closed) return;
+        int x = X11WindowGeometry.ToPixelCoordinate(position.X, RenderScale);
+        int y = X11WindowGeometry.ToPixelCoordinate(position.Y, RenderScale);
+        _position = position;
+        XMoveWindow(_display, _window, x, y);
+        XFlush(_display);
+    }
+
+    public override void SetWindowState(WindowState state)
+    {
+        if (_closed) return;
+        switch (state)
+        {
+            case WindowState.Normal:
+                _startMinimized = false;
+                if (_mapped)
+                {
+                    RequestNetWmState(_platform.NetWmStateFullscreen, false);
+                    RequestNetWmState(_platform.NetWmStateMaximizedVert, false);
+                    RequestNetWmState(_platform.NetWmStateMaximizedHorz, false);
+                    if (_windowState == WindowState.Minimized)
+                    {
+                        XMapWindow(_display, _window);
+                        Activate();
+                    }
+                }
+                else
+                {
+                    _preMapStates.Remove(_platform.NetWmStateFullscreen);
+                    _preMapStates.Remove(_platform.NetWmStateMaximizedVert);
+                    _preMapStates.Remove(_platform.NetWmStateMaximizedHorz);
+                    WritePreMapStates();
+                }
+                UpdateState(WindowState.Normal);
+                break;
+            case WindowState.Minimized:
+                if (_mapped) SendRootClientMessage(_platform.WmChangeState, IconicState, 0, 0, 0, 0);
+                else _startMinimized = true;
+                UpdateState(WindowState.Minimized);
+                break;
+            case WindowState.Maximized:
+                _startMinimized = false;
+                if (_mapped)
+                {
+                    RequestNetWmState(_platform.NetWmStateFullscreen, false);
+                    RequestNetWmState(_platform.NetWmStateMaximizedVert, true);
+                    RequestNetWmState(_platform.NetWmStateMaximizedHorz, true);
+                }
+                else
+                {
+                    _preMapStates.Remove(_platform.NetWmStateFullscreen);
+                    _preMapStates.Add(_platform.NetWmStateMaximizedVert);
+                    _preMapStates.Add(_platform.NetWmStateMaximizedHorz);
+                    WritePreMapStates();
+                }
+                UpdateState(WindowState.Maximized);
+                break;
+            case WindowState.FullScreen:
+                _startMinimized = false;
+                if (_mapped)
+                {
+                    RequestNetWmState(_platform.NetWmStateMaximizedVert, false);
+                    RequestNetWmState(_platform.NetWmStateMaximizedHorz, false);
+                    RequestNetWmState(_platform.NetWmStateFullscreen, true);
+                }
+                else
+                {
+                    _preMapStates.Remove(_platform.NetWmStateMaximizedVert);
+                    _preMapStates.Remove(_platform.NetWmStateMaximizedHorz);
+                    _preMapStates.Add(_platform.NetWmStateFullscreen);
+                    WritePreMapStates();
+                }
+                UpdateState(WindowState.FullScreen);
+                break;
+        }
+        XFlush(_display);
+    }
+
+    public override void Activate()
+    {
+        if (_closed) return;
+        // EWMH：l0 = 来源（1 = 应用），l1 = 时间戳（选择协议要求真实时间，没有输入事件时为 0）
+        SendRootClientMessage(_platform.NetActiveWindow, NetWmMoveresizeSourceApplication, (long)_platform.LastEventTime, 0, 0, 0);
+        XFlush(_display);
+    }
+
+    void SetTopmost(bool value)
+    {
+        if (_closed) return;
+        if (_topmost == value) return;
+        _topmost = value;
+        if (_mapped)
+        {
+            RequestNetWmState(_platform.NetWmStateAbove, value);
+            XFlush(_display);
+        }
+        else
+        {
+            if (value) _preMapStates.Add(_platform.NetWmStateAbove);
+            else _preMapStates.Remove(_platform.NetWmStateAbove);
+            WritePreMapStates();
+        }
+    }
+
+    void RequestNetWmState(ulong atom, bool add)
+    {
+        if (atom == 0) return;
+        SendRootClientMessage(_platform.NetWmState, add ? NetWmStateAdd : NetWmStateRemove, (long)atom, 0,
+            NetWmMoveresizeSourceApplication, 0);
+    }
+
+    void UpdateState(WindowState state)
+    {
+        if (_windowState == state) return;
+        _windowState = state;
+        (Events as IWindowStateEvents)?.OnWindowStateChanged(state);
+    }
+
+    void RefreshStateFromProperties()
+    {
+        var atoms = ReadAtomList(_platform.NetWmState);
+        bool fullscreen = ContainsAtom(atoms, _platform.NetWmStateFullscreen);
+        bool maximized = ContainsAtom(atoms, _platform.NetWmStateMaximizedVert)
+            && ContainsAtom(atoms, _platform.NetWmStateMaximizedHorz);
+        _topmost = ContainsAtom(atoms, _platform.NetWmStateAbove);
+
+        int? wmState = ReadWmState();
+        WindowState state;
+        if (wmState == IconicState) state = WindowState.Minimized;
+        else if (fullscreen) state = WindowState.FullScreen;
+        else if (maximized) state = WindowState.Maximized;
+        else state = WindowState.Normal;
+        UpdateState(state);
+    }
+
+    static bool ContainsAtom(ulong[] atoms, ulong atom)
+    {
+        if (atom == 0) return false;
+        foreach (var value in atoms)
+            if (value == atom) return true;
+        return false;
+    }
+
+    /// <summary>读取窗口上的 32 位 ATOM 列表属性（最多 64 项）；属性不存在或格式不符时返回空数组。</summary>
+    ulong[] ReadAtomList(ulong property)
+    {
+        ulong actualType, nitems, bytesAfter;
+        int format;
+        byte* data = null;
+        int status = XGetWindowProperty(_display, _window, property, 0, 64, 0, XA_ATOM,
+            &actualType, &format, &nitems, &bytesAfter, &data);
+        try
+        {
+            if (status != 0 || data == null || format != 32 || nitems == 0) return Array.Empty<ulong>();
+            int n = (int)Math.Min(nitems, 64UL);
+            var values = new ulong[n];
+            long* p = (long*)data;
+            for (int i = 0; i < n; i++) values[i] = (ulong)p[i];
+            return values;
+        }
+        finally
+        {
+            if (data != null) XFree(data);
+        }
+    }
+
+    /// <summary>读取 ICCCM 的 <c>WM_STATE</c>（[state, icon_window]）；窗口管理器未设置时为 null。</summary>
+    int? ReadWmState()
+    {
+        ulong actualType, nitems, bytesAfter;
+        int format;
+        byte* data = null;
+        int status = XGetWindowProperty(_display, _window, _platform.WmState, 0, 2, 0, AnyPropertyType,
+            &actualType, &format, &nitems, &bytesAfter, &data);
+        try
+        {
+            if (status != 0 || data == null || format != 32 || nitems == 0) return null;
+            return (int)((long*)data)[0];
+        }
+        finally
+        {
+            if (data != null) XFree(data);
+        }
+    }
+
+    void ApplyNormalHints(WindowOptions options, PixelSize px, int startX, int startY)
+    {
+        var hints = new XSizeHints();
+        long flags = 0;
+        bool hasExplicitPosition = options.StartupLocation == WindowStartupLocation.Manual && options.Position.HasValue;
+        bool positioned = hasExplicitPosition || options.StartupLocation != WindowStartupLocation.Manual;
+        if (positioned)
+        {
+            flags |= hasExplicitPosition ? USPosition : PPosition;
+            hints.x = startX;
+            hints.y = startY;
+        }
+
+        bool fixedSize = !options.Resizable;
+        bool hasMin = fixedSize || options.MinWidth.HasValue || options.MinHeight.HasValue;
+        bool hasMax = fixedSize || options.MaxWidth.HasValue || options.MaxHeight.HasValue;
+        int minWidth = 1, minHeight = 1;
+        if (hasMin)
+        {
+            flags |= PMinSize;
+            minWidth = fixedSize ? px.Width : X11WindowGeometry.ToPixelExtent(options.MinWidth ?? 1, RenderScale);
+            minHeight = fixedSize ? px.Height : X11WindowGeometry.ToPixelExtent(options.MinHeight ?? 1, RenderScale);
+            hints.min_width = minWidth;
+            hints.min_height = minHeight;
+        }
+        if (hasMax)
+        {
+            flags |= PMaxSize;
+            int maxWidth = fixedSize ? px.Width : options.MaxWidth is double mw ? X11WindowGeometry.ToPixelExtent(mw, RenderScale) : 32767;
+            int maxHeight = fixedSize ? px.Height : options.MaxHeight is double mh ? X11WindowGeometry.ToPixelExtent(mh, RenderScale) : 32767;
+            // 最小尺寸大于最大尺寸的提示会让部分窗口管理器拒绝调整：以最小尺寸为准
+            if (maxWidth < minWidth) maxWidth = minWidth;
+            if (maxHeight < minHeight) maxHeight = minHeight;
+            hints.max_width = maxWidth;
+            hints.max_height = maxHeight;
+        }
+        if (flags == 0) return;
+        hints.flags = flags;
+        XSetWMNormalHints(_display, _window, &hints);
+    }
+
+    /// <summary>映射前把状态原子写进 <c>_NET_WM_STATE</c>；没有状态时删除属性。</summary>
+    void WritePreMapStates()
+    {
+        if (_preMapStates.Count == 0)
+        {
+            XDeleteProperty(_display, _window, _platform.NetWmState);
+            return;
+        }
+        long* data = stackalloc long[_preMapStates.Count];
+        int i = 0;
+        foreach (var atom in _preMapStates) data[i++] = (long)atom;
+        XChangeProperty(_display, _window, _platform.NetWmState, XA_ATOM, 32, PropModeReplace, (byte*)data, i);
+    }
+
+    /// <summary>把位图转为 <c>_NET_WM_ICON</c>（ARGB 像素，32 位 CARDINAL）。超过约 1M 像素时跳过，避免属性过大。</summary>
+    void SetIcon(Bitmap icon)
+    {
+        int width = icon.Width, height = icon.Height;
+        if (width <= 0 || height <= 0 || (long)width * height > 1 << 20) return;
+        byte[] rgba = icon.ToRgbaUnpremultiplied();
+        int pixels = width * height;
+        var data = new long[pixels + 2];
+        data[0] = width;
+        data[1] = height;
+        for (int i = 0, o = 0; i < pixels; i++, o += 4)
+            data[i + 2] = ((long)rgba[o + 3] << 24) | ((long)rgba[o] << 16) | ((long)rgba[o + 1] << 8) | rgba[o + 2];
+        fixed (long* p = data)
+            XChangeProperty(_display, _window, _platform.NetWmIcon, XA_CARDINAL, 32, PropModeReplace, (byte*)p, data.Length);
+    }
+
     /// <summary>X 窗口 ID（XID）。</summary>
     public ulong Handle => _window;
+
+    /// <summary>Display* 句柄（输入法换算根窗口坐标时需要）。</summary>
+    internal IntPtr Display => _display;
+
+    /// <summary>屏幕根窗口 XID（XNSpotLocation 等根窗口坐标的参照）。</summary>
+    internal ulong RootWindow => _platform.Root;
 
     /// <summary>客户区尺寸（设备像素）。</summary>
     public PixelSize ClientPixelSize => _clientPx;
@@ -137,6 +468,12 @@ public sealed unsafe class X11Window : WindowImpl
     {
         if (_closed) return;
         XMapWindow(_display, _window);
+        if (_startMinimized)
+        {
+            // ICCCM 没有「以图标状态映射」的请求；映射后立即请求窗口管理器最小化
+            _startMinimized = false;
+            SendRootClientMessage(_platform.WmChangeState, IconicState, 0, 0, 0, 0);
+        }
         XFlush(_display);
     }
 
@@ -144,6 +481,48 @@ public sealed unsafe class X11Window : WindowImpl
     {
         if (_closed) return;
         Destroy();
+    }
+
+    // ------------------------------------------------------------ 自绘标题栏（design/04）
+
+    public void BeginDragMove()
+    {
+        if (_closed) return;
+        // EWMH：把移动交给窗口管理器；坐标用最近一次指针事件的根窗口坐标
+        SendRootClientMessage(_platform.NetWmMoveresize, _lastRootX, _lastRootY,
+            NetWmMoveresizeMove, 1 /* button 1 */, NetWmMoveresizeSourceApplication);
+    }
+
+    public void Minimize()
+    {
+        if (_closed) return;
+        // ICCCM WM_CHANGE_STATE → IconicState
+        SendRootClientMessage(_platform.WmChangeState, IconicState, 0, 0, 0, 0);
+    }
+
+    public void ToggleMaximize()
+    {
+        if (_closed) return;
+        SetWindowState(_windowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+    }
+
+    public bool IsMaximized => _windowState == WindowState.Maximized;
+
+    /// <summary>向根窗口投递一条 EWMH / ICCCM ClientMessage（格式化按 long[5]）。</summary>
+    void SendRootClientMessage(ulong type, long l0, long l1, long l2, long l3, long l4)
+    {
+        var ev = new XEvent();
+        ev.xclient.type = ClientMessage;
+        ev.xclient.window = _window;
+        ev.xclient.message_type = type;
+        ev.xclient.format = 32;
+        ev.xclient.l0 = l0;
+        ev.xclient.l1 = l1;
+        ev.xclient.l2 = l2;
+        ev.xclient.l3 = l3;
+        ev.xclient.l4 = l4;
+        XSendEvent(_display, _platform.Root, 0, SubstructureRedirectMask | SubstructureNotifyMask, &ev);
+        XFlush(_display);
     }
 
     public override void SetTitle(string title)
@@ -255,9 +634,16 @@ public sealed unsafe class X11Window : WindowImpl
             case ConfigureNotify: OnConfigure(&ev->xconfigure); break;
             case MapNotify:
                 _mapped = true;
+                RefreshStateFromProperties();
                 break;
             case UnmapNotify:
                 _mapped = false;
+                RefreshStateFromProperties();
+                break;
+            case PropertyNotify:
+                if (ev->xproperty.window == _window &&
+                    (ev->xproperty.atom == _platform.NetWmState || ev->xproperty.atom == _platform.WmState))
+                    RefreshStateFromProperties();
                 break;
             case ClientMessage:
                 if (ev->xclient.message_type == _platform.WmProtocols && (ulong)ev->xclient.l0 == _platform.WmDeleteWindow)
@@ -303,11 +689,33 @@ public sealed unsafe class X11Window : WindowImpl
 
     void OnConfigure(XConfigureEvent* e)
     {
+        UpdatePosition(e);
         var size = new PixelSize(Math.Max(1, e->width), Math.Max(1, e->height));
         if (size == _clientPx) return; // 只是移动
         _clientPx = size;
         Events?.OnResized(ClientSize, RenderScale);
         _frameRequested = true;
+    }
+
+    /// <summary>
+    /// ConfigureNotify 的 x/y 是相对父窗口（窗口管理器重设父窗口后是框架）的坐标；用 XTranslateCoordinates
+    /// 换成根窗口坐标，再按缩放换成逻辑像素。换算失败时退回事件里的坐标。
+    /// </summary>
+    void UpdatePosition(XConfigureEvent* e)
+    {
+        int rootX = e->x, rootY = e->y;
+        ulong child;
+        if (XTranslateCoordinates(_display, _window, _platform.Root, 0, 0, &rootX, &rootY, &child) == 0)
+        {
+            rootX = e->x;
+            rootY = e->y;
+        }
+        double scale = RenderScale;
+        if (!(scale > 0) || double.IsInfinity(scale)) scale = 1;
+        var position = new Point((float)(rootX / scale), (float)(rootY / scale));
+        if (position == _position) return;
+        _position = position;
+        (Events as IWindowStateEvents)?.OnPositionChanged(position);
     }
 
     void OnFocus(bool focused, XFocusChangeEvent* e)
@@ -316,13 +724,16 @@ public sealed unsafe class X11Window : WindowImpl
         if (e->detail == NotifyPointer) return;
         if (_ic != IntPtr.Zero)
         {
-            if (focused) XSetICFocus(_ic);
+            // 没有文本客户端或客户端是密码框时不让输入上下文获得焦点：窗口重新获得焦点时也要保持这一状态，
+            // 否则密码框会重新启用输入法组合（XIC 与窗口的关联本身保留，见 X11TextInput.OnClientChanged）。
+            if (focused && _textInput?.Client is { Options.IsPassword: false }) XSetICFocus(_ic);
             else XUnsetICFocus(_ic);
         }
         if (!focused) Array.Clear(_keyDown, 0, _keyDown.Length); // 失焦期间的抬起收不到
         if (focused == _focused) return;
         _focused = focused;
         Events?.OnFocusChanged(focused);
+        (Events as IWindowLifecycleEvents)?.OnActivated(focused);
     }
 
     void OnKey(XEvent* ev)
@@ -435,6 +846,8 @@ public sealed unsafe class X11Window : WindowImpl
         var pos = ToLogical(e->x, e->y);
         var time = _platform.ServerTime(e->time);
         var mods = KeyMap.Modifiers(e->state);
+        _lastRootX = e->x_root;
+        _lastRootY = e->y_root;
 
         // 滚轮是按钮 4–7（只有按下有意义）。符号约定与 macOS/Win32 后端一致：dy > 0 向上，dx > 0 向左（换算见 Input/X11Wheel.cs）
         if (X11Wheel.IsWheelButton(e->button))
@@ -474,6 +887,8 @@ public sealed unsafe class X11Window : WindowImpl
 
     void OnMotion(XMotionEvent* e)
     {
+        _lastRootX = e->x_root;
+        _lastRootY = e->y_root;
         float pressure = _buttons == PointerButtons.None ? 0f : 0.5f;
         Events?.OnPointer(new RawPointerEvent(RawPointerEventType.Move, PointerType.Mouse, 0, ToLogical(e->x, e->y),
             PointerButtons.None, _buttons, KeyMap.Modifiers(e->state), _platform.ServerTime(e->time), pressure));
@@ -485,6 +900,8 @@ public sealed unsafe class X11Window : WindowImpl
         var pos = ToLogical(e->x, e->y);
         var time = _platform.ServerTime(e->time);
         var mods = KeyMap.Modifiers(e->state);
+        _lastRootX = e->x_root;
+        _lastRootY = e->y_root;
         if (enter)
         {
             if (_leavePending) { _leavePending = false; return; } // 拖出又拖回：对上层而言从未离开

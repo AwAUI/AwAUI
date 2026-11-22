@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices.JavaScript;
+using System.Threading.Tasks;
+using AwAUI.Browser.Accessibility;
 using AwAUI.Browser.Interop;
 using AwAUI.Graphics;
 using AwAUI.Platform;
@@ -28,6 +32,12 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
     string _cursor = "default";
     bool _closed;
     bool _focused;
+    bool _activated = true;
+    bool _accessibilityCreated;
+    BrowserAccessibilityBridge? _accessibility;
+    WindowState _windowState;
+    AppLifecycle _lifecycle;
+    Thickness _safeArea;
 
     internal BrowserWindow(BrowserPlatform platform, int handle, string canvasId, BrowserWindowOptions options, in AttachResult initial)
     {
@@ -41,6 +51,21 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
         _surface = new BrowserSurface(this);
         _composition = new CompositionTracker(this);
         _textInput = new BrowserTextInput(this, _composition);
+        // 焦点进入 / 离开可编辑元素（或输入类型变化）时，把客户端选项里的软键盘提示同步给代理文本框
+        _textInput.ClientChanged += _ => ApplyTextInputOptions();
+        // 浏览器把窗口状态与页面生命周期作为全局事件报告；这里只取初始值，之后由 JS 回调更新。
+        try
+        {
+            _activated = BrowserInterop.HasFocus();
+            _windowState = BrowserInterop.IsFullscreen() ? WindowState.FullScreen : WindowState.Normal;
+            _safeArea = ReadSafeArea();
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            _activated = true;
+            _windowState = WindowState.Normal;
+            _safeArea = Thickness.Zero;
+        }
     }
 
     /// <summary>JS 端识别该窗口的句柄。</summary>
@@ -63,6 +88,95 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
 
     /// <summary>平台的剪贴板（全异步；剪贴板快捷键经浏览器的 copy / cut / paste 事件完成）。</summary>
     public override BrowserClipboard Clipboard => _platform.Clipboard;
+
+    /// <summary>浏览器只暴露一个逻辑显示器，见 <see cref="BrowserScreens"/>。</summary>
+    public override Screens Screens => _platform.Screens;
+
+    /// <summary>文件选择器：隐藏的 &lt;input type=file&gt; 与 File System Access / 下载回退。</summary>
+    public override StorageProvider StorageProvider => _platform.StorageProvider;
+
+    /// <summary>用新的浏览上下文打开 http / https / mailto URI。</summary>
+    public override Launcher Launcher => _platform.Launcher;
+
+    /// <summary>
+    /// Accessibility bridge for the Web platform: a canvas is opaque to screen readers, so the bridge keeps a
+    /// shadow ARIA DOM in sync with the semantic tree. Created on first access; returns null when
+    /// <c>AWAUI_BROWSER_A11Y=0</c> or when the page disables it (the semantic tree then stays lazy).
+    /// </summary>
+    public override AccessibilityBridge? Accessibility
+    {
+        get
+        {
+            if (!_accessibilityCreated)
+            {
+                _accessibilityCreated = true;
+                _accessibility = BrowserAccessibilityBridge.TryCreate(Handle);
+            }
+            return _accessibility;
+        }
+    }
+
+    /// <summary>浏览器不报告窗口位置（canvas 在页面布局中），返回 (0, 0)。</summary>
+    public override Point Position => default;
+
+    /// <summary>浏览器无法移动页面中的 canvas；忽略（需要定位时用 <see cref="WindowOptions.StartupLocation"/> 的尽力滚动）。</summary>
+    public override void SetPosition(Point position) { }
+
+    /// <summary>Normal 或 FullScreen（由 <c>document.fullscreenElement</c> 报告）；浏览器没有最小化 / 最大化窗口概念。</summary>
+    public override WindowState WindowState => _windowState;
+
+    /// <summary>
+    /// 切换全屏：FullScreen 调用 canvas 的 <c>requestFullscreen</c>，Normal 退出全屏。
+    /// 浏览器通常要求用户手势，失败时保持原状态；Minimized / Maximized 被忽略（不支持，也不假装支持）。
+    /// </summary>
+    public override void SetWindowState(WindowState state)
+    {
+        if (_closed) return;
+        switch (state)
+        {
+            case WindowState.FullScreen:
+                _ = SetFullscreenAsync(true);
+                break;
+            case WindowState.Normal:
+                _ = SetFullscreenAsync(false);
+                break;
+            default:
+                return;
+        }
+    }
+
+    /// <summary>窗口所在的页面是否获得焦点（<c>window</c> 的 focus / blur 事件）。</summary>
+    public override bool IsActive => _activated;
+
+    /// <summary>聚焦代理文本框（键盘与输入法事件的来源），并尽力把页面窗口提到前台。</summary>
+    public override void Activate()
+    {
+        if (_closed) return;
+        try { BrowserInterop.ActivateWindow(Handle); }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // 页面焦点由浏览器控制；失败时保持现状。
+        }
+    }
+
+    /// <summary>安全区来自 CSS <c>env(safe-area-inset-*)</c>；桌面浏览器上没有刘海时为 0。</summary>
+    public override Thickness SafeAreaInsets => _safeArea;
+
+    async Task SetFullscreenAsync(bool fullscreen)
+    {
+        try
+        {
+            bool ok = fullscreen
+                ? await BrowserInterop.RequestFullscreen(Handle).ConfigureAwait(true)
+                : await BrowserInterop.ExitFullscreen().ConfigureAwait(true);
+            // fullscreenchange 通常已经报告过；这里覆盖没有派发事件（或事件先于本回调返回）的情况。
+            if (ok) HandleFullscreen(fullscreen);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // 权限 / 用户手势 / 策略拒绝：状态不变。
+        }
+    }
 
     /// <summary>代理文本框是否有焦点（即窗口是否接收键盘输入）。</summary>
     public bool IsFocused => _focused;
@@ -98,6 +212,36 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
 
     /// <summary>canvas 已在页面中，无需操作。</summary>
     public override void Show() { }
+
+    /// <summary>
+    /// 把 <see cref="WindowOptions"/> 里浏览器能表达的部分交给 JS：最小 / 最大尺寸用 canvas 的 CSS 限制；
+    /// <see cref="WindowStartupLocation.CenterScreen"/> / <see cref="WindowStartupLocation.CenterOwner"/> 与
+    /// <see cref="WindowOptions.Position"/> 通过滚动页面把 canvas 移到视口（尽力而为，页面不能滚动时无效果）；
+    /// <see cref="WindowState.FullScreen"/> 请求全屏。Topmost / Icon / ShowInTaskbar / SizeToContent 在浏览器中无对应能力，忽略。
+    /// </summary>
+    internal void ApplyOptions(WindowOptions options)
+    {
+        if (_closed) return;
+        var position = options.Position;
+        try
+        {
+            BrowserInterop.ApplyWindowOptions(
+                Handle,
+                (int)options.StartupLocation,
+                position.HasValue,
+                position?.X ?? 0,
+                position?.Y ?? 0,
+                options.State == WindowState.FullScreen,
+                options.MinWidth ?? -1,
+                options.MinHeight ?? -1,
+                options.MaxWidth ?? -1,
+                options.MaxHeight ?? -1);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // 页面布局与全屏都由浏览器控制；失败时保持默认。
+        }
+    }
 
     public override void Close()
     {
@@ -174,6 +318,8 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
     internal void HandleResize(double cssWidth, double cssHeight, double devicePixelRatio, double deviceWidth, double deviceHeight)
     {
         if (_closed) return;
+        // 旋转 / 视口变化时 env(safe-area-inset-*) 可能变化；只在真的变化时通知。
+        RefreshSafeArea();
         var metrics = CanvasMetrics.Compute(cssWidth, cssHeight, devicePixelRatio, deviceWidth, deviceHeight);
         if (metrics == _metrics) return;
         _metrics = metrics;
@@ -264,11 +410,116 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
         _composition.Handle(kind, data, selectionStart, selectionEnd);
     }
 
+    /// <summary>
+    /// 把当前文本输入客户端的选项作为提示同步给隐藏的代理文本框：
+    /// <see cref="TextInputOptions.LocaleHints"/> 首项 → <c>lang</c>，<see cref="TextInputOptions.ContentType"/> / 多行 → <c>inputmode</c>，
+    /// <see cref="TextInputOptions.ReturnKeyType"/> → <c>enterkeyhint</c>。其余选项（自动更正、建议、敏感内容）桌面浏览器无法表达，只作为提示。
+    /// </summary>
+    void ApplyTextInputOptions()
+    {
+        if (_closed) return;
+        if (_textInput.Client is { } client)
+        {
+            var options = client.Options;
+            BrowserTextInputHints.SetTextInputOptions(Handle, FirstLocaleHint(options.LocaleHints), InputModeFor(options), EnterKeyHintFor(options));
+        }
+        else
+        {
+            BrowserTextInputHints.SetTextInputOptions(Handle, null, "text", null);
+        }
+    }
+
+    static string? FirstLocaleHint(IReadOnlyList<string>? hints) =>
+        hints is { Count: > 0 } && !string.IsNullOrWhiteSpace(hints[0]) ? hints[0] : null;
+
+    static string InputModeFor(in TextInputOptions options)
+    {
+        // 多行输入总是用 text（软键盘回车插入换行）；单行按内容类型选择键盘布局
+        if (options.Multiline) return "text";
+        return options.ContentType switch
+        {
+            TextInputContentType.Number => "numeric",
+            TextInputContentType.Email => "email",
+            TextInputContentType.Url => "url",
+            TextInputContentType.Search => "search",
+            TextInputContentType.Phone => "tel",
+            // 密码与普通文本都没有专用的 inputmode：浏览器不会把 textarea 当成密码框
+            _ => "text",
+        };
+    }
+
+    static string? EnterKeyHintFor(in TextInputOptions options) => options.ReturnKeyType switch
+    {
+        TextInputReturnKeyType.Done => "done",
+        TextInputReturnKeyType.Go => "go",
+        TextInputReturnKeyType.Next => "next",
+        TextInputReturnKeyType.Return => "enter",
+        TextInputReturnKeyType.Search => "search",
+        TextInputReturnKeyType.Send => "send",
+        _ => null, // Default：不设置，由浏览器决定
+    };
+
     internal void HandleFocus(bool focused)
     {
         if (_closed || focused == _focused) return;
         _focused = focused;
         Events?.OnFocusChanged(focused);
+    }
+
+    /// <summary>页面 / 窗口级激活（window 的 focus / blur，页面隐藏时视为失活）。</summary>
+    internal void HandleActivation(bool active)
+    {
+        if (_closed || active == _activated) return;
+        _activated = active;
+        if (Events is IWindowLifecycleEvents lifecycle)
+        {
+            lifecycle.OnActivated(active);
+            lifecycle.OnLifecycle(active ? AppLifecycle.Active : AppLifecycle.Inactive);
+        }
+    }
+
+    /// <summary>visibilitychange / pagehide / pageshow 映射到 <see cref="AppLifecycle"/>；未知数值被忽略为 Unknown。</summary>
+    internal void HandleLifecycle(int state)
+    {
+        if (_closed) return;
+        if (state < (int)AppLifecycle.Unknown || state > (int)AppLifecycle.Foreground) state = (int)AppLifecycle.Unknown;
+        var next = (AppLifecycle)state;
+        if (next == _lifecycle) return;
+        _lifecycle = next;
+        (Events as IWindowLifecycleEvents)?.OnLifecycle(next);
+    }
+
+    /// <summary>document 的全屏状态变化：Normal ↔ FullScreen；浏览器没有其它窗口状态。</summary>
+    internal void HandleFullscreen(bool fullscreen)
+    {
+        if (_closed) return;
+        var next = fullscreen ? WindowState.FullScreen : WindowState.Normal;
+        if (next == _windowState) return;
+        _windowState = next;
+        (Events as IWindowStateEvents)?.OnWindowStateChanged(next);
+    }
+
+    Thickness ReadSafeArea()
+    {
+        try
+        {
+            var value = BrowserInterop.SafeArea(Handle);
+            return value is { Length: >= 4 }
+                ? new Thickness(value[0], value[1], value[2], value[3])
+                : Thickness.Zero;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            return Thickness.Zero;
+        }
+    }
+
+    void RefreshSafeArea()
+    {
+        var next = ReadSafeArea();
+        if (next == _safeArea) return;
+        _safeArea = next;
+        (Events as IWindowLifecycleEvents)?.OnSafeAreaChanged(next);
     }
 
     internal void HandleVisibility(bool visible)
@@ -377,4 +628,14 @@ public sealed class BrowserWindow : WindowImpl, ITextInputSink
             }
         }
     }
+}
+
+/// <summary>
+/// 代理 &lt;textarea&gt; 的软键盘提示（JS 端 <c>setTextInputOptions</c>）。这些选项在桌面浏览器上只是提示：
+/// 浏览器只表达语言（<c>lang</c>）、键盘布局（<c>inputmode</c>）与回车键样式（<c>enterkeyhint</c>）。
+/// </summary>
+internal static partial class BrowserTextInputHints
+{
+    [JSImport("setTextInputOptions", BrowserInterop.ModuleName)]
+    internal static partial void SetTextInputOptions(int handle, string? lang, string inputMode, string? enterKeyHint);
 }

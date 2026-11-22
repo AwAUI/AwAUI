@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using AwAUI.Graphics;
 using AwAUI.Platform;
 
 namespace AwAUI.Headless;
@@ -123,21 +125,47 @@ public sealed class HeadlessTextInput : TextInputMethod
 }
 
 /// <summary>
-/// 内存中的剪贴板（进程内、与系统剪贴板无关）。读写立即完成；<see cref="DenyAccess"/> 可模拟被拒绝的访问（如 Web 上缺少权限）。
+/// 内存中的剪贴板（进程内、与系统剪贴板无关）。文本、HTML、图片与文件列表都保存在进程内；
+/// 读写立即完成；<see cref="DenyAccess"/> 可模拟被拒绝的访问（如 Web 上缺少权限）。
+/// 文本与 HTML 受 <see cref="Clipboard.MaxTextLength"/>（16M 码元）限制。
+/// 图片以像素副本保存，<see cref="GetImageAsync"/> 返回新的副本（调用方负责释放），
+/// 因此释放写入时传入的位图不会影响已保存的内容。
 /// </summary>
 public sealed class HeadlessClipboard : Clipboard
 {
-    /// <summary>当前内容；null 表示空。</summary>
+    Bitmap? _image;
+    StorageFile[] _files = Array.Empty<StorageFile>();
+
+    /// <summary>当前文本；null 或空表示没有文本。</summary>
     public string? Text { get; set; }
 
-    /// <summary>为 true 时读返回 null、写返回 false。</summary>
+    /// <summary>当前 HTML 片段；null 或空表示没有 HTML 格式。</summary>
+    public string? Html { get; set; }
+
+    /// <summary>当前图片（剪贴板持有并负责释放）；没有图片时为 null。读取副本请用 <see cref="GetImageAsync"/>。</summary>
+    public Bitmap? Image => _image;
+
+    /// <summary>当前图片尺寸；没有图片时为 null。</summary>
+    public PixelSize? ImageSize => _image?.Size;
+
+    /// <summary>当前文件列表（按写入顺序）；总是非 null。</summary>
+    public IReadOnlyList<StorageFile> Files => _files;
+
+    /// <summary>为 true 时所有读取返回 null / false / 空列表，写入返回 false。</summary>
     public bool DenyAccess { get; set; }
 
-    /// <summary>读取与写入的次数（测试检查）。</summary>
+    /// <summary>文本读取与写入的次数（测试检查）。</summary>
     public int ReadCount { get; private set; }
 
     /// <inheritdoc cref="ReadCount"/>
     public int WriteCount { get; private set; }
+
+    public int HtmlReadCount { get; private set; }
+    public int HtmlWriteCount { get; private set; }
+    public int ImageReadCount { get; private set; }
+    public int ImageWriteCount { get; private set; }
+    public int FilesReadCount { get; private set; }
+    public int FilesWriteCount { get; private set; }
 
     public override Task<string?> GetTextAsync()
     {
@@ -152,5 +180,76 @@ public sealed class HeadlessClipboard : Clipboard
         if (DenyAccess) return Task.FromResult(false);
         Text = LimitLength(text);
         return Task.FromResult(true);
+    }
+
+    public override Task<string?> GetHtmlAsync()
+    {
+        HtmlReadCount++;
+        return Task.FromResult(DenyAccess || string.IsNullOrEmpty(Html) ? null : Html);
+    }
+
+    public override Task<bool> SetHtmlAsync(string html)
+    {
+        if (html is null) throw new ArgumentNullException(nameof(html));
+        HtmlWriteCount++;
+        if (DenyAccess) return Task.FromResult(false);
+        Html = LimitLength(html);
+        return Task.FromResult(true);
+    }
+
+    public override Task<Bitmap?> GetImageAsync()
+    {
+        ImageReadCount++;
+        if (DenyAccess || _image is null) return Task.FromResult<Bitmap?>(null);
+        return Task.FromResult<Bitmap?>(Clone(_image));
+    }
+
+    public override Task<bool> SetImageAsync(Bitmap image)
+    {
+        if (image is null) throw new ArgumentNullException(nameof(image));
+        ImageWriteCount++;
+        if (DenyAccess) return Task.FromResult(false);
+        _image?.Dispose();
+        _image = Clone(image);
+        return Task.FromResult(true);
+    }
+
+    public override Task<IReadOnlyList<StorageFile>> GetFilesAsync()
+    {
+        FilesReadCount++;
+        if (DenyAccess) return Task.FromResult<IReadOnlyList<StorageFile>>(Array.Empty<StorageFile>());
+        return Task.FromResult<IReadOnlyList<StorageFile>>((StorageFile[])_files.Clone());
+    }
+
+    public override Task<bool> SetFilesAsync(IReadOnlyList<StorageFile> files)
+    {
+        if (files is null) throw new ArgumentNullException(nameof(files));
+        FilesWriteCount++;
+        if (DenyAccess) return Task.FromResult(false);
+        var copy = new StorageFile[files.Count];
+        for (int i = 0; i < copy.Length; i++)
+            copy[i] = files[i] ?? throw new ArgumentException("Files cannot contain null.", nameof(files));
+        _files = copy;
+        return Task.FromResult(true);
+    }
+
+    /// <summary>清空全部格式（文本、HTML、图片与文件列表）。</summary>
+    public override Task<bool> ClearAsync()
+    {
+        WriteCount++;
+        if (DenyAccess) return Task.FromResult(false);
+        Text = string.Empty;
+        Html = null;
+        _image?.Dispose();
+        _image = null;
+        _files = Array.Empty<StorageFile>();
+        return Task.FromResult(true);
+    }
+
+    static Bitmap Clone(Bitmap source)
+    {
+        var copy = new Bitmap(source.Size, source.Format);
+        source.CopyTo(copy);
+        return copy;
     }
 }

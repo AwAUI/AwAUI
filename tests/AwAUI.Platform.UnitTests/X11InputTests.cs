@@ -132,7 +132,7 @@ sealed class FakeXServer
     public readonly Queue<Action> Events = new();
     public readonly List<Client> Clients = new();
     public static readonly X11SelectionAtoms Atoms = new(clipboard: 100, targets: 101, utf8String: 102, textPlainUtf8: 103, @string: 31,
-        text: 104, incr: 105, atom: 4, property: 106);
+        text: 104, incr: 105, atom: 4, property: 106, html: 107, imagePng: 108, uriList: 109);
     public long Now { get; set; }
     public int MaxChunk = 64;
 

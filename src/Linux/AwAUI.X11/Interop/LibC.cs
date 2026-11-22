@@ -18,6 +18,11 @@ internal static unsafe class LibC
     [DllImport(Lib, ExactSpelling = true)] public static extern int close(int fd);
     [DllImport(Lib, ExactSpelling = true)] public static extern int clock_gettime(int clockId, Timespec* ts);
     [DllImport(Lib, ExactSpelling = true)] public static extern IntPtr setlocale(int category, byte* locale);
+    /// <summary>
+    /// size_t mbrtowc(wchar_t*, const char*, size_t, mbstate_t*)：按当前 LC_CTYPE 区域设置把一个多字节字符转换为宽字符。
+    /// Linux 上 wchar_t 是 4 字节的 UTF-32；返回 (size_t)-1 表示无效序列、(size_t)-2 表示末尾不完整序列，0 表示遇到 NUL。
+    /// </summary>
+    [DllImport(Lib, ExactSpelling = true)] public static extern UIntPtr mbrtowc(uint* pwc, byte* s, UIntPtr n, byte* state);
 
     [DllImport(Lib, ExactSpelling = true, SetLastError = true)] public static extern int shmget(int key, UIntPtr size, int flags);
     [DllImport(Lib, ExactSpelling = true, SetLastError = true)] public static extern IntPtr shmat(int id, IntPtr address, int flags);

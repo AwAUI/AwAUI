@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using AwAUI.Graphics;
 
 namespace AwAUI.Platform;
 
 /// <summary>
 /// 系统剪贴板（design/04）。接口全异步：Web 上的剪贴板只能异步访问且受权限与用户手势限制；桌面平台的实现通常同步完成并返回已完成的任务。
-/// 只在 UI 线程上调用；返回的任务可能在 UI 线程之外完成，调用方自行回到 UI 线程。目前只有纯文本，HTML / 图片等格式以后作为新的虚成员追加。
+/// 只在 UI 线程上调用；返回的任务可能在 UI 线程之外完成，调用方自行回到 UI 线程。文本是基线能力；HTML、图片与文件以虚成员追加，
+/// 不支持的平台返回 null / false / 空列表。
 /// <para>
 /// 剪贴板内容来自其他程序，视为不可信：读取的文本长度不超过 <see cref="MaxTextLength"/>（超出时截断，不切开代理对），
 /// 实现不得因对方声明的尺寸而无界分配或等待。
@@ -21,6 +24,25 @@ public abstract class Clipboard
 
     /// <summary>写入纯文本（替换剪贴板的全部内容）；返回是否成功。超过 <see cref="MaxTextLength"/> 的文本被截断。</summary>
     public abstract Task<bool> SetTextAsync(string text);
+
+    /// <summary>读取 HTML 片段；没有 HTML 格式时返回 null。</summary>
+    public virtual Task<string?> GetHtmlAsync() => Task.FromResult<string?>(null);
+
+    /// <summary>写入 HTML 片段（同时保留纯文本回退）；不支持时返回 false。</summary>
+    public virtual Task<bool> SetHtmlAsync(string html) => Task.FromResult(false);
+
+    /// <summary>读取图片；没有图片格式或平台不支持时返回 null。调用方负责释放返回的位图。</summary>
+    public virtual Task<Bitmap?> GetImageAsync() => Task.FromResult<Bitmap?>(null);
+
+    /// <summary>写入图片；不支持时返回 false。</summary>
+    public virtual Task<bool> SetImageAsync(Bitmap image) => Task.FromResult(false);
+
+    /// <summary>读取文件列表；没有文件格式或平台不支持时返回空列表。</summary>
+    public virtual Task<IReadOnlyList<StorageFile>> GetFilesAsync() =>
+        Task.FromResult<IReadOnlyList<StorageFile>>(Array.Empty<StorageFile>());
+
+    /// <summary>写入文件列表；不支持时返回 false。</summary>
+    public virtual Task<bool> SetFilesAsync(IReadOnlyList<StorageFile> files) => Task.FromResult(false);
 
     /// <summary>清空剪贴板；默认写入空文本。</summary>
     public virtual Task<bool> ClearAsync() => SetTextAsync(string.Empty);

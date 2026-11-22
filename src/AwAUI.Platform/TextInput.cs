@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AwAUI.Platform;
 
@@ -49,7 +50,36 @@ public enum TextInputContentType : byte
     Phone,
 }
 
+/// <summary>软键盘回车键的样式（提示，桌面后端忽略）。与 HTML 的 <c>enterkeyhint</c> 对应。</summary>
+public enum TextInputReturnKeyType : byte
+{
+    /// <summary>平台默认（浏览器不设置 enterkeyhint）。</summary>
+    Default,
+    Done,
+    Go,
+    Next,
+
+    /// <summary>换行（HTML 的 <c>enterkeyhint="enter"</c>）。</summary>
+    Return,
+
+    Search,
+    Send,
+}
+
+/// <summary>自动大写策略（提示，桌面后端忽略）。与 HTML 的 <c>autocapitalize</c> 对应。</summary>
+public enum TextInputAutoCapitalization : byte
+{
+    None,
+    Sentences,
+    Words,
+    Characters,
+}
+
 /// <summary>文本输入客户端的选项（design/04「IME」）。</summary>
+/// <para>
+/// 除内容类型与多行外，其余成员都是给移动端软键盘 / 浏览器代理文本框的<b>提示</b>：桌面后端可以忽略它们，
+/// 但不能因此改变编辑行为。新成员以 init 属性追加，不改变构造函数与既有成员的默认值。
+/// </para>
 public readonly struct TextInputOptions : IEquatable<TextInputOptions>
 {
     public TextInputOptions(TextInputContentType contentType = TextInputContentType.Text, bool multiline = false, bool autoCorrect = true)
@@ -70,9 +100,50 @@ public readonly struct TextInputOptions : IEquatable<TextInputOptions>
     /// <summary>密码框：平台应关闭输入法组合（只接受直接输入的字符），不显示候选。</summary>
     public bool IsPassword => ContentType == TextInputContentType.Password;
 
-    public bool Equals(TextInputOptions o) => ContentType == o.ContentType && Multiline == o.Multiline && AutoCorrect == o.AutoCorrect;
+    /// <summary>软键盘回车键的样式（提示）。</summary>
+    public TextInputReturnKeyType ReturnKeyType { get; init; }
+
+    /// <summary>自动大写的策略（提示）。</summary>
+    public TextInputAutoCapitalization AutoCapitalization { get; init; }
+
+    /// <summary>敏感内容（密码、个人信息）：平台不应记录，也不应显示建议或候选（提示）。</summary>
+    public bool IsSensitive { get; init; }
+
+    /// <summary>是否显示拼写建议 / 候选（提示；密码框与 <see cref="IsSensitive"/> 时平台应关闭）。</summary>
+    public bool ShowSuggestions { get; init; } = true;
+
+    /// <summary>输入语言的 BCP 47 标签，按偏好排序（提示；浏览器只使用首项作为代理文本框的 <c>lang</c>）。</summary>
+    public IReadOnlyList<string>? LocaleHints { get; init; }
+
+    public bool Equals(TextInputOptions o) =>
+        ContentType == o.ContentType && Multiline == o.Multiline && AutoCorrect == o.AutoCorrect
+        && ReturnKeyType == o.ReturnKeyType && AutoCapitalization == o.AutoCapitalization
+        && IsSensitive == o.IsSensitive && ShowSuggestions == o.ShowSuggestions
+        && LocaleHintsEqual(LocaleHints, o.LocaleHints);
+
     public override bool Equals(object? obj) => obj is TextInputOptions o && Equals(o);
-    public override int GetHashCode() => ((int)ContentType << 2) | (Multiline ? 2 : 0) | (AutoCorrect ? 1 : 0);
+
+    public override int GetHashCode()
+    {
+        int h = HashCodeCompat.Combine((int)ContentType, (int)ReturnKeyType);
+        h = HashCodeCompat.Combine(h, (int)AutoCapitalization);
+        h = HashCodeCompat.Combine(h, (Multiline ? 1 : 0) | (AutoCorrect ? 2 : 0) | (IsSensitive ? 4 : 0) | (ShowSuggestions ? 8 : 0));
+        if (LocaleHints is { } hints)
+        {
+            h = HashCodeCompat.Combine(h, hints.Count);
+            for (int i = 0; i < hints.Count; i++) h = HashCodeCompat.Combine(h, hints[i]?.GetHashCode() ?? 0);
+        }
+        return h;
+    }
+
+    static bool LocaleHintsEqual(IReadOnlyList<string>? a, IReadOnlyList<string>? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a is null || b is null || a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (!string.Equals(a[i], b[i], StringComparison.Ordinal)) return false;
+        return true;
+    }
 }
 
 /// <summary>
@@ -142,6 +213,12 @@ public abstract class TextInputMethod
     public ITextInputClient? Client => _client;
 
     /// <summary>
+    /// 客户端变化（焦点进入 / 离开可编辑元素，或同一元素的输入选项变化）。在 <see cref="OnClientChanged"/> 之后触发，
+    /// 此时 <see cref="Client"/> 已经是新客户端；平台后端据此把 <see cref="TextInputOptions"/> 的提示应用到底层输入法。
+    /// </summary>
+    public event Action<ITextInputClient?>? ClientChanged;
+
+    /// <summary>
     /// 焦点进入（非 null）或离开（null）可编辑元素。切换客户端时平台放弃进行中的组合（框架在此之前已按需提交预编辑文本）。
     /// </summary>
     public void SetClient(ITextInputClient? client)
@@ -150,6 +227,7 @@ public abstract class TextInputMethod
         var old = _client;
         _client = client;
         OnClientChanged(old, client);
+        ClientChanged?.Invoke(client);
     }
 
     /// <summary>客户端变化：启用 / 关闭输入法、按 <see cref="ITextInputClient.Options"/> 配置、放弃旧组合。</summary>
