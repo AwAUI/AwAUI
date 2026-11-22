@@ -1,169 +1,61 @@
 @using AwAUI.Shadcn
+@using ShadcnGallery
+@using AwAUI.Icons.Lucide
+@using AwAUI.Controls.Primitives
 
-<div class="@(_compact.Value ? "gallery-page gallery-compact" : "gallery-page")">
-    <div class="gallery">
-        <div class="gallery-intro">
-            <text class="gallery-title" role="heading" aria-level="1">AwAUI component gallery</text>
-            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" @onclick="ToggleTheme">
-                @(_dark.Value ? "Light theme" : "Dark theme")
-            </AwAUI.Shadcn.Button>
+<div class="docs-root">
+    <div class="docs-sidebar" role="navigation" aria-label="Component navigation">
+        @(Brand())
+        <div class="docs-search">@(SearchBox())</div>
+        <div class="docs-nav">@(Nav())</div>
+        <div class="docs-sidebar-footer">
+            <text class="docs-footer-text">AwAUI · shadcn components</text>
         </div>
-        <div class="gallery-grid">
-            <AwAUI.Shadcn.Card>
-                <AwAUI.Shadcn.CardHeader>
-                    <AwAUI.Shadcn.CardTitle>Button</AwAUI.Shadcn.CardTitle>
-                </AwAUI.Shadcn.CardHeader>
-                <AwAUI.Shadcn.CardContent>
-                    <div class="gallery-stack">
-                        <div class="gallery-buttons">
-                            <AwAUI.Shadcn.Button>Default</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Secondary">Secondary</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Outline</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Destructive">Destructive</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost">Ghost</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Link">Link</AwAUI.Shadcn.Button>
-                        </div>
-                        <AwAUI.Shadcn.Separator />
-                        <div class="gallery-buttons">
-                            <AwAUI.Shadcn.Button Size="ButtonSize.Sm">Small</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Size="ButtonSize.Lg">Large</AwAUI.Shadcn.Button>
-                            <AwAUI.Shadcn.Button Disabled="true">Disabled</AwAUI.Shadcn.Button>
-                        </div>
-                        @if (_shortcuts.Value)
-                        {
-                            <text class="gallery-value">Tab to focus a button. Press Space or Enter to activate it.</text>
-                        }
-                    </div>
-                </AwAUI.Shadcn.CardContent>
-            </AwAUI.Shadcn.Card>
-
-            <AwAUI.Shadcn.Card>
-                <AwAUI.Shadcn.CardHeader>
-                    <AwAUI.Shadcn.CardTitle>Workspace</AwAUI.Shadcn.CardTitle>
-                    <AwAUI.Shadcn.CardDescription>
-                        <AwAUI.Shadcn.Badge Variant="BadgeVariant.Secondary">Session only</AwAUI.Shadcn.Badge>
-                    </AwAUI.Shadcn.CardDescription>
-                    <AwAUI.Shadcn.CardAction>
-                        <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.Xs"
-                            Disabled="@(_workspace.Value == DefaultWorkspace)" @onclick="ResetName">Reset name</AwAUI.Shadcn.Button>
-                    </AwAUI.Shadcn.CardAction>
-                </AwAUI.Shadcn.CardHeader>
-                <AwAUI.Shadcn.CardContent>
-                    <div class="gallery-detail">
-                        <text class="gallery-label">Workspace name</text>
-                        <text class="gallery-value">@_workspace.Value</text>
-                    </div>
-                </AwAUI.Shadcn.CardContent>
-                <AwAUI.Shadcn.CardFooter>
-                    <AwAUI.Shadcn.Dialog Open="@_open.Value" OnOpenChange="@SetOpen">
-                        <AwAUI.Shadcn.DialogTrigger AsChild="true">
-                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" id="edit-workspace" data-motion-demo="dialog">Edit workspace</AwAUI.Shadcn.Button>
-                        </AwAUI.Shadcn.DialogTrigger>
-                        <AwAUI.Shadcn.DialogContent>
-                            <AwAUI.Shadcn.DialogHeader>
-                                <AwAUI.Shadcn.DialogTitle>Edit workspace</AwAUI.Shadcn.DialogTitle>
-                                <AwAUI.Shadcn.DialogDescription>Change the name shown on the card.</AwAUI.Shadcn.DialogDescription>
-                            </AwAUI.Shadcn.DialogHeader>
-                            <div class="gallery-field">
-                                <AwAUI.Shadcn.Label Id="workspace-name-label" For="workspace-name">Workspace name</AwAUI.Shadcn.Label>
-                                <AwAUI.Shadcn.Input Id="workspace-name" @bind-Value="_draft"
-                                    aria-labelledby="workspace-name-label" aria-invalid="@(InvalidName ? "true" : null)"
-                                    aria-describedby="@(InvalidName ? "workspace-name-error" : null)" @onsubmit="SaveName" />
-                                @if (InvalidName)
-                                {
-                                    <text id="workspace-name-error" class="gallery-field-error" role="alert">Enter a workspace name.</text>
-                                }
-                            </div>
-                            <AwAUI.Shadcn.DialogFooter>
-                                <AwAUI.Shadcn.DialogClose AsChild="true">
-                                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline">Cancel</AwAUI.Shadcn.Button>
-                                </AwAUI.Shadcn.DialogClose>
-                                <AwAUI.Shadcn.Button id="save-workspace" @onclick="SaveName">Save changes</AwAUI.Shadcn.Button>
-                            </AwAUI.Shadcn.DialogFooter>
-                        </AwAUI.Shadcn.DialogContent>
-                    </AwAUI.Shadcn.Dialog>
-                </AwAUI.Shadcn.CardFooter>
-            </AwAUI.Shadcn.Card>
-
-            <AwAUI.Shadcn.Card Class="gallery-preferences">
-                <AwAUI.Shadcn.CardHeader>
-                    <AwAUI.Shadcn.CardTitle>Preferences</AwAUI.Shadcn.CardTitle>
-                </AwAUI.Shadcn.CardHeader>
-                <AwAUI.Shadcn.CardContent>
-                    <div class="gallery-stack">
-                        <div class="gallery-preference">
-                            <div class="gallery-preference-copy">
-                                <AwAUI.Shadcn.Label Id="shortcut-hints-label" For="shortcut-hints">Show keyboard hints</AwAUI.Shadcn.Label>
-                                <text id="shortcut-hints-description" class="gallery-value">Display shortcuts under the button examples.</text>
-                            </div>
-                            <AwAUI.Shadcn.Checkbox Id="shortcut-hints" @bind-Checked="_shortcuts" aria-labelledby="shortcut-hints-label" aria-describedby="shortcut-hints-description" />
-                        </div>
-                        <AwAUI.Shadcn.Separator />
-                        <div class="gallery-preference">
-                            <div class="gallery-preference-copy">
-                                <AwAUI.Shadcn.Label Id="compact-spacing-label" For="compact-spacing">Compact spacing</AwAUI.Shadcn.Label>
-                                <text id="compact-spacing-description" class="gallery-value">Reduce the space between sections.</text>
-                            </div>
-                            <AwAUI.Shadcn.Switch Id="compact-spacing" @bind-Checked="_compact" aria-labelledby="compact-spacing-label" aria-describedby="compact-spacing-description" />
-                        </div>
-                    </div>
-                </AwAUI.Shadcn.CardContent>
-            </AwAUI.Shadcn.Card>
+    </div>
+    <div class="docs-main">
+        <div class="docs-header">
+            <div class="docs-header-left">
+                @(MobileMenuButton())
+                <div class="docs-breadcrumb">@(Breadcrumb())</div>
+            </div>
+            <div class="docs-header-actions">
+                <AwAUI.Shadcn.Badge Variant="BadgeVariant.Outline" Class="docs-version">new-york-v4</AwAUI.Shadcn.Badge>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconSm" @onclick="ToggleTheme" aria-label="Toggle theme">
+                    @(ThemeIcon())
+                </AwAUI.Shadcn.Button>
+            </div>
         </div>
-        @if (ShowCatalog)
-        {
-            <ComponentCatalog />
-        }
+        <div class="docs-content">@(ContentView())</div>
     </div>
 </div>
-
-<style global>
-    @layer theme, base, components, utilities;
-    @layer components {
-        .gallery-page { min-height: 100vh; background: var(--muted); padding: 56px 32px; }
-        .gallery { max-width: 960px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
-        .gallery-intro { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
-        .gallery-title { font-size: 36px; line-height: 1.15; font-weight: 700; letter-spacing: -0.025em; }
-        .gallery-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 16px; }
-        .gallery-stack, .gallery-field { display: flex; flex-direction: column; gap: 12px; }
-        .gallery-buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-        .gallery-preferences { grid-column: 1 / -1; }
-        .gallery-preference { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-        .gallery-preference-copy { display: flex; flex-direction: column; gap: 4px; }
-        .gallery-compact { padding-top: 28px; padding-bottom: 28px; }
-        .gallery-compact .gallery, .gallery-compact .gallery-grid { gap: 10px; }
-        .gallery-detail { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border); padding: 12px; border-radius: var(--radius); }
-        .gallery-label { font-size: 12px; font-weight: 600; }
-        .gallery-value { font-size: 14px; color: var(--muted-foreground); }
-        .gallery-field-error { font-size: 14px; color: var(--destructive); }
-        @media (width < 720px) {
-            .gallery-page { padding: 28px 16px; }
-            .gallery-grid { grid-template-columns: minmax(0, 1fr); }
-            .gallery-title { font-size: 28px; }
-        }
-    }
-</style>
+@(MobileSheet())
 
 @code {
-    const string DefaultWorkspace = "Studio North";
-
+    readonly State<string> _pageId = new("introduction");
+    readonly State<string> _query = new("");
     readonly State<bool> _dark = new(false);
-    readonly State<bool> _shortcuts = new(true);
-    readonly State<bool> _compact = new(false);
-    readonly State<bool> _open = new(false);
-    readonly State<string> _workspace = new(DefaultWorkspace);
-    readonly State<string> _draft = new("");
-    readonly State<bool> _attemptedSave = new(false);
-
-    bool InvalidName => _attemptedSave.Value && string.IsNullOrWhiteSpace(_draft.Value);
+    readonly State<bool> _mobileOpen = new(false);
+    readonly State<string?> _openCode = new((string?)null);
+    readonly ScrollController _contentScroll = new();
 
     public bool Dark { get; set; }
-    public bool ShowCatalog { get; set; } = true;
+    public string? Page { get; set; }
 
     protected override void OnMount()
     {
         _dark.Value = Dark;
         ApplyTheme();
+        if (!string.IsNullOrEmpty(Page)) _pageId.Value = Page!;
+    }
+
+    DocsPage Current => DocsCatalog.Find(_pageId.Value);
+
+    void Select(string id)
+    {
+        _pageId.Value = id;
+        _openCode.Value = null;
+        _mobileOpen.Value = false;
+        _ = _contentScroll.ScrollTo(0, 0);
     }
 
     void ToggleTheme()
@@ -177,26 +69,260 @@
         if (Root is { } root) ShadcnTheme.SetDark(root, _dark.Value);
     }
 
-    void SetOpen(bool value)
+    void ToggleCode(string key) => _openCode.Value = _openCode.Value == key ? null : key;
+
+    Node Brand()
     {
-        if (value)
+        var button = new AwAUI.Shadcn.Button
         {
-            _draft.Value = _workspace.Value;
-            _attemptedSave.Value = false;
-        }
-        _open.Value = value;
+            Variant = ButtonVariant.Ghost,
+            Size = ButtonSize.Lg,
+            OnClick = _ => Select("introduction"),
+            Class = "docs-brand-button",
+        };
+        var rest = button.Rest ??= new AttributeDictionary();
+        rest["style"] = "height:auto;justify-content:flex-start;padding:2px 6px 14px;gap:10px;width:100%;";
+        button.Children ??= new NodeList();
+        button.Children.Add(new AwAUI.UI.Div { Class = "docs-logo", Children = new NodeList([new TextNode("Aw")]) });
+        button.Children.Add(new AwAUI.UI.Div
+        {
+            Class = "demo-column",
+            Children = new NodeList(
+            [
+                new AwAUI.UI.Text { Class = "docs-brand-name", Content = "AwAUI" },
+                new AwAUI.UI.Text { Class = "docs-brand-sub", Content = "shadcn components" },
+            ]),
+        });
+        rest["aria-label"] = "Go to Introduction";
+        return button;
     }
 
-    void ResetName() => _workspace.Value = DefaultWorkspace;
-
-    void SaveName()
+    Node SearchBox()
     {
-        if (string.IsNullOrWhiteSpace(_draft.Value))
+        var input = new AwAUI.Shadcn.Input
         {
-            _attemptedSave.Value = true;
-            return;
+            Class = "docs-search-input",
+            Placeholder = "Search components…",
+            Value = _query.Value,
+            ValueChanged = value => _query.Value = value ?? "",
+        };
+        input.Rest ??= new AttributeDictionary();
+        input.Rest["aria-label"] = "Search components";
+        return input;
+    }
+
+    Node Nav()
+    {
+        var nav = new AwAUI.UI.Div { Class = "docs-nav" };
+        string query = _query.Value.Trim();
+        nav.Children.Add(new AwAUI.UI.Text { Class = "docs-nav-heading", Content = "Getting Started" });
+        foreach (var page in DocsCatalog.GettingStarted)
+            nav.Children.Add(NavLink(page, query));
+        nav.Children.Add(new AwAUI.UI.Text { Class = "docs-nav-heading", Content = "Components" });
+        var components = DocsCatalog.Components;
+        int shown = 0;
+        foreach (var page in components)
+        {
+            if (query.Length > 0 && page.Title.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) continue;
+            nav.Children.Add(NavLink(page, query));
+            shown++;
         }
-        _workspace.Value = _draft.Value.Trim();
-        SetOpen(false);
+        if (shown == 0 && query.Length > 0)
+            nav.Children.Add(new AwAUI.UI.Text { Class = "docs-empty", Content = "No components found." });
+        return nav;
+    }
+
+    Node NavLink(DocsPage page, string query)
+    {
+        bool active = page.Id == _pageId.Value;
+        var button = new AwAUI.Shadcn.Button
+        {
+            Variant = ButtonVariant.Ghost,
+            Size = ButtonSize.Sm,
+            OnClick = _ => Select(page.Id),
+            Class = "docs-nav-link",
+            Children = new NodeList([new TextNode(page.Title)]),
+        };
+        button.Rest ??= new AttributeDictionary();
+        button.Rest["style"] = active
+            ? "width:100%;height:32px;justify-content:flex-start;padding:0 8px;font-size:13px;font-weight:500;background:var(--accent);color:var(--foreground);"
+            : "width:100%;height:32px;justify-content:flex-start;padding:0 8px;font-size:13px;font-weight:500;";
+        button.Rest["data-active"] = active ? "true" : null;
+        if (active) button.Rest["aria-current"] = "page";
+        return button;
+    }
+
+    Node Breadcrumb()
+    {
+        var page = Current;
+        var row = new AwAUI.UI.Div { Class = "docs-breadcrumb" };
+        row.Children.Add(new AwAUI.UI.Text { Content = page.Section == DocsSection.Components ? "Components" : "Getting Started" });
+        row.Children.Add(new AwAUI.UI.Text { Content = "/" });
+        row.Children.Add(new AwAUI.UI.Text { Class = "docs-breadcrumb-current", Content = page.Title });
+        return row;
+    }
+
+    Node ThemeIcon()
+    {
+        var svg = new AwAUI.UI.Svg(_dark.Value ? LucideIcons.Sun : LucideIcons.Moon) { Class = "size-4" };
+        svg.Attributes["aria-hidden"] = "true";
+        return svg;
+    }
+
+    Node MobileMenuButton()
+    {
+        var button = new AwAUI.Shadcn.Button
+        {
+            Variant = ButtonVariant.Ghost,
+            Size = ButtonSize.IconSm,
+            OnClick = _ => _mobileOpen.Value = true,
+            Class = "docs-menu",
+        };
+        var svg = new AwAUI.UI.Svg(LucideIcons.PanelLeft) { Class = "size-4" };
+        svg.Attributes["aria-hidden"] = "true";
+        button.Children ??= new NodeList();
+        button.Children.Add(svg);
+        var rest = button.Rest ??= new AttributeDictionary();
+        rest["aria-label"] = "Open navigation";
+        return button;
+    }
+
+    Node MobileSheet()
+    {
+        var content = new AwAUI.UI.Div { Class = "docs-mobile-nav", Children = new NodeList([Nav()]) };
+        var sheet = new AwAUI.Shadcn.Sheet
+        {
+            Open = _mobileOpen.Value,
+            OnOpenChange = value => _mobileOpen.Value = value,
+            Children = new NodeList(
+            [
+                new AwAUI.Shadcn.SheetContent
+                {
+                    Side = Side.Left,
+                    Class = "docs-sheet",
+                    Children = new NodeList(
+                    [
+                        new AwAUI.Shadcn.SheetHeader
+                        {
+                            Children = new NodeList(
+                            [
+                                new AwAUI.Shadcn.SheetTitle { Children = new NodeList([new TextNode("AwAUI · shadcn")]) },
+                                new AwAUI.Shadcn.SheetDescription { Children = new NodeList([new TextNode("Browse the component reference")]) },
+                            ]),
+                        },
+                        content,
+                    ]),
+                },
+            ]),
+        };
+        return sheet;
+    }
+
+    Node ContentView()
+    {
+        _ = _query.Value;
+        _ = _openCode.Value;
+        var page = Current;
+        var article = new AwAUI.UI.Div { Class = "docs-article" };
+        article.Children.Add(new AwAUI.UI.Text { Class = "docs-kicker", Content = page.Section == DocsSection.Components ? "Components" : "Getting Started" });
+        var title = new AwAUI.UI.Text { Class = "docs-title", Content = page.Title, Role = Role.Heading };
+        title.Attributes["aria-level"] = "1";
+        article.Children.Add(title);
+        article.Children.Add(new AwAUI.UI.Text { Class = "docs-description", Content = page.Description });
+
+        if (page.Section == DocsSection.GettingStarted)
+        {
+            if (page.Examples.Count > 0)
+                article.Children.Add(new AwAUI.UI.Div { Class = "docs-guide", Children = new NodeList([page.Examples[0].Build()]) });
+        }
+        else
+        {
+            foreach (var example in page.Examples)
+                article.Children.Add(ExampleCard(page, example));
+        }
+
+        var (previous, next) = DocsCatalog.Neighbors(page);
+        if (previous is not null || next is not null)
+            article.Children.Add(Pager(previous, next));
+
+        return new AwAUI.UI.Div { Class = "docs-scroll", ScrollController = _contentScroll, Children = new NodeList([article]) };
+    }
+
+    Node ExampleCard(DocsPage page, DocsExample example)
+    {
+        string key = page.Id + ":" + example.Title;
+        var card = new AwAUI.UI.Div { Class = "docs-example" };
+        card.Children.Add(new AwAUI.UI.Div { Class = "docs-preview", Children = new NodeList([example.Build()]) });
+        var footer = new AwAUI.UI.Div { Class = "docs-example-footer" };
+        footer.Children.Add(new AwAUI.UI.Text { Class = "docs-example-title", Content = example.Title });
+        if (example.Code is not null)
+        {
+            bool open = _openCode.Value == key;
+            var toggle = new AwAUI.Shadcn.Button
+            {
+                Variant = ButtonVariant.Ghost,
+                Size = ButtonSize.Xs,
+                OnClick = _ => ToggleCode(key),
+                Class = "docs-code-toggle",
+                Children = new NodeList([new TextNode(open ? "Hide code" : "Code")]),
+            };
+            toggle.Rest ??= new AttributeDictionary();
+            toggle.Rest["aria-expanded"] = open ? "true" : "false";
+            footer.Children.Add(toggle);
+        }
+        card.Children.Add(footer);
+        if (example.Code is not null && _openCode.Value == key)
+        {
+            var code = new AwAUI.Shadcn.CodeBlock
+            {
+                Code = example.Code,
+                Language = "awaui",
+                FileName = page.Id + ".awaui",
+                ShowLineNumbers = true,
+                Class = "docs-example-code",
+            };
+            card.Children.Add(code);
+        }
+        return card;
+    }
+
+    Node Pager(DocsPage? previous, DocsPage? next)
+    {
+        var pager = new AwAUI.UI.Div { Class = "docs-pager" };
+        if (previous is not null) pager.Children.Add(PagerButton("Previous", previous, true));
+        else pager.Children.Add(new AwAUI.UI.Div());
+        if (next is not null) pager.Children.Add(PagerButton("Next", next, false));
+        else pager.Children.Add(new AwAUI.UI.Div());
+        return pager;
+    }
+
+    Node PagerButton(string direction, DocsPage page, bool previous)
+    {
+        var button = new AwAUI.Shadcn.Button
+        {
+            Variant = ButtonVariant.Ghost,
+            Size = ButtonSize.Sm,
+            OnClick = _ => Select(page.Id),
+            Class = "docs-pager-button",
+        };
+        button.Rest ??= new AttributeDictionary();
+        button.Rest["style"] = previous
+            ? "height:auto;align-items:flex-start;padding:8px 10px;"
+            : "height:auto;align-items:flex-end;padding:8px 10px;";
+        var label = new AwAUI.UI.Div { Class = "demo-row" };
+        if (previous) label.Children.Add(Glyph(LucideIcons.ChevronLeft));
+        label.Children.Add(new AwAUI.UI.Text { Class = "docs-pager-direction", Content = direction });
+        if (!previous) label.Children.Add(Glyph(LucideIcons.ChevronRight));
+        button.Children ??= new NodeList();
+        button.Children.Add(label);
+        button.Children.Add(new AwAUI.UI.Text { Class = "docs-pager-title", Content = page.Title });
+        return button;
+    }
+
+    static AwAUI.UI.Svg Glyph(AwAUI.Svg.SvgDocument document)
+    {
+        var svg = new AwAUI.UI.Svg(document) { Class = "size-3" };
+        svg.Attributes["aria-hidden"] = "true";
+        return svg;
     }
 }

@@ -19,6 +19,7 @@ using ShadcnGallery;
 string? output = Option("--headless");
 string? motionFrames = Option("--motion-frames");
 string motionComponent = Option("--motion-component") ?? "menu";
+string? page = Option("--page");
 bool reduceMotion = Has("--reduced-motion");
 int width = Dimension("--width", 1024);
 int height = Dimension("--height", motionFrames is null ? 650 : 1420);
@@ -27,7 +28,7 @@ bool dialogPreview = Has("--dialog") || benchmark;
 bool interactiveDialog = Has("--open-dialog") && !dialogPreview && output is null;
 bool timings = Has("--timings");
 double previewScale = Scale();
-var fonts = new FontCollection();
+var fonts = new FontCollection { SystemFonts = SystemFonts.Default };
 fonts.RegisterFile(Path.Combine(AppContext.BaseDirectory, "Fonts", "NotoSans-Regular.ttf"));
 foreach (string family in new[] { "sans-serif", "system-ui", "ui-sans-serif" }) fonts.SetGenericFamily(family, "Noto Sans");
 
@@ -50,7 +51,13 @@ try
     var clock = platform is HeadlessPlatform ? new ManualUIClock() : null;
     if (clock is not null) host.Root.Clock = clock;
     sampleWindow.Show();
-    host.Mount(new App { Dark = Has("--dark"), ShowCatalog = !benchmark && (!dialogPreview || Has("--catalog")) });
+    host.Mount(new App
+    {
+        Dark = Has("--dark"),
+        Page = dialogPreview ? page ?? "dialog"
+            : motionFrames is not null ? page ?? MotionPage(motionComponent)
+            : page,
+    });
     host.Closed += _ => platform.Exit();
     Console.WriteLine(FormattableString.Invariant($"{platform.Name} / {backend.Name} @ {host.Window.RenderScale:g}x"));
     if (timings) Console.WriteLine(host.MountStatistics);
@@ -63,6 +70,7 @@ try
             {
                 dialogQueued = true;
                 var trigger = FindById(h.Root.RootElement, "edit-workspace")
+                    ?? FindTrigger(h.Root.RootElement, "dialog")
                     ?? throw new InvalidOperationException("Dialog trigger is missing.");
                 h.Root.Input.Click(trigger);
             }
@@ -80,7 +88,9 @@ try
         }
         if (dialogPreview)
         {
-            var trigger = FindById(host.Root.RootElement, "edit-workspace") ?? throw new InvalidOperationException("Dialog trigger is missing.");
+            var trigger = FindById(host.Root.RootElement, "edit-workspace")
+                ?? FindTrigger(host.Root.RootElement, "dialog")
+                ?? throw new InvalidOperationException("Dialog trigger is missing.");
             Point point = trigger.GetBoundingClientRect().Center;
             window.SendPointer(new RawPointerEvent(RawPointerEventType.Down, PointerType.Mouse, 1, point,
                 PointerButtons.Left, PointerButtons.Left, KeyModifiers.None, clock!.Now));
@@ -115,6 +125,7 @@ static void SaveMotionFrames(UIHost host, HeadlessWindow window, ManualUIClock c
         throw new ArgumentException("Motion component must be dialog, select, menu, submenu, popover, sheet, or accordion.");
     string triggerName = component == "submenu" ? "menu" : component;
     var trigger = Find(host.Root.RootElement, element => element.GetAttribute("data-motion-demo") == triggerName)
+        ?? FindTrigger(host.Root.RootElement, component)
         ?? throw new InvalidOperationException($"The motion trigger for {component} is missing.");
 
     Directory.CreateDirectory(directory);
@@ -255,6 +266,28 @@ double Scale() => Option("--scale") is not { } text ? 1
     ? scale : throw new ArgumentException("--scale requires a number between 0.5 and 3.");
 
 static Element? FindById(Element root, string id) => Find(root, element => element.Id == id);
+
+/// <summary>Trigger parts merge onto their child, so the child's <c>data-slot</c> wins; the ARIA
+/// popup kind is the stable marker.</summary>
+static Element? FindTrigger(Element root, string component)
+{
+    if (component == "accordion")
+        return Find(root, element => element.GetAttribute("data-slot") == "accordion-trigger");
+    string? popup = component switch
+    {
+        "select" => "listbox",
+        "menu" or "submenu" => "menu",
+        "dialog" or "popover" or "sheet" => "dialog",
+        _ => null,
+    };
+    return popup is null ? null : Find(root, element => element.GetAttribute("aria-haspopup") == popup);
+}
+
+static string MotionPage(string component) => component switch
+{
+    "menu" or "submenu" => "dropdown-menu",
+    _ => component,
+};
 
 static Element? Find(Element root, Func<Element, bool> matches)
 {

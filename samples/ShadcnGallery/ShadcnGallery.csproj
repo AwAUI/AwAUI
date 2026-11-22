@@ -18,6 +18,8 @@
     <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
+    <!-- 项目级共享样式（Blazor 的 wwwroot/app.css 对应物）：页面组件的 demo-* 类与文档外壳共用 -->
+    <AwAUIGlobalStylesheet Include="Styles/app.css" />
     <None Include="../../tests/TestFiles/Fonts/NotoSans-Regular.ttf" Link="Fonts/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../tests/TestFiles/Fonts/NotoSans-OFL.txt" Link="Fonts/NotoSans-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

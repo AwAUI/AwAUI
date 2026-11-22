@@ -1,0 +1,47 @@
+/*
+ * 项目级共享样式（Blazor 的 wwwroot/app.css 对应物）。
+ * 页面组件与文档外壳共用这些类；由 <AwAUIGlobalStylesheet> 合并为 AwAUIGlobalStyles，
+ * 模块初始化时自动登记到 AppStyleSheets。组件自己的样式放在 X.awaui.css。
+ */
+.demo-stack { display: flex; flex-direction: column; gap: 14px; }
+.demo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.demo-column { display: flex; flex-direction: column; gap: 6px; }
+.demo-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.demo-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.demo-panel { border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.demo-dashed { border-style: dashed; }
+.demo-field { display: flex; flex-direction: column; gap: 6px; max-width: 360px; }
+.demo-split { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.demo-scroll { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.demo-center { display: flex; align-items: center; justify-content: center; min-height: 120px; }
+.demo-wide { grid-column: 1 / -1; }
+.demo-muted { font-size: 13px; color: var(--muted-foreground); line-height: 1.6; }
+.demo-note { font-size: 13px; color: var(--muted-foreground); line-height: 1.6; }
+.demo-label { font-size: 13px; font-weight: 600; }
+.demo-heading { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+.demo-subheading { font-size: 15px; font-weight: 600; }
+.demo-divider { height: 1px; background: var(--border); width: 100%; }
+.demo-code { font-family: monospace; font-size: 12px; line-height: 1.7; white-space: pre; overflow-x: auto;
+             background: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; color: var(--foreground); }
+.demo-swatch { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.demo-swatch-color { width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); flex: none; }
+.demo-radius { display: flex; align-items: center; justify-content: center; min-width: 64px; height: 48px;
+               border: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
+.demo-theme-preview { border: 1px solid var(--border); border-radius: 10px; background: var(--background); color: var(--foreground); padding: 12px; }
+.demo-step { display: flex; align-items: flex-start; gap: 12px; }
+.demo-step-number { width: 26px; height: 26px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground);
+                    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650; flex: none; }
+.demo-step-title { font-size: 15px; font-weight: 600; }
+.demo-chart { width: 100%; min-height: 240px; }
+.demo-fill { width: 100%; }
+.demo-narrow { max-width: 320px; }
+.demo-medium { max-width: 480px; }
+.demo-tall { min-height: 240px; }
+
+/* Getting Started 页面里的 Card（页面组件产出，因此属于全局共享样式） */
+.docs-hero-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.docs-hero { border-radius: 14px; }
+
+@media (width < 900px) {
+    .demo-grid, .demo-grid-3 { grid-template-columns: minmax(0, 1fr); }
+}
