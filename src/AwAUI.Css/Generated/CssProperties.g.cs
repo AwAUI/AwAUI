@@ -173,16 +173,6 @@ public static partial class CssProperties
         CssPropertyId.JustifyContent,
     };
 
-    static readonly CssPropertyId[] s_longhandsMarginInlineStart =
-    {
-        CssPropertyId.MarginLeft,
-    };
-
-    static readonly CssPropertyId[] s_longhandsMarginInlineEnd =
-    {
-        CssPropertyId.MarginRight,
-    };
-
     static readonly CssPropertyId[] s_longhandsMarginBlockStart =
     {
         CssPropertyId.MarginTop,
@@ -195,24 +185,14 @@ public static partial class CssProperties
 
     static readonly CssPropertyId[] s_longhandsMarginInline =
     {
-        CssPropertyId.MarginLeft,
-        CssPropertyId.MarginRight,
+        CssPropertyId.MarginInlineStart,
+        CssPropertyId.MarginInlineEnd,
     };
 
     static readonly CssPropertyId[] s_longhandsMarginBlock =
     {
         CssPropertyId.MarginTop,
         CssPropertyId.MarginBottom,
-    };
-
-    static readonly CssPropertyId[] s_longhandsPaddingInlineStart =
-    {
-        CssPropertyId.PaddingLeft,
-    };
-
-    static readonly CssPropertyId[] s_longhandsPaddingInlineEnd =
-    {
-        CssPropertyId.PaddingRight,
     };
 
     static readonly CssPropertyId[] s_longhandsPaddingBlockStart =
@@ -227,24 +207,14 @@ public static partial class CssProperties
 
     static readonly CssPropertyId[] s_longhandsPaddingInline =
     {
-        CssPropertyId.PaddingLeft,
-        CssPropertyId.PaddingRight,
+        CssPropertyId.PaddingInlineStart,
+        CssPropertyId.PaddingInlineEnd,
     };
 
     static readonly CssPropertyId[] s_longhandsPaddingBlock =
     {
         CssPropertyId.PaddingTop,
         CssPropertyId.PaddingBottom,
-    };
-
-    static readonly CssPropertyId[] s_longhandsInsetInlineStart =
-    {
-        CssPropertyId.Left,
-    };
-
-    static readonly CssPropertyId[] s_longhandsInsetInlineEnd =
-    {
-        CssPropertyId.Right,
     };
 
     static readonly CssPropertyId[] s_longhandsInsetBlockStart =
@@ -259,8 +229,8 @@ public static partial class CssProperties
 
     static readonly CssPropertyId[] s_longhandsInsetInline =
     {
-        CssPropertyId.Left,
-        CssPropertyId.Right,
+        CssPropertyId.InsetInlineStart,
+        CssPropertyId.InsetInlineEnd,
     };
 
     static readonly CssPropertyId[] s_longhandsInsetBlock =
@@ -269,48 +239,18 @@ public static partial class CssProperties
         CssPropertyId.Bottom,
     };
 
-    static readonly CssPropertyId[] s_longhandsBorderInlineStartWidth =
-    {
-        CssPropertyId.BorderLeftWidth,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderInlineStartStyle =
-    {
-        CssPropertyId.BorderLeftStyle,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderInlineStartColor =
-    {
-        CssPropertyId.BorderLeftColor,
-    };
-
     static readonly CssPropertyId[] s_longhandsBorderInlineStart =
     {
-        CssPropertyId.BorderLeftWidth,
-        CssPropertyId.BorderLeftStyle,
-        CssPropertyId.BorderLeftColor,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderInlineEndWidth =
-    {
-        CssPropertyId.BorderRightWidth,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderInlineEndStyle =
-    {
-        CssPropertyId.BorderRightStyle,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderInlineEndColor =
-    {
-        CssPropertyId.BorderRightColor,
+        CssPropertyId.BorderInlineStartWidth,
+        CssPropertyId.BorderInlineStartStyle,
+        CssPropertyId.BorderInlineStartColor,
     };
 
     static readonly CssPropertyId[] s_longhandsBorderInlineEnd =
     {
-        CssPropertyId.BorderRightWidth,
-        CssPropertyId.BorderRightStyle,
-        CssPropertyId.BorderRightColor,
+        CssPropertyId.BorderInlineEndWidth,
+        CssPropertyId.BorderInlineEndStyle,
+        CssPropertyId.BorderInlineEndColor,
     };
 
     static readonly CssPropertyId[] s_longhandsBorderBlockStartWidth =
@@ -359,30 +299,30 @@ public static partial class CssProperties
 
     static readonly CssPropertyId[] s_longhandsBorderInlineWidth =
     {
-        CssPropertyId.BorderLeftWidth,
-        CssPropertyId.BorderRightWidth,
+        CssPropertyId.BorderInlineStartWidth,
+        CssPropertyId.BorderInlineEndWidth,
     };
 
     static readonly CssPropertyId[] s_longhandsBorderInlineStyle =
     {
-        CssPropertyId.BorderLeftStyle,
-        CssPropertyId.BorderRightStyle,
+        CssPropertyId.BorderInlineStartStyle,
+        CssPropertyId.BorderInlineEndStyle,
     };
 
     static readonly CssPropertyId[] s_longhandsBorderInlineColor =
     {
-        CssPropertyId.BorderLeftColor,
-        CssPropertyId.BorderRightColor,
+        CssPropertyId.BorderInlineStartColor,
+        CssPropertyId.BorderInlineEndColor,
     };
 
     static readonly CssPropertyId[] s_longhandsBorderInline =
     {
-        CssPropertyId.BorderLeftWidth,
-        CssPropertyId.BorderLeftStyle,
-        CssPropertyId.BorderLeftColor,
-        CssPropertyId.BorderRightWidth,
-        CssPropertyId.BorderRightStyle,
-        CssPropertyId.BorderRightColor,
+        CssPropertyId.BorderInlineStartWidth,
+        CssPropertyId.BorderInlineStartStyle,
+        CssPropertyId.BorderInlineStartColor,
+        CssPropertyId.BorderInlineEndWidth,
+        CssPropertyId.BorderInlineEndStyle,
+        CssPropertyId.BorderInlineEndColor,
     };
 
     static readonly CssPropertyId[] s_longhandsBorderBlockWidth =
@@ -515,24 +455,14 @@ public static partial class CssProperties
 
     static readonly CssPropertyId[] s_longhandsScrollMarginInline =
     {
-        CssPropertyId.ScrollMarginLeft,
-        CssPropertyId.ScrollMarginRight,
+        CssPropertyId.ScrollMarginInlineStart,
+        CssPropertyId.ScrollMarginInlineEnd,
     };
 
     static readonly CssPropertyId[] s_longhandsScrollMarginBlock =
     {
         CssPropertyId.ScrollMarginTop,
         CssPropertyId.ScrollMarginBottom,
-    };
-
-    static readonly CssPropertyId[] s_longhandsScrollMarginInlineStart =
-    {
-        CssPropertyId.ScrollMarginLeft,
-    };
-
-    static readonly CssPropertyId[] s_longhandsScrollMarginInlineEnd =
-    {
-        CssPropertyId.ScrollMarginRight,
     };
 
     static readonly CssPropertyId[] s_longhandsScrollMarginBlockStart =
@@ -547,24 +477,14 @@ public static partial class CssProperties
 
     static readonly CssPropertyId[] s_longhandsScrollPaddingInline =
     {
-        CssPropertyId.ScrollPaddingLeft,
-        CssPropertyId.ScrollPaddingRight,
+        CssPropertyId.ScrollPaddingInlineStart,
+        CssPropertyId.ScrollPaddingInlineEnd,
     };
 
     static readonly CssPropertyId[] s_longhandsScrollPaddingBlock =
     {
         CssPropertyId.ScrollPaddingTop,
         CssPropertyId.ScrollPaddingBottom,
-    };
-
-    static readonly CssPropertyId[] s_longhandsScrollPaddingInlineStart =
-    {
-        CssPropertyId.ScrollPaddingLeft,
-    };
-
-    static readonly CssPropertyId[] s_longhandsScrollPaddingInlineEnd =
-    {
-        CssPropertyId.ScrollPaddingRight,
     };
 
     static readonly CssPropertyId[] s_longhandsScrollPaddingBlockStart =
@@ -623,26 +543,6 @@ public static partial class CssProperties
         CssPropertyId.MaxWidth,
     };
 
-    static readonly CssPropertyId[] s_longhandsBorderStartStartRadius =
-    {
-        CssPropertyId.BorderTopLeftRadius,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderStartEndRadius =
-    {
-        CssPropertyId.BorderTopRightRadius,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderEndStartRadius =
-    {
-        CssPropertyId.BorderBottomLeftRadius,
-    };
-
-    static readonly CssPropertyId[] s_longhandsBorderEndEndRadius =
-    {
-        CssPropertyId.BorderBottomRightRadius,
-    };
-
     static readonly CssPropertyId[] s_longhandsLineClamp =
     {
         CssPropertyId.WebkitLineClamp,
@@ -697,10 +597,14 @@ public static partial class CssProperties
         CssPropertyId.MarginRight,
         CssPropertyId.MarginBottom,
         CssPropertyId.MarginLeft,
+        CssPropertyId.MarginInlineStart,
+        CssPropertyId.MarginInlineEnd,
         CssPropertyId.PaddingTop,
         CssPropertyId.PaddingRight,
         CssPropertyId.PaddingBottom,
         CssPropertyId.PaddingLeft,
+        CssPropertyId.PaddingInlineStart,
+        CssPropertyId.PaddingInlineEnd,
         CssPropertyId.OverflowX,
         CssPropertyId.OverflowY,
         CssPropertyId.AspectRatio,
@@ -720,6 +624,8 @@ public static partial class CssProperties
         CssPropertyId.Right,
         CssPropertyId.Bottom,
         CssPropertyId.Left,
+        CssPropertyId.InsetInlineStart,
+        CssPropertyId.InsetInlineEnd,
         CssPropertyId.ZIndex,
         CssPropertyId.Isolation,
         CssPropertyId.FlexDirection,
@@ -758,10 +664,20 @@ public static partial class CssProperties
         CssPropertyId.BorderRightColor,
         CssPropertyId.BorderBottomColor,
         CssPropertyId.BorderLeftColor,
+        CssPropertyId.BorderInlineStartWidth,
+        CssPropertyId.BorderInlineStartStyle,
+        CssPropertyId.BorderInlineStartColor,
+        CssPropertyId.BorderInlineEndWidth,
+        CssPropertyId.BorderInlineEndStyle,
+        CssPropertyId.BorderInlineEndColor,
         CssPropertyId.BorderTopLeftRadius,
         CssPropertyId.BorderTopRightRadius,
         CssPropertyId.BorderBottomRightRadius,
         CssPropertyId.BorderBottomLeftRadius,
+        CssPropertyId.BorderStartStartRadius,
+        CssPropertyId.BorderStartEndRadius,
+        CssPropertyId.BorderEndStartRadius,
+        CssPropertyId.BorderEndEndRadius,
         CssPropertyId.BackgroundColor,
         CssPropertyId.BackgroundImage,
         CssPropertyId.BackgroundBlendMode,
@@ -828,10 +744,14 @@ public static partial class CssProperties
         CssPropertyId.ScrollMarginRight,
         CssPropertyId.ScrollMarginBottom,
         CssPropertyId.ScrollMarginLeft,
+        CssPropertyId.ScrollMarginInlineStart,
+        CssPropertyId.ScrollMarginInlineEnd,
         CssPropertyId.ScrollPaddingTop,
         CssPropertyId.ScrollPaddingRight,
         CssPropertyId.ScrollPaddingBottom,
         CssPropertyId.ScrollPaddingLeft,
+        CssPropertyId.ScrollPaddingInlineStart,
+        CssPropertyId.ScrollPaddingInlineEnd,
         CssPropertyId.ScrollbarWidth,
         CssPropertyId.ScrollbarGutter,
         CssPropertyId.FontFamily,
@@ -850,6 +770,7 @@ public static partial class CssProperties
         CssPropertyId.MozOsxFontSmoothing,
         CssPropertyId.Color,
         CssPropertyId.TextAlign,
+        CssPropertyId.Direction,
         CssPropertyId.WhiteSpace,
         CssPropertyId.WordBreak,
         CssPropertyId.OverflowWrap,
@@ -901,10 +822,14 @@ public static partial class CssProperties
         new(CssPropertyId.MarginRight, "margin-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.MarginBottom, "margin-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.MarginLeft, "margin-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MarginInlineStart, "margin-inline-start", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.MarginInlineEnd, "margin-inline-end", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.PaddingTop, "padding-top", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.PaddingRight, "padding-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.PaddingBottom, "padding-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.PaddingLeft, "padding-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.PaddingInlineStart, "padding-inline-start", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.PaddingInlineEnd, "padding-inline-end", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OverflowX, "overflow-x", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OverflowY, "overflow-y", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Box, phase: 1, initial: "visible", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.AspectRatio, "aspect-ratio", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Box, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
@@ -924,6 +849,8 @@ public static partial class CssProperties
         new(CssPropertyId.Right, "right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Bottom, "bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Left, "left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.InsetInlineStart, "inset-inline-start", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.InsetInlineEnd, "inset-inline-end", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ZIndex, "z-index", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Structure, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Isolation, "isolation", inherited: false, CssAnimatable.Discrete, StyleDifference.Structure, CssPropertyGroup.Position, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FlexDirection, "flex-direction", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Flex, phase: 1, initial: "row", System.Array.Empty<CssPropertyId>()),
@@ -962,10 +889,20 @@ public static partial class CssProperties
         new(CssPropertyId.BorderRightColor, "border-right-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BorderBottomColor, "border-bottom-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BorderLeftColor, "border-left-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderInlineStartWidth, "border-inline-start-width", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Border, phase: 1, initial: "medium", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderInlineStartStyle, "border-inline-start-style", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderInlineStartColor, "border-inline-start-color", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderInlineEndWidth, "border-inline-end-width", inherited: false, CssAnimatable.No, StyleDifference.Layout, CssPropertyGroup.Border, phase: 1, initial: "medium", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderInlineEndStyle, "border-inline-end-style", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderInlineEndColor, "border-inline-end-color", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "currentcolor", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BorderTopLeftRadius, "border-top-left-radius", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BorderTopRightRadius, "border-top-right-radius", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BorderBottomRightRadius, "border-bottom-right-radius", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BorderBottomLeftRadius, "border-bottom-left-radius", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderStartStartRadius, "border-start-start-radius", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderStartEndRadius, "border-start-end-radius", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderEndStartRadius, "border-end-start-radius", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.BorderEndEndRadius, "border-end-end-radius", inherited: false, CssAnimatable.No, StyleDifference.Paint, CssPropertyGroup.Border, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BackgroundColor, "background-color", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Background, phase: 1, initial: "transparent", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BackgroundImage, "background-image", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Background, phase: 1, initial: "none", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.BackgroundBlendMode, "background-blend-mode", inherited: false, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Background, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
@@ -1032,10 +969,14 @@ public static partial class CssProperties
         new(CssPropertyId.ScrollMarginRight, "scroll-margin-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollMarginBottom, "scroll-margin-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollMarginLeft, "scroll-margin-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollMarginInlineStart, "scroll-margin-inline-start", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollMarginInlineEnd, "scroll-margin-inline-end", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "0", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollPaddingTop, "scroll-padding-top", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollPaddingRight, "scroll-padding-right", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollPaddingBottom, "scroll-padding-bottom", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollPaddingLeft, "scroll-padding-left", inherited: false, CssAnimatable.ByComputedValue, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollPaddingInlineStart, "scroll-padding-inline-start", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.ScrollPaddingInlineEnd, "scroll-padding-inline-end", inherited: false, CssAnimatable.No, StyleDifference.Behavior, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollbarWidth, "scrollbar-width", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.ScrollbarGutter, "scrollbar-gutter", inherited: false, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Behavior, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.FontFamily, "font-family", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Font, phase: 1, initial: "sans-serif", System.Array.Empty<CssPropertyId>()),
@@ -1054,6 +995,7 @@ public static partial class CssProperties
         new(CssPropertyId.MozOsxFontSmoothing, "-moz-osx-font-smoothing", inherited: true, CssAnimatable.Discrete, StyleDifference.Paint, CssPropertyGroup.Font, phase: 1, initial: "auto", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.Color, "color", inherited: true, CssAnimatable.ByComputedValue, StyleDifference.Paint, CssPropertyGroup.Text, phase: 1, initial: "black", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.TextAlign, "text-align", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "start", System.Array.Empty<CssPropertyId>()),
+        new(CssPropertyId.Direction, "direction", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "ltr", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.WhiteSpace, "white-space", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.WordBreak, "word-break", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
         new(CssPropertyId.OverflowWrap, "overflow-wrap", inherited: true, CssAnimatable.Discrete, StyleDifference.Layout, CssPropertyGroup.Text, phase: 1, initial: "normal", System.Array.Empty<CssPropertyId>()),
@@ -1111,31 +1053,19 @@ public static partial class CssProperties
         new(CssPropertyId.PlaceItems, "place-items", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPlaceItems),
         new(CssPropertyId.PlaceSelf, "place-self", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPlaceSelf),
         new(CssPropertyId.PlaceContent, "place-content", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPlaceContent),
-        new(CssPropertyId.MarginInlineStart, "margin-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMarginInlineStart),
-        new(CssPropertyId.MarginInlineEnd, "margin-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMarginInlineEnd),
         new(CssPropertyId.MarginBlockStart, "margin-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMarginBlockStart),
         new(CssPropertyId.MarginBlockEnd, "margin-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMarginBlockEnd),
         new(CssPropertyId.MarginInline, "margin-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMarginInline),
         new(CssPropertyId.MarginBlock, "margin-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMarginBlock),
-        new(CssPropertyId.PaddingInlineStart, "padding-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPaddingInlineStart),
-        new(CssPropertyId.PaddingInlineEnd, "padding-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPaddingInlineEnd),
         new(CssPropertyId.PaddingBlockStart, "padding-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPaddingBlockStart),
         new(CssPropertyId.PaddingBlockEnd, "padding-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPaddingBlockEnd),
         new(CssPropertyId.PaddingInline, "padding-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPaddingInline),
         new(CssPropertyId.PaddingBlock, "padding-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsPaddingBlock),
-        new(CssPropertyId.InsetInlineStart, "inset-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInsetInlineStart),
-        new(CssPropertyId.InsetInlineEnd, "inset-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInsetInlineEnd),
         new(CssPropertyId.InsetBlockStart, "inset-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInsetBlockStart),
         new(CssPropertyId.InsetBlockEnd, "inset-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInsetBlockEnd),
         new(CssPropertyId.InsetInline, "inset-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInsetInline),
         new(CssPropertyId.InsetBlock, "inset-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsInsetBlock),
-        new(CssPropertyId.BorderInlineStartWidth, "border-inline-start-width", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineStartWidth),
-        new(CssPropertyId.BorderInlineStartStyle, "border-inline-start-style", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineStartStyle),
-        new(CssPropertyId.BorderInlineStartColor, "border-inline-start-color", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineStartColor),
         new(CssPropertyId.BorderInlineStart, "border-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineStart),
-        new(CssPropertyId.BorderInlineEndWidth, "border-inline-end-width", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineEndWidth),
-        new(CssPropertyId.BorderInlineEndStyle, "border-inline-end-style", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineEndStyle),
-        new(CssPropertyId.BorderInlineEndColor, "border-inline-end-color", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineEndColor),
         new(CssPropertyId.BorderInlineEnd, "border-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderInlineEnd),
         new(CssPropertyId.BorderBlockStartWidth, "border-block-start-width", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderBlockStartWidth),
         new(CssPropertyId.BorderBlockStartStyle, "border-block-start-style", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderBlockStartStyle),
@@ -1168,14 +1098,10 @@ public static partial class CssProperties
         new(CssPropertyId.ScrollPadding, "scroll-padding", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPadding),
         new(CssPropertyId.ScrollMarginInline, "scroll-margin-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginInline),
         new(CssPropertyId.ScrollMarginBlock, "scroll-margin-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginBlock),
-        new(CssPropertyId.ScrollMarginInlineStart, "scroll-margin-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginInlineStart),
-        new(CssPropertyId.ScrollMarginInlineEnd, "scroll-margin-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginInlineEnd),
         new(CssPropertyId.ScrollMarginBlockStart, "scroll-margin-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginBlockStart),
         new(CssPropertyId.ScrollMarginBlockEnd, "scroll-margin-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollMarginBlockEnd),
         new(CssPropertyId.ScrollPaddingInline, "scroll-padding-inline", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingInline),
         new(CssPropertyId.ScrollPaddingBlock, "scroll-padding-block", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingBlock),
-        new(CssPropertyId.ScrollPaddingInlineStart, "scroll-padding-inline-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingInlineStart),
-        new(CssPropertyId.ScrollPaddingInlineEnd, "scroll-padding-inline-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingInlineEnd),
         new(CssPropertyId.ScrollPaddingBlockStart, "scroll-padding-block-start", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingBlockStart),
         new(CssPropertyId.ScrollPaddingBlockEnd, "scroll-padding-block-end", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsScrollPaddingBlockEnd),
         new(CssPropertyId.OverscrollBehavior, "overscroll-behavior", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsOverscrollBehavior),
@@ -1187,10 +1113,6 @@ public static partial class CssProperties
         new(CssPropertyId.MinInlineSize, "min-inline-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMinInlineSize),
         new(CssPropertyId.MaxBlockSize, "max-block-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMaxBlockSize),
         new(CssPropertyId.MaxInlineSize, "max-inline-size", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsMaxInlineSize),
-        new(CssPropertyId.BorderStartStartRadius, "border-start-start-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderStartStartRadius),
-        new(CssPropertyId.BorderStartEndRadius, "border-start-end-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderStartEndRadius),
-        new(CssPropertyId.BorderEndStartRadius, "border-end-start-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderEndStartRadius),
-        new(CssPropertyId.BorderEndEndRadius, "border-end-end-radius", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsBorderEndEndRadius),
         new(CssPropertyId.LineClamp, "line-clamp", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsLineClamp),
         new(CssPropertyId.WebkitUserSelect, "-webkit-user-select", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitUserSelect),
         new(CssPropertyId.WebkitAppearance, "-webkit-appearance", inherited: false, CssAnimatable.No, StyleDifference.None, null, phase: 1, initial: null, s_longhandsWebkitAppearance),
@@ -1220,7 +1142,6 @@ public static partial class CssProperties
         ("border-image-width", 4),
         ("border-image-outset", 4),
         ("border-image-repeat", 4),
-        ("direction", 4),
         ("unicode-bidi", 4),
         ("writing-mode", 4),
         ("text-orientation", 4),

@@ -118,6 +118,15 @@ public enum CssFlexDirection : byte
 }
 
 /// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
+public enum CssDirection : byte
+{
+    /// <summary><c>ltr</c></summary>
+    Ltr,
+    /// <summary><c>rtl</c></summary>
+    Rtl,
+}
+
+/// <summary>关键字枚举（声明顺序即 CSS 关键字顺序）。</summary>
 public enum CssFlexWrap : byte
 {
     /// <summary><c>nowrap</c></summary>
@@ -1074,6 +1083,7 @@ internal static class KeywordTables
     public static readonly KeywordTable CssVisibility = new(new[] { "visible", "hidden", "collapse" });
     public static readonly KeywordTable CssPosition = new(new[] { "static", "relative", "absolute", "fixed", "sticky" });
     public static readonly KeywordTable CssFlexDirection = new(new[] { "row", "row-reverse", "column", "column-reverse" });
+    public static readonly KeywordTable CssDirection = new(new[] { "ltr", "rtl" });
     public static readonly KeywordTable CssFlexWrap = new(new[] { "nowrap", "wrap", "wrap-reverse" });
     public static readonly KeywordTable CssJustifyContent = new(new[] { "normal", "flex-start", "flex-end", "start", "end", "center", "left", "right", "space-between", "space-around", "space-evenly", "stretch" });
     public static readonly KeywordTable CssAlignItems = new(new[] { "normal", "stretch", "flex-start", "flex-end", "start", "end", "center", "baseline", "self-start", "self-end" });

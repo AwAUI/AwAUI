@@ -178,6 +178,7 @@ internal static class AnimationDispatch
             case CssPropertyId.MozOsxFontSmoothing: return s.FontGroup.MozOsxFontSmoothing;
             case CssPropertyId.Color: return s.TextGroup.Color;
             case CssPropertyId.TextAlign: return s.TextGroup.TextAlign;
+            case CssPropertyId.Direction: return s.TextGroup.Direction;
             case CssPropertyId.WhiteSpace: return s.TextGroup.WhiteSpace;
             case CssPropertyId.WordBreak: return s.TextGroup.WordBreak;
             case CssPropertyId.OverflowWrap: return s.TextGroup.OverflowWrap;
@@ -408,6 +409,7 @@ internal static class AnimationDispatch
             case CssPropertyId.MozOsxFontSmoothing: { var x = (CssOsxFontSmoothing)value; if (b.Font.MozOsxFontSmoothing != x) b.MutableFont().MozOsxFontSmoothing = x; return; }
             case CssPropertyId.Color: { var x = (CssColor)value; if (!b.Text.Color.Equals(x)) b.MutableText().Color = x; return; }
             case CssPropertyId.TextAlign: { var x = (CssTextAlign)value; if (b.Text.TextAlign != x) b.MutableText().TextAlign = x; return; }
+            case CssPropertyId.Direction: { var x = (CssDirection)value; if (b.Text.Direction != x) b.MutableText().Direction = x; return; }
             case CssPropertyId.WhiteSpace: { var x = (CssWhiteSpace)value; if (b.Text.WhiteSpace != x) b.MutableText().WhiteSpace = x; return; }
             case CssPropertyId.WordBreak: { var x = (CssWordBreak)value; if (b.Text.WordBreak != x) b.MutableText().WordBreak = x; return; }
             case CssPropertyId.OverflowWrap: { var x = (CssOverflowWrap)value; if (b.Text.OverflowWrap != x) b.MutableText().OverflowWrap = x; return; }

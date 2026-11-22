@@ -17,7 +17,10 @@ public sealed class CssTokenizer
     readonly string _s;
     readonly List<CssDiagnostic>? _diags;
     readonly StringBuilder _sb = new();
-    readonly string?[] _names = new string?[NameCacheSize];
+    // 名字缓存按线程共享：解析一条声明、一个选择器都会新建分词器，每个分词器自带 8 KB 的缓存
+    // 会让启动期（UA 样式表、组件样式、内联样式）产生数 MB 的垃圾。缓存只存不超过 24 个字符的名字，至多 1024 条。
+    [ThreadStatic] static string?[]? t_names;
+    readonly string?[] _names = t_names ??= new string?[NameCacheSize];
     int _pos;
 
     const int NameCacheSize = 1024; // 2 的幂

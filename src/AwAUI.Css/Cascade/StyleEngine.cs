@@ -438,7 +438,7 @@ public sealed partial class StyleEngine
         try
         {
             CollectBlocks(element, pseudoElement, record, startingStyle);
-            RunCascade(record);
+            RunCascade(record, parent, element, pseudoElement);
             if (levels is not null) ReportLevels(levels);
             _early = early;
             return Compute(element, pseudoElement, parent, isRoot, record);
@@ -591,9 +591,17 @@ public sealed partial class StyleEngine
         });
     }
 
-    /// <summary>按优先级从高到低遍历声明，为每个属性选出胜出者；处理 revert / revert-layer。</summary>
-    void RunCascade(StyleMatchRecord? record)
+    /// <summary>
+    /// 按优先级从高到低遍历声明，为每个属性选出胜出者；处理 revert / revert-layer。
+    /// 行内起止方向的逻辑属性（<c>padding-inline-*</c> 等）在这里按其 <c>direction</c> 映射到物理长属性：
+    /// 先只用 <c>direction</c> 声明与 <c>dir</c> 提示求出方向，再在真正的级联中逐条翻译，
+    /// 因此与物理属性的先后 / 重要性比较仍按普通级联规则进行。
+    /// </summary>
+    void RunCascade(StyleMatchRecord? record, ComputedStyle parent, StyleElement element, PseudoElementKind pseudo)
     {
+        _translateLogical = HasLogicalInlineDeclaration();
+        _cascadeDirection = _translateLogical ? ResolveDirection(parent, element, pseudo) : CssDirection.Ltr;
+
         foreach (var b in _blocks)
         {
             var decls = b.Declarations;
@@ -615,8 +623,10 @@ public sealed partial class StyleEngine
                 }
                 else
                 {
-                    ref var slot = ref _slots[(int)d.Id];
-                    if (slot.State == SlotState.Free) _touched.Add((int)d.Id);
+                    // 逻辑行内属性只作为级联输入：翻译成物理长属性后参与比较、revert 与记录
+                    var id = _translateLogical ? LogicalTarget(d.Id, _cascadeDirection) : d.Id;
+                    ref var slot = ref _slots[(int)id];
+                    if (slot.State == SlotState.Free) _touched.Add((int)id);
                     status = Consider(ref slot, b, d.Value);
                     if (record is not null)
                     {
@@ -634,6 +644,85 @@ public sealed partial class StyleEngine
                 }
             }
         }
+    }
+
+    bool _translateLogical;
+    CssDirection _cascadeDirection;
+
+    /// <summary>是否存在行内起止方向的逻辑属性声明；没有时走单次级联（无需先求方向）。</summary>
+    bool HasLogicalInlineDeclaration()
+    {
+        foreach (var b in _blocks)
+            foreach (var d in b.Declarations)
+                if (!d.IsCustom && LogicalTarget(d.Id, CssDirection.Ltr) != d.Id)
+                    return true;
+        return false;
+    }
+
+    /// <summary>
+    /// 逻辑行内属性 → 物理长属性：<c>start</c> 在 LTR / RTL 下分别是左 / 右，<c>end</c> 相反。
+    /// 不在这几族中的属性原样返回。
+    /// </summary>
+    static CssPropertyId LogicalTarget(CssPropertyId id, CssDirection direction)
+    {
+        bool rtl = direction == CssDirection.Rtl;
+        return id switch
+        {
+            CssPropertyId.MarginInlineStart => rtl ? CssPropertyId.MarginRight : CssPropertyId.MarginLeft,
+            CssPropertyId.MarginInlineEnd => rtl ? CssPropertyId.MarginLeft : CssPropertyId.MarginRight,
+            CssPropertyId.PaddingInlineStart => rtl ? CssPropertyId.PaddingRight : CssPropertyId.PaddingLeft,
+            CssPropertyId.PaddingInlineEnd => rtl ? CssPropertyId.PaddingLeft : CssPropertyId.PaddingRight,
+            CssPropertyId.InsetInlineStart => rtl ? CssPropertyId.Right : CssPropertyId.Left,
+            CssPropertyId.InsetInlineEnd => rtl ? CssPropertyId.Left : CssPropertyId.Right,
+            CssPropertyId.BorderInlineStartWidth => rtl ? CssPropertyId.BorderRightWidth : CssPropertyId.BorderLeftWidth,
+            CssPropertyId.BorderInlineEndWidth => rtl ? CssPropertyId.BorderLeftWidth : CssPropertyId.BorderRightWidth,
+            CssPropertyId.BorderInlineStartStyle => rtl ? CssPropertyId.BorderRightStyle : CssPropertyId.BorderLeftStyle,
+            CssPropertyId.BorderInlineEndStyle => rtl ? CssPropertyId.BorderLeftStyle : CssPropertyId.BorderRightStyle,
+            CssPropertyId.BorderInlineStartColor => rtl ? CssPropertyId.BorderRightColor : CssPropertyId.BorderLeftColor,
+            CssPropertyId.BorderInlineEndColor => rtl ? CssPropertyId.BorderLeftColor : CssPropertyId.BorderRightColor,
+            CssPropertyId.ScrollMarginInlineStart => rtl ? CssPropertyId.ScrollMarginRight : CssPropertyId.ScrollMarginLeft,
+            CssPropertyId.ScrollMarginInlineEnd => rtl ? CssPropertyId.ScrollMarginLeft : CssPropertyId.ScrollMarginRight,
+            CssPropertyId.ScrollPaddingInlineStart => rtl ? CssPropertyId.ScrollPaddingRight : CssPropertyId.ScrollPaddingLeft,
+            CssPropertyId.ScrollPaddingInlineEnd => rtl ? CssPropertyId.ScrollPaddingLeft : CssPropertyId.ScrollPaddingRight,
+            // 圆角：块起始在上（本引擎只支持 horizontal-tb），行内起始在 LTR / RTL 下是左 / 右
+            CssPropertyId.BorderStartStartRadius => rtl ? CssPropertyId.BorderTopRightRadius : CssPropertyId.BorderTopLeftRadius,
+            CssPropertyId.BorderStartEndRadius => rtl ? CssPropertyId.BorderTopLeftRadius : CssPropertyId.BorderTopRightRadius,
+            CssPropertyId.BorderEndStartRadius => rtl ? CssPropertyId.BorderBottomRightRadius : CssPropertyId.BorderBottomLeftRadius,
+            CssPropertyId.BorderEndEndRadius => rtl ? CssPropertyId.BorderBottomLeftRadius : CssPropertyId.BorderBottomRightRadius,
+            _ => id,
+        };
+    }
+
+    /// <summary>
+    /// 只按 <c>direction</c> 声明求元素方向（作者 / UA / 表现提示、内联与 <c>!important</c> 均按正常级联），
+    /// 未声明时取 <c>dir</c> 属性提示或父元素方向。逻辑属性不影响方向，所以这次轻量级联足够。
+    /// </summary>
+    CssDirection ResolveDirection(ComputedStyle parent, StyleElement element, PseudoElementKind pseudo)
+    {
+        Slot slot = default;
+        foreach (var b in _blocks)
+        {
+            var decls = b.Declarations;
+            for (int i = decls.Length - 1; i >= 0; i--)
+            {
+                ref readonly var d = ref decls[i];
+                if (!d.IsCustom && d.Id == CssPropertyId.Direction) Consider(ref slot, b, d.Value);
+            }
+        }
+        if (slot.State == SlotState.Decided && slot.Value is KeywordValue keyword)
+            return (CssDirection)keyword.Value;
+        if (slot.State == SlotState.Decided && slot.Value is CssWideKeywordValue wide)
+        {
+            // direction 继承：initial 为 ltr，inherit / unset 取父元素；revert 未决时也按父元素
+            return wide.Keyword == CssWideKeyword.Initial ? CssDirection.Ltr : parent.Direction;
+        }
+        // dir 属性是 direction 的表现提示；伪元素不再读取，已由父样式（原始元素）体现
+        if (pseudo == PseudoElementKind.None && element.GetAttribute("dir") is { } dir)
+        {
+            if (string.Equals(dir, "rtl", StringComparison.OrdinalIgnoreCase)) return CssDirection.Rtl;
+            if (string.Equals(dir, "ltr", StringComparison.OrdinalIgnoreCase)) return CssDirection.Ltr;
+        }
+        return parent.Direction;
     }
 
     static DeclarationMatch Record(StyleMatchRecord record, in Block b, in ParsedDeclaration d, DeclarationStatus status)
@@ -760,6 +849,17 @@ public sealed partial class StyleEngine
         {
             if (i is (int)CssPropertyId.FontSize or (int)CssPropertyId.LineHeight) continue;
             ApplySlot((CssPropertyId)i, ref _slots[i], parent);
+        }
+
+        // HTML 的 dir 属性是 direction 的表现提示（特异性 0）：作者或 UA 声明了 direction 时以声明为准，
+        // 否则按元素自身的 dir 取值；没有 dir 时继续继承父元素。
+        if (_slots[(int)CssPropertyId.Direction].State != SlotState.Decided
+            && element.GetAttribute("dir") is { } dirAttribute)
+        {
+            if (string.Equals(dirAttribute, "rtl", StringComparison.OrdinalIgnoreCase))
+                b.MutableText().Direction = CssDirection.Rtl;
+            else if (string.Equals(dirAttribute, "ltr", StringComparison.OrdinalIgnoreCase))
+                b.MutableText().Direction = CssDirection.Ltr;
         }
 
         FixUp(b, parent, isRoot, _explicitBorderWidths);
@@ -908,7 +1008,10 @@ public sealed partial class StyleEngine
         if (_pendingValid)
         {
             foreach (var pv in _pendingValues)
-                if (pv.Id == id && pv.Value is not (UnparsedValue or PendingSubstitutionValue)) return pv.Value;
+            {
+                var target = _translateLogical ? LogicalTarget(pv.Id, _cascadeDirection) : pv.Id;
+                if (target == id && pv.Value is not (UnparsedValue or PendingSubstitutionValue)) return pv.Value;
+            }
         }
         MarkInvalid(ref slot);
         return CssWideKeywordValue.Unset;

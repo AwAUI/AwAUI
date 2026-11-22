@@ -1041,6 +1041,9 @@ public sealed partial class TextStyleGroup : IEquatable<TextStyleGroup>
     /// <summary><c>text-align</c></summary>
     public CssTextAlign TextAlign { get; internal set; }
 
+    /// <summary><c>direction</c></summary>
+    public CssDirection Direction { get; internal set; }
+
     /// <summary><c>white-space</c></summary>
     public CssWhiteSpace WhiteSpace { get; internal set; }
 
@@ -1148,6 +1151,7 @@ public sealed partial class TextStyleGroup : IEquatable<TextStyleGroup>
         if (other is null) return false;
         if (!Color.Equals(other.Color)) return false;
         if (TextAlign != other.TextAlign) return false;
+        if (Direction != other.Direction) return false;
         if (WhiteSpace != other.WhiteSpace) return false;
         if (WordBreak != other.WordBreak) return false;
         if (OverflowWrap != other.OverflowWrap) return false;
@@ -1191,6 +1195,7 @@ public sealed partial class TextStyleGroup : IEquatable<TextStyleGroup>
         int h = 0;
         h = HashCodeCompat.Combine(h, Color.GetHashCode());
         h = HashCodeCompat.Combine(h, (int)TextAlign);
+        h = HashCodeCompat.Combine(h, (int)Direction);
         h = HashCodeCompat.Combine(h, (int)WhiteSpace);
         h = HashCodeCompat.Combine(h, (int)WordBreak);
         h = HashCodeCompat.Combine(h, (int)OverflowWrap);
@@ -1353,6 +1358,12 @@ public sealed partial class ComputedStyle
     /// <summary><c>margin-left</c></summary>
     public SizeValue MarginLeft => BoxGroup.MarginLeft;
 
+    /// <summary><c>margin-inline-start</c></summary>
+    public SizeValue MarginInlineStart => TextGroup.Direction == CssDirection.Rtl ? BoxGroup.MarginRight : BoxGroup.MarginLeft;
+
+    /// <summary><c>margin-inline-end</c></summary>
+    public SizeValue MarginInlineEnd => TextGroup.Direction == CssDirection.Rtl ? BoxGroup.MarginLeft : BoxGroup.MarginRight;
+
     /// <summary><c>padding-top</c></summary>
     public LengthPercentage PaddingTop => BoxGroup.PaddingTop;
 
@@ -1364,6 +1375,12 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>padding-left</c></summary>
     public LengthPercentage PaddingLeft => BoxGroup.PaddingLeft;
+
+    /// <summary><c>padding-inline-start</c></summary>
+    public LengthPercentage PaddingInlineStart => TextGroup.Direction == CssDirection.Rtl ? BoxGroup.PaddingRight : BoxGroup.PaddingLeft;
+
+    /// <summary><c>padding-inline-end</c></summary>
+    public LengthPercentage PaddingInlineEnd => TextGroup.Direction == CssDirection.Rtl ? BoxGroup.PaddingLeft : BoxGroup.PaddingRight;
 
     /// <summary><c>overflow-x</c></summary>
     public CssOverflow OverflowX => BoxGroup.OverflowX;
@@ -1421,6 +1438,12 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>left</c></summary>
     public SizeValue Left => PositionGroup.Left;
+
+    /// <summary><c>inset-inline-start</c></summary>
+    public SizeValue InsetInlineStart => TextGroup.Direction == CssDirection.Rtl ? PositionGroup.Right : PositionGroup.Left;
+
+    /// <summary><c>inset-inline-end</c></summary>
+    public SizeValue InsetInlineEnd => TextGroup.Direction == CssDirection.Rtl ? PositionGroup.Left : PositionGroup.Right;
 
     /// <summary><c>z-index</c></summary>
     public IntegerOrAuto ZIndex => PositionGroup.ZIndex;
@@ -1536,6 +1559,24 @@ public sealed partial class ComputedStyle
     /// <summary><c>border-left-color</c></summary>
     public CssColor BorderLeftColor => BorderGroup.BorderLeftColor;
 
+    /// <summary><c>border-inline-start-width</c></summary>
+    public float BorderInlineStartWidth => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderRightWidth : BorderGroup.BorderLeftWidth;
+
+    /// <summary><c>border-inline-start-style</c></summary>
+    public CssLineStyle BorderInlineStartStyle => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderRightStyle : BorderGroup.BorderLeftStyle;
+
+    /// <summary><c>border-inline-start-color</c></summary>
+    public CssColor BorderInlineStartColor => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderRightColor : BorderGroup.BorderLeftColor;
+
+    /// <summary><c>border-inline-end-width</c></summary>
+    public float BorderInlineEndWidth => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderLeftWidth : BorderGroup.BorderRightWidth;
+
+    /// <summary><c>border-inline-end-style</c></summary>
+    public CssLineStyle BorderInlineEndStyle => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderLeftStyle : BorderGroup.BorderRightStyle;
+
+    /// <summary><c>border-inline-end-color</c></summary>
+    public CssColor BorderInlineEndColor => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderLeftColor : BorderGroup.BorderRightColor;
+
     /// <summary><c>border-top-left-radius</c></summary>
     public CornerRadius BorderTopLeftRadius => BorderGroup.BorderTopLeftRadius;
 
@@ -1547,6 +1588,18 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>border-bottom-left-radius</c></summary>
     public CornerRadius BorderBottomLeftRadius => BorderGroup.BorderBottomLeftRadius;
+
+    /// <summary><c>border-start-start-radius</c></summary>
+    public CornerRadius BorderStartStartRadius => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderTopRightRadius : BorderGroup.BorderTopLeftRadius;
+
+    /// <summary><c>border-start-end-radius</c></summary>
+    public CornerRadius BorderStartEndRadius => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderTopLeftRadius : BorderGroup.BorderTopRightRadius;
+
+    /// <summary><c>border-end-start-radius</c></summary>
+    public CornerRadius BorderEndStartRadius => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderBottomRightRadius : BorderGroup.BorderBottomLeftRadius;
+
+    /// <summary><c>border-end-end-radius</c></summary>
+    public CornerRadius BorderEndEndRadius => TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderBottomLeftRadius : BorderGroup.BorderBottomRightRadius;
 
     /// <summary><c>background-color</c></summary>
     public CssColor BackgroundColor => BackgroundGroup.BackgroundColor;
@@ -1746,6 +1799,12 @@ public sealed partial class ComputedStyle
     /// <summary><c>scroll-margin-left</c></summary>
     public float ScrollMarginLeft => BehaviorGroup.ScrollMarginLeft;
 
+    /// <summary><c>scroll-margin-inline-start</c></summary>
+    public float ScrollMarginInlineStart => TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollMarginRight : BehaviorGroup.ScrollMarginLeft;
+
+    /// <summary><c>scroll-margin-inline-end</c></summary>
+    public float ScrollMarginInlineEnd => TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollMarginLeft : BehaviorGroup.ScrollMarginRight;
+
     /// <summary><c>scroll-padding-top</c></summary>
     public SizeValue ScrollPaddingTop => BehaviorGroup.ScrollPaddingTop;
 
@@ -1757,6 +1816,12 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>scroll-padding-left</c></summary>
     public SizeValue ScrollPaddingLeft => BehaviorGroup.ScrollPaddingLeft;
+
+    /// <summary><c>scroll-padding-inline-start</c></summary>
+    public SizeValue ScrollPaddingInlineStart => TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollPaddingRight : BehaviorGroup.ScrollPaddingLeft;
+
+    /// <summary><c>scroll-padding-inline-end</c></summary>
+    public SizeValue ScrollPaddingInlineEnd => TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollPaddingLeft : BehaviorGroup.ScrollPaddingRight;
 
     /// <summary><c>scrollbar-width</c></summary>
     public CssScrollbarWidth ScrollbarWidth => BehaviorGroup.ScrollbarWidth;
@@ -1811,6 +1876,9 @@ public sealed partial class ComputedStyle
 
     /// <summary><c>text-align</c></summary>
     public CssTextAlign TextAlign => TextGroup.TextAlign;
+
+    /// <summary><c>direction</c></summary>
+    public CssDirection Direction => TextGroup.Direction;
 
     /// <summary><c>white-space</c></summary>
     public CssWhiteSpace WhiteSpace => TextGroup.WhiteSpace;
@@ -2140,6 +2208,7 @@ public sealed partial class ComputedStyle
             var y = b.TextGroup;
             if (!x.Color.Equals(y.Color)) d |= StyleDifference.Paint;
             if (x.TextAlign != y.TextAlign) d |= StyleDifference.Layout;
+            if (x.Direction != y.Direction) d |= StyleDifference.Layout;
             if (x.WhiteSpace != y.WhiteSpace) d |= StyleDifference.Layout;
             if (x.WordBreak != y.WordBreak) d |= StyleDifference.Layout;
             if (x.OverflowWrap != y.OverflowWrap) d |= StyleDifference.Layout;
@@ -2201,10 +2270,14 @@ public sealed partial class ComputedStyle
             case CssPropertyId.MarginRight: { var x = BoxGroup.MarginRight; return x.ToString(); }
             case CssPropertyId.MarginBottom: { var x = BoxGroup.MarginBottom; return x.ToString(); }
             case CssPropertyId.MarginLeft: { var x = BoxGroup.MarginLeft; return x.ToString(); }
+            case CssPropertyId.MarginInlineStart: { var x = TextGroup.Direction == CssDirection.Rtl ? BoxGroup.MarginRight : BoxGroup.MarginLeft; return x.ToString(); }
+            case CssPropertyId.MarginInlineEnd: { var x = TextGroup.Direction == CssDirection.Rtl ? BoxGroup.MarginLeft : BoxGroup.MarginRight; return x.ToString(); }
             case CssPropertyId.PaddingTop: { var x = BoxGroup.PaddingTop; return x.ToString(); }
             case CssPropertyId.PaddingRight: { var x = BoxGroup.PaddingRight; return x.ToString(); }
             case CssPropertyId.PaddingBottom: { var x = BoxGroup.PaddingBottom; return x.ToString(); }
             case CssPropertyId.PaddingLeft: { var x = BoxGroup.PaddingLeft; return x.ToString(); }
+            case CssPropertyId.PaddingInlineStart: { var x = TextGroup.Direction == CssDirection.Rtl ? BoxGroup.PaddingRight : BoxGroup.PaddingLeft; return x.ToString(); }
+            case CssPropertyId.PaddingInlineEnd: { var x = TextGroup.Direction == CssDirection.Rtl ? BoxGroup.PaddingLeft : BoxGroup.PaddingRight; return x.ToString(); }
             case CssPropertyId.OverflowX: { var x = BoxGroup.OverflowX; return KeywordTables.CssOverflow.NameOf((int)x); }
             case CssPropertyId.OverflowY: { var x = BoxGroup.OverflowY; return KeywordTables.CssOverflow.NameOf((int)x); }
             case CssPropertyId.AspectRatio: { var x = BoxGroup.AspectRatio; return x.ToString(); }
@@ -2224,6 +2297,8 @@ public sealed partial class ComputedStyle
             case CssPropertyId.Right: { var x = PositionGroup.Right; return x.ToString(); }
             case CssPropertyId.Bottom: { var x = PositionGroup.Bottom; return x.ToString(); }
             case CssPropertyId.Left: { var x = PositionGroup.Left; return x.ToString(); }
+            case CssPropertyId.InsetInlineStart: { var x = TextGroup.Direction == CssDirection.Rtl ? PositionGroup.Right : PositionGroup.Left; return x.ToString(); }
+            case CssPropertyId.InsetInlineEnd: { var x = TextGroup.Direction == CssDirection.Rtl ? PositionGroup.Left : PositionGroup.Right; return x.ToString(); }
             case CssPropertyId.ZIndex: { var x = PositionGroup.ZIndex; return x.ToString(); }
             case CssPropertyId.Isolation: { var x = PositionGroup.Isolation; return KeywordTables.CssIsolation.NameOf((int)x); }
             case CssPropertyId.FlexDirection: { var x = FlexGroup.FlexDirection; return KeywordTables.CssFlexDirection.NameOf((int)x); }
@@ -2262,10 +2337,20 @@ public sealed partial class ComputedStyle
             case CssPropertyId.BorderRightColor: { var x = BorderGroup.BorderRightColor; return x.ToString(); }
             case CssPropertyId.BorderBottomColor: { var x = BorderGroup.BorderBottomColor; return x.ToString(); }
             case CssPropertyId.BorderLeftColor: { var x = BorderGroup.BorderLeftColor; return x.ToString(); }
+            case CssPropertyId.BorderInlineStartWidth: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderRightWidth : BorderGroup.BorderLeftWidth; return ValueText.Px(x); }
+            case CssPropertyId.BorderInlineStartStyle: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderRightStyle : BorderGroup.BorderLeftStyle; return KeywordTables.CssLineStyle.NameOf((int)x); }
+            case CssPropertyId.BorderInlineStartColor: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderRightColor : BorderGroup.BorderLeftColor; return x.ToString(); }
+            case CssPropertyId.BorderInlineEndWidth: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderLeftWidth : BorderGroup.BorderRightWidth; return ValueText.Px(x); }
+            case CssPropertyId.BorderInlineEndStyle: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderLeftStyle : BorderGroup.BorderRightStyle; return KeywordTables.CssLineStyle.NameOf((int)x); }
+            case CssPropertyId.BorderInlineEndColor: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderLeftColor : BorderGroup.BorderRightColor; return x.ToString(); }
             case CssPropertyId.BorderTopLeftRadius: { var x = BorderGroup.BorderTopLeftRadius; return x.ToString(); }
             case CssPropertyId.BorderTopRightRadius: { var x = BorderGroup.BorderTopRightRadius; return x.ToString(); }
             case CssPropertyId.BorderBottomRightRadius: { var x = BorderGroup.BorderBottomRightRadius; return x.ToString(); }
             case CssPropertyId.BorderBottomLeftRadius: { var x = BorderGroup.BorderBottomLeftRadius; return x.ToString(); }
+            case CssPropertyId.BorderStartStartRadius: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderTopRightRadius : BorderGroup.BorderTopLeftRadius; return x.ToString(); }
+            case CssPropertyId.BorderStartEndRadius: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderTopLeftRadius : BorderGroup.BorderTopRightRadius; return x.ToString(); }
+            case CssPropertyId.BorderEndStartRadius: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderBottomRightRadius : BorderGroup.BorderBottomLeftRadius; return x.ToString(); }
+            case CssPropertyId.BorderEndEndRadius: { var x = TextGroup.Direction == CssDirection.Rtl ? BorderGroup.BorderBottomLeftRadius : BorderGroup.BorderBottomRightRadius; return x.ToString(); }
             case CssPropertyId.BackgroundColor: { var x = BackgroundGroup.BackgroundColor; return x.ToString(); }
             case CssPropertyId.BackgroundImage: { var x = BackgroundGroup.BackgroundImage; return x.ToString(); }
             case CssPropertyId.BackgroundBlendMode: { var x = BackgroundGroup.BackgroundBlendMode; return x.Join(e => KeywordTables.CssBlendMode.NameOf((int)e), "none"); }
@@ -2332,10 +2417,14 @@ public sealed partial class ComputedStyle
             case CssPropertyId.ScrollMarginRight: { var x = BehaviorGroup.ScrollMarginRight; return ValueText.Px(x); }
             case CssPropertyId.ScrollMarginBottom: { var x = BehaviorGroup.ScrollMarginBottom; return ValueText.Px(x); }
             case CssPropertyId.ScrollMarginLeft: { var x = BehaviorGroup.ScrollMarginLeft; return ValueText.Px(x); }
+            case CssPropertyId.ScrollMarginInlineStart: { var x = TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollMarginRight : BehaviorGroup.ScrollMarginLeft; return ValueText.Px(x); }
+            case CssPropertyId.ScrollMarginInlineEnd: { var x = TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollMarginLeft : BehaviorGroup.ScrollMarginRight; return ValueText.Px(x); }
             case CssPropertyId.ScrollPaddingTop: { var x = BehaviorGroup.ScrollPaddingTop; return x.ToString(); }
             case CssPropertyId.ScrollPaddingRight: { var x = BehaviorGroup.ScrollPaddingRight; return x.ToString(); }
             case CssPropertyId.ScrollPaddingBottom: { var x = BehaviorGroup.ScrollPaddingBottom; return x.ToString(); }
             case CssPropertyId.ScrollPaddingLeft: { var x = BehaviorGroup.ScrollPaddingLeft; return x.ToString(); }
+            case CssPropertyId.ScrollPaddingInlineStart: { var x = TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollPaddingRight : BehaviorGroup.ScrollPaddingLeft; return x.ToString(); }
+            case CssPropertyId.ScrollPaddingInlineEnd: { var x = TextGroup.Direction == CssDirection.Rtl ? BehaviorGroup.ScrollPaddingLeft : BehaviorGroup.ScrollPaddingRight; return x.ToString(); }
             case CssPropertyId.ScrollbarWidth: { var x = BehaviorGroup.ScrollbarWidth; return KeywordTables.CssScrollbarWidth.NameOf((int)x); }
             case CssPropertyId.ScrollbarGutter: { var x = BehaviorGroup.ScrollbarGutter; return BehaviorParsers.ScrollbarGutterText(x); }
             case CssPropertyId.FontFamily: { var x = FontGroup.FontFamily; return x.ToString(); }
@@ -2354,6 +2443,7 @@ public sealed partial class ComputedStyle
             case CssPropertyId.MozOsxFontSmoothing: { var x = FontGroup.MozOsxFontSmoothing; return KeywordTables.CssOsxFontSmoothing.NameOf((int)x); }
             case CssPropertyId.Color: { var x = TextGroup.Color; return x.ToString(); }
             case CssPropertyId.TextAlign: { var x = TextGroup.TextAlign; return KeywordTables.CssTextAlign.NameOf((int)x); }
+            case CssPropertyId.Direction: { var x = TextGroup.Direction; return KeywordTables.CssDirection.NameOf((int)x); }
             case CssPropertyId.WhiteSpace: { var x = TextGroup.WhiteSpace; return KeywordTables.CssWhiteSpace.NameOf((int)x); }
             case CssPropertyId.WordBreak: { var x = TextGroup.WordBreak; return KeywordTables.CssWordBreak.NameOf((int)x); }
             case CssPropertyId.OverflowWrap: { var x = TextGroup.OverflowWrap; return KeywordTables.CssOverflowWrap.NameOf((int)x); }
@@ -2764,6 +2854,7 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.MozOsxFontSmoothing: { var x = source.FontGroup.MozOsxFontSmoothing; if (Font.MozOsxFontSmoothing != x) MutableFont().MozOsxFontSmoothing = x; return; }
             case CssPropertyId.Color: { var x = source.TextGroup.Color; if (!Text.Color.Equals(x)) MutableText().Color = x; return; }
             case CssPropertyId.TextAlign: { var x = source.TextGroup.TextAlign; if (Text.TextAlign != x) MutableText().TextAlign = x; return; }
+            case CssPropertyId.Direction: { var x = source.TextGroup.Direction; if (Text.Direction != x) MutableText().Direction = x; return; }
             case CssPropertyId.WhiteSpace: { var x = source.TextGroup.WhiteSpace; if (Text.WhiteSpace != x) MutableText().WhiteSpace = x; return; }
             case CssPropertyId.WordBreak: { var x = source.TextGroup.WordBreak; if (Text.WordBreak != x) MutableText().WordBreak = x; return; }
             case CssPropertyId.OverflowWrap: { var x = source.TextGroup.OverflowWrap; if (Text.OverflowWrap != x) MutableText().OverflowWrap = x; return; }
@@ -2972,6 +3063,7 @@ internal sealed partial class StyleBuilder
             case CssPropertyId.MozOsxFontSmoothing: { var x = (CssOsxFontSmoothing)c.Keyword(value); if (Font.MozOsxFontSmoothing != x) MutableFont().MozOsxFontSmoothing = x; return; }
             case CssPropertyId.Color: { var x = c.ComputeColor(value); if (!Text.Color.Equals(x)) MutableText().Color = x; return; }
             case CssPropertyId.TextAlign: { var x = (CssTextAlign)c.Keyword(value); if (Text.TextAlign != x) MutableText().TextAlign = x; return; }
+            case CssPropertyId.Direction: { var x = (CssDirection)c.Keyword(value); if (Text.Direction != x) MutableText().Direction = x; return; }
             case CssPropertyId.WhiteSpace: { var x = (CssWhiteSpace)c.Keyword(value); if (Text.WhiteSpace != x) MutableText().WhiteSpace = x; return; }
             case CssPropertyId.WordBreak: { var x = (CssWordBreak)c.Keyword(value); if (Text.WordBreak != x) MutableText().WordBreak = x; return; }
             case CssPropertyId.OverflowWrap: { var x = (CssOverflowWrap)c.Keyword(value); if (Text.OverflowWrap != x) MutableText().OverflowWrap = x; return; }

@@ -68,10 +68,26 @@ internal sealed class CssParser
     // ================= 入口 =================
 
     /// <summary>§5.4.1「解析样式表」+ §5.5.1「消费样式表内容」。</summary>
-    public List<CssRule> ParseStyleSheet()
+    public List<CssRule> ParseStyleSheet() => ParseStyleSheet(0, importAllowed: true);
+
+    /// <summary>
+    /// 从 <paramref name="startOffset"/> 开始解析样式表内容（增量解析的尾部）。区间仍相对整段源文本，
+    /// 因此可直接与已解析的前缀规则拼接；<paramref name="startOffset"/> 必须落在顶层规则边界上。
+    /// 不在样式表开头时按惯例不再允许 <c>@import</c>；需要与复用的前缀衔接时用
+    /// <see cref="ParseStyleSheet(int, bool)"/>。
+    /// </summary>
+    public List<CssRule> ParseStyleSheet(int startOffset) => ParseStyleSheet(startOffset, startOffset == 0);
+
+    /// <summary>
+    /// 从 <paramref name="startOffset"/> 开始解析样式表内容，<paramref name="importAllowed"/> 应反映已复用的前缀是否仍允许
+    /// <c>@import</c>（只有 <c>@charset</c>、<c>@layer</c> 语句、有效 <c>@import</c> 与被忽略的未知 at 规则不禁止它）。
+    /// </summary>
+    public List<CssRule> ParseStyleSheet(int startOffset, bool importAllowed)
     {
         var rules = new List<CssRule>();
-        bool importAllowed = true;
+        _i = 0;
+        while (_i < _t.Count && _t[_i].Range.Start.Offset < startOffset) _i++;
+        if (_i >= _t.Count) _i = _t.Count - 1; // 越界按文档末尾（EOF 记号）处理
         while (true)
         {
             var t = Peek;

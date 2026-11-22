@@ -30,6 +30,10 @@ public enum CssPropertyId : ushort
     MarginBottom,
     /// <summary><c>margin-left</c></summary>
     MarginLeft,
+    /// <summary><c>margin-inline-start</c></summary>
+    MarginInlineStart,
+    /// <summary><c>margin-inline-end</c></summary>
+    MarginInlineEnd,
     /// <summary><c>padding-top</c></summary>
     PaddingTop,
     /// <summary><c>padding-right</c></summary>
@@ -38,6 +42,10 @@ public enum CssPropertyId : ushort
     PaddingBottom,
     /// <summary><c>padding-left</c></summary>
     PaddingLeft,
+    /// <summary><c>padding-inline-start</c></summary>
+    PaddingInlineStart,
+    /// <summary><c>padding-inline-end</c></summary>
+    PaddingInlineEnd,
     /// <summary><c>overflow-x</c></summary>
     OverflowX,
     /// <summary><c>overflow-y</c></summary>
@@ -76,6 +84,10 @@ public enum CssPropertyId : ushort
     Bottom,
     /// <summary><c>left</c></summary>
     Left,
+    /// <summary><c>inset-inline-start</c></summary>
+    InsetInlineStart,
+    /// <summary><c>inset-inline-end</c></summary>
+    InsetInlineEnd,
     /// <summary><c>z-index</c></summary>
     ZIndex,
     /// <summary><c>isolation</c></summary>
@@ -152,6 +164,18 @@ public enum CssPropertyId : ushort
     BorderBottomColor,
     /// <summary><c>border-left-color</c></summary>
     BorderLeftColor,
+    /// <summary><c>border-inline-start-width</c></summary>
+    BorderInlineStartWidth,
+    /// <summary><c>border-inline-start-style</c></summary>
+    BorderInlineStartStyle,
+    /// <summary><c>border-inline-start-color</c></summary>
+    BorderInlineStartColor,
+    /// <summary><c>border-inline-end-width</c></summary>
+    BorderInlineEndWidth,
+    /// <summary><c>border-inline-end-style</c></summary>
+    BorderInlineEndStyle,
+    /// <summary><c>border-inline-end-color</c></summary>
+    BorderInlineEndColor,
     /// <summary><c>border-top-left-radius</c></summary>
     BorderTopLeftRadius,
     /// <summary><c>border-top-right-radius</c></summary>
@@ -160,6 +184,14 @@ public enum CssPropertyId : ushort
     BorderBottomRightRadius,
     /// <summary><c>border-bottom-left-radius</c></summary>
     BorderBottomLeftRadius,
+    /// <summary><c>border-start-start-radius</c></summary>
+    BorderStartStartRadius,
+    /// <summary><c>border-start-end-radius</c></summary>
+    BorderStartEndRadius,
+    /// <summary><c>border-end-start-radius</c></summary>
+    BorderEndStartRadius,
+    /// <summary><c>border-end-end-radius</c></summary>
+    BorderEndEndRadius,
     /// <summary><c>background-color</c></summary>
     BackgroundColor,
     /// <summary><c>background-image</c></summary>
@@ -292,6 +324,10 @@ public enum CssPropertyId : ushort
     ScrollMarginBottom,
     /// <summary><c>scroll-margin-left</c></summary>
     ScrollMarginLeft,
+    /// <summary><c>scroll-margin-inline-start</c></summary>
+    ScrollMarginInlineStart,
+    /// <summary><c>scroll-margin-inline-end</c></summary>
+    ScrollMarginInlineEnd,
     /// <summary><c>scroll-padding-top</c></summary>
     ScrollPaddingTop,
     /// <summary><c>scroll-padding-right</c></summary>
@@ -300,6 +336,10 @@ public enum CssPropertyId : ushort
     ScrollPaddingBottom,
     /// <summary><c>scroll-padding-left</c></summary>
     ScrollPaddingLeft,
+    /// <summary><c>scroll-padding-inline-start</c></summary>
+    ScrollPaddingInlineStart,
+    /// <summary><c>scroll-padding-inline-end</c></summary>
+    ScrollPaddingInlineEnd,
     /// <summary><c>scrollbar-width</c></summary>
     ScrollbarWidth,
     /// <summary><c>scrollbar-gutter</c></summary>
@@ -336,6 +376,8 @@ public enum CssPropertyId : ushort
     Color,
     /// <summary><c>text-align</c></summary>
     TextAlign,
+    /// <summary><c>direction</c></summary>
+    Direction,
     /// <summary><c>white-space</c></summary>
     WhiteSpace,
     /// <summary><c>word-break</c></summary>
@@ -450,10 +492,6 @@ public enum CssPropertyId : ushort
     PlaceSelf,
     /// <summary><c>place-content</c>（简写）</summary>
     PlaceContent,
-    /// <summary><c>margin-inline-start</c>（简写）</summary>
-    MarginInlineStart,
-    /// <summary><c>margin-inline-end</c>（简写）</summary>
-    MarginInlineEnd,
     /// <summary><c>margin-block-start</c>（简写）</summary>
     MarginBlockStart,
     /// <summary><c>margin-block-end</c>（简写）</summary>
@@ -462,10 +500,6 @@ public enum CssPropertyId : ushort
     MarginInline,
     /// <summary><c>margin-block</c>（简写）</summary>
     MarginBlock,
-    /// <summary><c>padding-inline-start</c>（简写）</summary>
-    PaddingInlineStart,
-    /// <summary><c>padding-inline-end</c>（简写）</summary>
-    PaddingInlineEnd,
     /// <summary><c>padding-block-start</c>（简写）</summary>
     PaddingBlockStart,
     /// <summary><c>padding-block-end</c>（简写）</summary>
@@ -474,10 +508,6 @@ public enum CssPropertyId : ushort
     PaddingInline,
     /// <summary><c>padding-block</c>（简写）</summary>
     PaddingBlock,
-    /// <summary><c>inset-inline-start</c>（简写）</summary>
-    InsetInlineStart,
-    /// <summary><c>inset-inline-end</c>（简写）</summary>
-    InsetInlineEnd,
     /// <summary><c>inset-block-start</c>（简写）</summary>
     InsetBlockStart,
     /// <summary><c>inset-block-end</c>（简写）</summary>
@@ -486,20 +516,8 @@ public enum CssPropertyId : ushort
     InsetInline,
     /// <summary><c>inset-block</c>（简写）</summary>
     InsetBlock,
-    /// <summary><c>border-inline-start-width</c>（简写）</summary>
-    BorderInlineStartWidth,
-    /// <summary><c>border-inline-start-style</c>（简写）</summary>
-    BorderInlineStartStyle,
-    /// <summary><c>border-inline-start-color</c>（简写）</summary>
-    BorderInlineStartColor,
     /// <summary><c>border-inline-start</c>（简写）</summary>
     BorderInlineStart,
-    /// <summary><c>border-inline-end-width</c>（简写）</summary>
-    BorderInlineEndWidth,
-    /// <summary><c>border-inline-end-style</c>（简写）</summary>
-    BorderInlineEndStyle,
-    /// <summary><c>border-inline-end-color</c>（简写）</summary>
-    BorderInlineEndColor,
     /// <summary><c>border-inline-end</c>（简写）</summary>
     BorderInlineEnd,
     /// <summary><c>border-block-start-width</c>（简写）</summary>
@@ -564,10 +582,6 @@ public enum CssPropertyId : ushort
     ScrollMarginInline,
     /// <summary><c>scroll-margin-block</c>（简写）</summary>
     ScrollMarginBlock,
-    /// <summary><c>scroll-margin-inline-start</c>（简写）</summary>
-    ScrollMarginInlineStart,
-    /// <summary><c>scroll-margin-inline-end</c>（简写）</summary>
-    ScrollMarginInlineEnd,
     /// <summary><c>scroll-margin-block-start</c>（简写）</summary>
     ScrollMarginBlockStart,
     /// <summary><c>scroll-margin-block-end</c>（简写）</summary>
@@ -576,10 +590,6 @@ public enum CssPropertyId : ushort
     ScrollPaddingInline,
     /// <summary><c>scroll-padding-block</c>（简写）</summary>
     ScrollPaddingBlock,
-    /// <summary><c>scroll-padding-inline-start</c>（简写）</summary>
-    ScrollPaddingInlineStart,
-    /// <summary><c>scroll-padding-inline-end</c>（简写）</summary>
-    ScrollPaddingInlineEnd,
     /// <summary><c>scroll-padding-block-start</c>（简写）</summary>
     ScrollPaddingBlockStart,
     /// <summary><c>scroll-padding-block-end</c>（简写）</summary>
@@ -602,14 +612,6 @@ public enum CssPropertyId : ushort
     MaxBlockSize,
     /// <summary><c>max-inline-size</c>（简写）</summary>
     MaxInlineSize,
-    /// <summary><c>border-start-start-radius</c>（简写）</summary>
-    BorderStartStartRadius,
-    /// <summary><c>border-start-end-radius</c>（简写）</summary>
-    BorderStartEndRadius,
-    /// <summary><c>border-end-start-radius</c>（简写）</summary>
-    BorderEndStartRadius,
-    /// <summary><c>border-end-end-radius</c>（简写）</summary>
-    BorderEndEndRadius,
     /// <summary><c>line-clamp</c>（简写）</summary>
     LineClamp,
     /// <summary><c>-webkit-user-select</c>（简写）</summary>
@@ -662,8 +664,8 @@ public enum CssPropertyGroup : byte
 public static partial class CssProperties
 {
     /// <summary>长属性个数（ID 0 .. LonghandCount-1）。</summary>
-    public const int LonghandCount = 200;
+    public const int LonghandCount = 221;
 
     /// <summary>属性总数（含简写）。</summary>
-    public const int Count = 311;
+    public const int Count = 312;
 }
