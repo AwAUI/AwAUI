@@ -267,6 +267,10 @@ public sealed partial class RenderPipeline
         return c.IsTransparent ? null : c;
     }
 
+    /// <summary>输入框选区的文字色：<c>::selection</c> 的 <c>color</c>（未指定时沿用元素文字色，无需重绘）。</summary>
+    internal Color? SelectionTextColor(Element input) =>
+        input.Render?.GetView(this).SelectionStyle is { } sel ? sel.ResolveColor(sel.Color) : null;
+
     // ------------------------------------------------------------ 命中测试
 
     /// <summary>命中伪元素的盒时报告原始元素（伪元素不是事件目标，CSS Pseudo-Elements 4 §4）。</summary>

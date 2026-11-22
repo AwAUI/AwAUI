@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using AwAUI.Css;
 using AwAUI.Css.Values;
@@ -53,11 +54,12 @@ public readonly struct HostFrameStatistics
 /// </list>
 /// 渲染后端与文本引擎由应用传入（UI 不引用 AwAUI.Render，design/01 规则 1）。所有方法只能在 UI 线程上调用。
 /// </summary>
-public sealed class UIHost : IWindowEvents, IDisposable
+public sealed class UIHost : IWindowEvents, IWindowStateEvents, IWindowLifecycleEvents, IWindowMemoryPressureEvents, IDisposable
 {
     readonly WindowImpl _window;
     readonly RenderTarget _target;
     readonly IReducedMotionPreference? _reducedMotion;
+    readonly IAppearancePreference? _appearance;
     long _renderedVersion = -1;
     bool _needsPresent = true;
     bool _pointerInside;
@@ -69,6 +71,7 @@ public sealed class UIHost : IWindowEvents, IDisposable
     UIDevTools? _devTools;
     int _renderedOverlayVersion = -1;
     bool _overlayShown;
+    IDisposable? _accessibilityConnection;
 
     /// <param name="window">平台窗口；宿主成为它的 <see cref="WindowImpl.Events"/>。</param>
     /// <param name="backend">渲染后端（软件 / GPU），由应用的组合根选择。</param>
@@ -81,23 +84,36 @@ public sealed class UIHost : IWindowEvents, IDisposable
         _dispatcher = dispatcher;
         _backend = backend;
         Root = new UIRoot(dispatcher);
+        Root.Host = this;
         Pipeline = new RenderPipeline(textEngine);
         Root.Pipeline = Pipeline;
         // 帧时钟：State 写入或脏标记出现时请求一帧（宿主调度，不在处理器里同步执行帧）
         Root.FrameRequested += _ => RequestFrame();
         _target = backend.CreateRenderTarget(window.Surface);
         Pipeline.SetViewport(window.ClientSize, (float)window.RenderScale);
+        Pipeline.SetSafeArea(window.SafeAreaInsets);
         // 滚动条样式随平台（design/21「滚动条」）
         Pipeline.ScrollbarStyle = window.PreferredScrollbarStyle;
         window.Events = this;
         // 输入法桥与剪贴板：焦点所在的输入框作为文本输入客户端交给窗口（design/04「IME」）
         Root.Input.TextInputMethod = window.TextInput;
         Root.Input.Clipboard = window.Clipboard;
+        // 无障碍桥（design/10）：平台把语义树暴露给辅助技术；没有桥时不创建语义树
+        _accessibilityConnection = window.Accessibility is { } accessibility
+            ? Root.Accessibility.ConnectBridge(accessibility)
+            : null;
         _reducedMotion = window.GetFeature<IReducedMotionPreference>();
         if (_reducedMotion is { } preference)
         {
             preference.PrefersReducedMotionChanged += OnReducedMotionChanged;
             Pipeline.SetPrefersReducedMotion(preference.PrefersReducedMotion);
+        }
+        // 系统外观（浅色 / 深色）驱动 prefers-color-scheme（design/08「媒体查询」）
+        _appearance = window.GetFeature<IAppearancePreference>();
+        if (_appearance is { } appearance)
+        {
+            appearance.PrefersDarkChanged += OnAppearanceChanged;
+            Pipeline.SetPrefersDark(appearance.PrefersDark);
         }
     }
 
@@ -108,6 +124,32 @@ public sealed class UIHost : IWindowEvents, IDisposable
     public RenderPipeline Pipeline { get; }
 
     public WindowImpl Window => _window;
+
+    /// <summary>
+    /// 托管这个宿主的顶层窗口（<see cref="AwAUI.UI.Window"/>）；宿主由 <see cref="AwApp.CreateHost"/> 直接创建时为 null。
+    /// </summary>
+    public Window? TopLevel { get; internal set; }
+
+    /// <summary>平台报告窗口状态变化。</summary>
+    public event Action<WindowState>? WindowStateChanged;
+
+    /// <summary>平台报告窗口位置变化。</summary>
+    public event Action<Point>? WindowPositionChanged;
+
+    /// <summary>平台报告窗口激活状态变化。</summary>
+    public event Action<bool>? WindowActivated;
+
+    /// <summary>平台报告应用生命周期变化。</summary>
+    public event Action<AppLifecycle>? LifecycleChanged;
+
+    /// <summary>安全区变化（逻辑像素）。</summary>
+    public event Action<Thickness>? SafeAreaChanged;
+
+    /// <summary>平台关闭请求（标题栏关闭按钮、Alt+F4）：返回 false 取消。由 <see cref="Window"/> 设置。</summary>
+    internal Func<bool>? CloseRequested { get; set; }
+
+    /// <summary>是否已批准关闭（<see cref="Window.Close()"/> 已询问过 <see cref="Closing"/>，平台不必再问）。</summary>
+    internal bool CloseApproved { get; set; }
 
     /// <summary>
     /// 是否只光栅化相对上一帧变化的区域（<see cref="RenderPipeline.LastDamage"/> → <see cref="RenderOptions.Damage"/>）。
@@ -219,7 +261,10 @@ public sealed class UIHost : IWindowEvents, IDisposable
             var damage = ComputeDamage(overlay);
             LastDamage = damage;
             bool submitted = damage is not { IsEmpty: true };
-            if (submitted) _target.Render(frame, new RenderOptions(ClearColor, damage));
+            // 纯滚动帧：把上一帧的像素按位移搬移，只重画新露出的条带（软件后端；GPU 交换链不保留像素，damage 为 null 时忽略）
+            var shift = damage is null ? null : Pipeline.LastScrollShift;
+            var shiftRects = shift is null ? null : ExpandDamageRects(Pipeline.LastScrollDamage, _target.PixelSize);
+            if (submitted) _target.Render(frame, new RenderOptions(ClearColor, damage, shift, shiftRects));
             PresentedFrame = frame;
             rasterMs = r.Elapsed.TotalMilliseconds;
             _renderedVersion = Pipeline.FrameVersion;
@@ -279,6 +324,19 @@ public sealed class UIHost : IWindowEvents, IDisposable
         x0 = Math.Max(0, x0);
         y0 = Math.Max(0, y0);
         return new PixelRect(x0, y0, Math.Max(0, x1 - x0), Math.Max(0, y1 - y0));
+    }
+
+    /// <summary>纯滚动帧的多个受损矩形：各向外扩一个设备像素（抗锯齿边缘）并裁剪到目标。</summary>
+    static PixelRect[] ExpandDamageRects(IReadOnlyList<PixelRect>? rects, PixelSize size)
+    {
+        var full = new PixelRect(0, 0, size.Width, size.Height);
+        var result = new PixelRect[rects?.Count ?? 0];
+        for (int i = 0; i < result.Length; i++)
+        {
+            var r = rects![i];
+            result[i] = PixelRect.FromLTRB(Math.Max(0, r.X - 1), Math.Max(0, r.Y - 1), r.Right + 1, r.Bottom + 1).Intersect(full);
+        }
+        return result;
     }
 
     /// <summary>布局变化后指针下的元素可能变了：按最近的指针位置重新命中并更新悬停（触发 enter/leave 与 :hover 重算）。</summary>
@@ -365,6 +423,60 @@ public sealed class UIHost : IWindowEvents, IDisposable
 
     void IWindowEvents.OnFocusChanged(bool focused)
     {
+        // 窗口失去键盘焦点：输入法会话随窗口失活而结束，放弃进行中的组合（恢复焦点时输入法会重新开始，无需额外动作）
+        if (!focused) Root.Input.TextInputMethod?.ResetComposition();
+    }
+
+    // ------------------------------------------------------------ 可选平台回调
+
+    void IWindowStateEvents.OnWindowStateChanged(WindowState state)
+    {
+        WindowStateChanged?.Invoke(state);
+        RequestFrame();
+    }
+
+    void IWindowStateEvents.OnPositionChanged(Point position) => WindowPositionChanged?.Invoke(position);
+
+    void IWindowLifecycleEvents.OnSurfaceLost()
+    {
+        // 平台表面丢失：渲染目标与设备资源在恢复前不可用（移动端切后台、GPU 设备丢失）。
+        _backend.InvalidateDeviceResources();
+    }
+
+    void IWindowLifecycleEvents.OnSurfaceRestored()
+    {
+        _backend.InvalidateDeviceResources();
+        _needsPresent = true;
+        RequestFrame();
+    }
+
+    void IWindowLifecycleEvents.OnLifecycle(AppLifecycle state)
+    {
+        if (state == AppLifecycle.Background || state == AppLifecycle.Inactive)
+            Root.Input.TextInputMethod?.ResetComposition();
+        LifecycleChanged?.Invoke(state);
+        RequestFrame();
+    }
+
+    void IWindowLifecycleEvents.OnActivated(bool activated)
+    {
+        WindowActivated?.Invoke(activated);
+        RequestFrame();
+    }
+
+    void IWindowLifecycleEvents.OnSafeAreaChanged(Thickness insets)
+    {
+        Pipeline.SetSafeArea(insets);
+        SafeAreaChanged?.Invoke(insets);
+        RequestFrame();
+    }
+
+    void IWindowMemoryPressureEvents.OnMemoryPressure()
+    {
+        // 系统内存压力（移动端）：丢弃可重建的设备缓存（图集、字形位图、离屏图层），
+        // 下一次呈现时按需重建；保留窗口内容与布局。
+        _backend.InvalidateDeviceResources();
+        _needsPresent = true;
     }
 
     void OnReducedMotionChanged(bool value)
@@ -372,7 +484,18 @@ public sealed class UIHost : IWindowEvents, IDisposable
         if (!_disposed && Pipeline.SetPrefersReducedMotion(value)) RequestFrame();
     }
 
-    bool IWindowEvents.OnCloseRequested() => true;
+    void OnAppearanceChanged(bool value)
+    {
+        if (!_disposed && Pipeline.SetPrefersDark(value)) RequestFrame();
+    }
+
+    bool IWindowEvents.OnCloseRequested()
+    {
+        if (CloseApproved) return true;
+        bool allow = CloseRequested?.Invoke() ?? true;
+        if (allow) CloseApproved = true;
+        return allow;
+    }
 
     void IWindowEvents.OnClosed()
     {
@@ -384,8 +507,12 @@ public sealed class UIHost : IWindowEvents, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        if (ReferenceEquals(Root.Host, this)) Root.Host = null;
         if (_reducedMotion is { } preference) preference.PrefersReducedMotionChanged -= OnReducedMotionChanged;
+        if (_appearance is { } appearance) appearance.PrefersDarkChanged -= OnAppearanceChanged;
         if (ReferenceEquals(_window.Events, this)) _window.Events = null;
+        _accessibilityConnection?.Dispose();
+        _accessibilityConnection = null;
         Root.Input.TextInputMethod = null;
         _devTools?.Dispose();
         _devTools = null;

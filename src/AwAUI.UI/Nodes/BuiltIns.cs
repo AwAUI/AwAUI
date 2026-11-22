@@ -50,6 +50,88 @@ public sealed class Text : ElementNode
 }
 
 /// <summary>
+/// Text block (tag <c>text</c>): identical to <see cref="Text"/> and exposed as static text
+/// (<c>statictext</c>) in the semantic tree. The name aligns with platform control naming; either type
+/// can be used interchangeably.
+/// </summary>
+public class TextBlock : ElementNode
+{
+    public TextBlock() { }
+
+    public TextBlock(string? content) => Content = content;
+
+    /// <summary>Plain text at the start of the block.</summary>
+    public string? Content { get; set; }
+
+    protected internal override Element CreateElement() => new TextElement();
+
+    protected internal override void Diff(ElementNode? oldNode, Element element)
+    {
+        base.Diff(oldNode, element);
+        var old = (TextBlock?)oldNode;
+        if (old is null || !string.Equals(old.Content, Content, StringComparison.Ordinal))
+            ((TextElement)element).SetContent(Content);
+    }
+}
+
+/// <summary>Paragraph (tag <c>text</c>): semantic alias of <see cref="TextBlock"/> that produces accessible static text.</summary>
+public sealed class Paragraph : TextBlock
+{
+    public Paragraph() { }
+
+    public Paragraph(string? content) : base(content) { }
+}
+
+/// <summary>
+/// Selectable static text block (tag <c>text</c>): same as <see cref="TextBlock"/>; the semantic tree
+/// exposes a read-only TextPattern (value and selection range). Plain <see cref="Text"/> and
+/// <see cref="TextBlock"/> are treated as read-only text as well.
+/// </summary>
+public sealed class SelectableTextBlock : TextBlock
+{
+    public SelectableTextBlock() { }
+
+    public SelectableTextBlock(string? content) : base(content) { }
+}
+
+/// <summary>
+/// Label (tag <c>label</c>): contributes text to an accessible name through <see cref="For"/>
+/// (HTML <c>for</c>) or by wrapping the control. The label itself does not produce a semantic node;
+/// the semantic tree resolves the association when computing names.
+/// </summary>
+public sealed class Label : ElementNode
+{
+    public Label() { }
+
+    public Label(string? text)
+    {
+        if (text is not null) Children.Add(text);
+    }
+
+    /// <summary>The associated control's <c>id</c> (HTML <c>for</c>). Empty means a wrapping label.</summary>
+    public string? For { get; set; }
+
+    protected override bool MergeAttribute(string name, object value)
+    {
+        if (string.Equals(name, "for", StringComparison.OrdinalIgnoreCase))
+        {
+            For ??= AttributeText(name, value);
+            return true;
+        }
+        return base.MergeAttribute(name, value);
+    }
+
+    protected internal override Element CreateElement() => new Element("label");
+
+    protected internal override void Diff(ElementNode? oldNode, Element element)
+    {
+        // for 以普通属性写到元素上，供语义树按 id 关联；每次 Diff 都同步到当前描述节点的属性表。
+        Attributes["for"] = For;
+        base.Diff(oldNode, element);
+    }
+}
+
+/// <summary>
 /// 图片（标签 <c>img</c>）：位图（PNG、JPEG、GIF、WebP、BMP、ICO，GIF / WebP 动画会播放）或作为图片的 SVG。
 /// 来源见 <see cref="ImageSource"/>（字符串隐式转换为 <see cref="ImageSource.FromUri"/>）；同一来源在 UI 根内共享解码结果，较大的图片在线程池上解码，
 /// 解码完成前不占尺寸也不绘制（给出 <see cref="Width"/> / <see cref="Height"/> 可预先占位）。
@@ -158,8 +240,12 @@ public sealed class Button : ElementNode
 }
 
 /// <summary>
-/// 单行文本输入（标签 <c>input</c>）。M1 为简化实现：文本只在末尾插入/删除，没有光标、选区与输入法。
-/// 受控用法：<c>Value = draft.Value, OnInput = e =&gt; draft.Value = e.Value</c>。
+/// 文本输入（标签 <c>input</c>；<c>textarea</c> 为多行）。支持光标移动、选区、剪贴板、输入法组合与撤销 / 重做；
+/// 编辑键、指针定位与选区都由输入管理器处理，输入法经 <see cref="AwAUI.Platform.ITextInputClient"/> 接入。
+/// <para>
+/// 受控用法：<c>Value = draft.Value, OnInput = e =&gt; draft.Value = e.Value</c>；<c>Value</c> 为 null 时由元素自持内容（非受控）。
+/// 受控时重建会把元素的值同步为 <see cref="Value"/>，程序改变值的操作会结束进行中的组合并清空撤销历史。
+/// </para>
 /// </summary>
 public class Input : ElementNode
 {
@@ -174,6 +260,11 @@ public class Input : ElementNode
     public bool Disabled { get; set; }
 
     public bool ReadOnly { get; set; }
+
+    /// <summary>
+    /// 插入点闪烁周期；null 使用 <see cref="RenderPipeline.CaretBlinkInterval"/>，<see cref="TimeSpan.Zero"/> 或负值表示常亮。
+    /// </summary>
+    public TimeSpan? CaretBlinkInterval { get; set; }
 
     /// <summary>每次内容变化。</summary>
     public Action<InputEvent>? OnInput { get => Get<InputEvent>(EventKind.Input); set => Set(EventKind.Input, value); }
@@ -214,6 +305,7 @@ public class Input : ElementNode
         if (old is null || !string.Equals(old.InputType, InputType, StringComparison.Ordinal)) e.SetInputType(InputType);
         if (old is null || old.Disabled != Disabled) e.SetDisabled(Disabled);
         if (old is null || old.ReadOnly != ReadOnly) e.SetReadOnly(ReadOnly);
+        if (old is null || old.CaretBlinkInterval != CaretBlinkInterval) e.CaretBlinkInterval = CaretBlinkInterval;
     }
 }
 

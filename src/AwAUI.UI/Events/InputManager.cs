@@ -23,13 +23,25 @@ public sealed partial class InputManager
     readonly UIRoot _root;
     readonly Dictionary<long, Element> _captures = new();
     readonly Dictionary<long, Element> _pressTargets = new();
+    readonly Dictionary<long, ActivePointerInfo> _activePointers = new();
     readonly List<Element> _path = new();
+    readonly GestureArenaManager _gestures;
     Element? _hover;
     Element? _active;
     long _activePointer = long.MinValue;
     ButtonElement? _spacePressed;
 
-    internal InputManager(UIRoot root) => _root = root;
+    internal InputManager(UIRoot root)
+    {
+        _root = root;
+        _gestures = new GestureArenaManager(this);
+    }
+
+    /// <summary>本输入管理器所属的根（手势识别器派发高层事件时使用）。</summary>
+    internal UIRoot Root => _root;
+
+    /// <summary>UI 线程的时间源（手势的 Hold 超时用）。</summary>
+    internal UIClock? Clock => _root.Clock;
 
     /// <summary>命中测试（布局集成后设置）。</summary>
     public HitTester? HitTester { get; set; }
@@ -86,6 +98,45 @@ public sealed partial class InputManager
     /// <summary>当前按下（<c>:active</c>）的最内层元素。</summary>
     public Element? ActiveElement => _active;
 
+    /// <summary>
+    /// 活动指针（已按下、尚未抬起 / 取消的触摸、笔或鼠标）的位置或集合发生变化。DevTools 叠加层据此重新合成触摸点；
+    /// 只跟踪经 <see cref="DispatchPointer(in RawPointerEvent, Element?)"/> 派发的指针，不改变命中、捕获、悬停与滚动手势行为。
+    /// </summary>
+    internal event Action? ActivePointersChanged;
+
+    /// <summary>把当前活动指针复制到 <paramref name="destination"/>（先清空）。顺序不保证。</summary>
+    internal void GetActivePointers(List<ActivePointerInfo> destination)
+    {
+        destination.Clear();
+        foreach (var kv in _activePointers) destination.Add(kv.Value);
+    }
+
+    /// <summary>
+    /// 记录活动指针（按下时加入，移动时更新位置，抬起 / 取消时移除）。覆盖层只在触摸 / 笔上绘制；鼠标也记录，
+    /// 以便状态一致，但不绘制。
+    /// </summary>
+    void TrackActivePointer(in RawPointerEvent raw)
+    {
+        switch (raw.Type)
+        {
+            case RawPointerEventType.Down:
+                _activePointers[raw.PointerId] = new ActivePointerInfo(raw.PointerId, raw.Position, raw.Device);
+                ActivePointersChanged?.Invoke();
+                break;
+            case RawPointerEventType.Move:
+                if (_activePointers.TryGetValue(raw.PointerId, out var previous))
+                {
+                    _activePointers[raw.PointerId] = new ActivePointerInfo(raw.PointerId, raw.Position, raw.Device);
+                    if (previous.Position != raw.Position || previous.Type != raw.Device) ActivePointersChanged?.Invoke();
+                }
+                break;
+            case RawPointerEventType.Up:
+            case RawPointerEventType.Cancel:
+                if (_activePointers.Remove(raw.PointerId)) ActivePointersChanged?.Invoke();
+                break;
+        }
+    }
+
     // ------------------------------------------------------------ 指针
 
     /// <summary>用 <see cref="HitTester"/> 命中后派发。</summary>
@@ -97,6 +148,8 @@ public sealed partial class InputManager
         _root.BeginDispatch();
         try
         {
+            // 覆盖层的触摸点叠加：被动记录，早于任何路由 / 接管逻辑，不影响既有行为
+            TrackActivePointer(raw);
             if (hit is not null && !ReferenceEquals(hit.Root, _root)) hit = null;
             if (hit is not null && hit.IsTextNode) hit = hit.Parent;
             // 模态层屏蔽其下的内容（Radix 的 disableOutsidePointerEvents）：命中改为根元素（相当于 body 设了 pointer-events: none）
@@ -107,7 +160,12 @@ public sealed partial class InputManager
                 blocked = true;
             }
             // 滚动系统先看：滚动条上的按下与拖动、已经变成滚动的触摸拖动都不再派发给元素
-            if (!blocked && Scrolling is { } scrolling && raw.Type != RawPointerEventType.Wheel && scrolling.PreviewPointer(raw, hit)) return;
+            if (!blocked && Scrolling is { } scrolling && raw.Type != RawPointerEventType.Wheel && scrolling.PreviewPointer(raw, hit))
+            {
+                // 指针被滚动系统接管：取消该指针上的手势竞技场
+                _gestures.PointerCancel(CreatePointerEvent("pointercancel", raw, bubbles: true));
+                return;
+            }
             _captures.TryGetValue(raw.PointerId, out var captured);
             var target = captured ?? hit;
             switch (raw.Type)
@@ -117,6 +175,9 @@ public sealed partial class InputManager
                     if (raw.Device != PointerType.Touch || raw.Buttons != PointerButtons.None) UpdateHover(target, raw);
                     if (target is not null) DispatchPointerEvent(target, "pointermove", EventKind.PointerMove, EventKind.PointerMoveCapture, raw);
                     TextPointerMove(raw);
+                    _root.Selection.PointerMove(raw);
+                    // 手势竞技场观察全部存活识别器（指针捕获不改变竞技场的路由）
+                    _gestures.PointerMove(CreatePointerEvent("pointermove", raw, bubbles: true));
                     break;
 
                 case RawPointerEventType.Down:
@@ -127,6 +188,7 @@ public sealed partial class InputManager
                     {
                         if (PreviewPointerDown is not null) RaisePreview(PreviewPointerDown, CreatePointerEvent("pointerdown", raw, bubbles: true), null);
                         _root.FocusManager.ClearFocus();
+                        _root.Selection.Clear();
                         break;
                     }
                     var downEvent = CreatePointerEvent("pointerdown", raw, bubbles: true);
@@ -159,8 +221,20 @@ public sealed partial class InputManager
                             }
                         }
                         else if (!IsInsideDisabled(target)) _root.FocusManager.ClearFocus();
-                        if (focusable is InputElement input && ReferenceEquals(_root.FocusManager.FocusedElement, input)) TextPointerDown(input, raw);
+                        if (focusable is InputElement input && ReferenceEquals(_root.FocusManager.FocusedElement, input))
+                        {
+                            _root.Selection.Clear();
+                            TextPointerDown(input, raw);
+                        }
+                        else if (target.IsFocusable)
+                        {
+                            // 控件本身（按钮、滑块等）：不开始文本选择，也不保留旧选区
+                            _root.Selection.Clear();
+                        }
+                        else _root.Selection.PointerDown(raw, target);
                     }
+                    // 普通 pointerdown 派发之后（已有指针捕获被尊重），让沿途识别器入场
+                    _gestures.PointerDown(raw.PointerId, target, downEvent);
                     break;
                 }
 
@@ -182,7 +256,9 @@ public sealed partial class InputManager
                     }
                     _captures.Remove(raw.PointerId);
                     TextPointerUp(raw.PointerId);
+                    _root.Selection.PointerUp(raw.PointerId);
                     if (raw.Device == PointerType.Touch) UpdateHover(null, raw);
+                    _gestures.PointerUp(upEvent);
                     break;
                 }
 
@@ -192,7 +268,9 @@ public sealed partial class InputManager
                     _pressTargets.Remove(raw.PointerId);
                     _captures.Remove(raw.PointerId);
                     TextPointerUp(raw.PointerId);
+                    _root.Selection.PointerUp(raw.PointerId);
                     if (raw.Device == PointerType.Touch) UpdateHover(null, raw);
+                    _gestures.PointerCancel(CreatePointerEvent("pointercancel", raw, bubbles: true));
                     break;
 
                 case RawPointerEventType.Leave:
@@ -226,6 +304,7 @@ public sealed partial class InputManager
         _pressTargets.Remove(raw.PointerId);
         _captures.Remove(raw.PointerId);
         TextPointerUp(raw.PointerId);
+        _root.Selection.PointerUp(raw.PointerId);
     }
 
     /// <summary>焦点进入元素（非指针聚焦）：下一帧布局之后把它滚动到可见。</summary>
@@ -396,6 +475,7 @@ public sealed partial class InputManager
         if (down)
         {
             if (target is InputElement input && EditingKeyAction(input, raw, logicalKey)) return;
+            if (target is not InputElement && _root.Selection.HandleKey(raw, logicalKey)) return;
             switch (raw.Key)
             {
                 case PhysicalKey.Tab when (raw.Modifiers & commandMods) == 0:
@@ -525,6 +605,24 @@ public sealed partial class InputManager
         }
     }
 
+    /// <summary>
+    /// 向 <paramref name="target"/> 派发高层手势事件（<see cref="TapEvent"/> / <see cref="PanEvent"/>，冒泡）。
+    /// 目标已从本根摘除时什么都不做。
+    /// </summary>
+    internal bool DispatchGesture<T>(Element target, T e, EventKind kind) where T : Event
+    {
+        _root.BeginDispatch();
+        try
+        {
+            if (!target.IsAttached || !ReferenceEquals(target.Root, _root)) return false;
+            return Dispatch(target, e, kind, null);
+        }
+        finally
+        {
+            _root.EndDispatch();
+        }
+    }
+
     /// <summary>两个元素最近的公共祖先（含自身）；任一为 null 或不在同一棵树时为 null。</summary>
     public static Element? CommonAncestor(Element? a, Element? b)
     {
@@ -565,6 +663,7 @@ public sealed partial class InputManager
         RemoveWithin(_captures, removed);
         RemoveWithin(_pressTargets, removed);
         OnTextSubtreeRemoved(removed);
+        _root.Selection.OnSubtreeRemoved(removed);
     }
 
     static void RemoveWithin(Dictionary<long, Element> map, Element removed)
@@ -576,6 +675,26 @@ public sealed partial class InputManager
         if (keys is null) return;
         foreach (var k in keys) map.Remove(k);
     }
+}
+
+/// <summary>活动指针快照（DevTools 叠加层的触摸点叠加使用）：指针 id、客户区逻辑像素位置与设备类型。</summary>
+internal readonly struct ActivePointerInfo
+{
+    public ActivePointerInfo(long pointerId, Point position, PointerType type)
+    {
+        PointerId = pointerId;
+        Position = position;
+        Type = type;
+    }
+
+    /// <summary>平台指针 id（同一指针的 down / move / up 相同）。</summary>
+    public long PointerId { get; }
+
+    /// <summary>客户区坐标（逻辑像素）。</summary>
+    public Point Position { get; }
+
+    /// <summary>设备类型；鼠标也记录，但覆盖层不绘制。</summary>
+    public PointerType Type { get; }
 }
 
 /// <summary>按键事件的逻辑键（W3C <c>KeyboardEvent.key</c>）：优先取平台给出的逻辑键，否则按旧式按键文本或 US 布局推断。</summary>

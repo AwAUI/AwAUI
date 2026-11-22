@@ -167,6 +167,8 @@ public sealed partial class RenderPipeline
         {
             var d = _damage.Intersect(_cull);
             _lastDamage = d.Width > 0 && d.Height > 0 ? d : Rect.Empty;
+            // 纯滚动帧：只保留新露出的条带作为损伤，搬移由宿主交给后端（帧缓冲里已有的像素不动）
+            TryApplyScrollShift();
         }
         _damageAll = false;
         _damage = Rect.Empty;
@@ -866,6 +868,9 @@ public sealed partial class RenderPipeline
         {
             var shape = isRoot ? new RoundRect(new Rect(0, 0, _viewport.Width, _viewport.Height), 0) : BoxPainter.OuterShape(s, b.Border);
             _hits.Add(new HitEntry(b.Element, shape, _hitClip, _hitClipShape, s.PointerEvents == CssPointerEvents.None, _hitSpace));
+            // 纯滚动快路径：记下滚动容器的绘制位置，绘制结束后据此检查它之上有没有别的内容
+            if (_shiftCandidateHitIndex < 0 && _shiftCandidate is { } sc && ReferenceEquals(b.Element, sc.Element))
+                _shiftCandidateHitIndex = _hits.Count - 1;
         }
     }
 
@@ -921,6 +926,8 @@ public sealed partial class RenderPipeline
         _hitClipShape = savedShape;
     }
 
+    readonly List<Rect> _selectionRects = new();
+
     void PaintParagraph(RenderBox b, ComputedStyle style)
     {
         var para = b.Paragraph;
@@ -937,8 +944,19 @@ public sealed partial class RenderPipeline
         if (!para.IsEmpty)
         {
             tl.Layout(b.ContentWidth + TextParagraph.WidthSlack);
+            PaintTextSelection(b, tl, origin);
             tl.Paint(_dc, origin);
         }
+    }
+
+    /// <summary>只读文本选区（<see cref="UIRoot.Selection"/>）：画在字形之下，与输入框的选区使用同一颜色。</summary>
+    void PaintTextSelection(RenderBox b, TextLayout tl, Point origin)
+    {
+        if (_root?.Selection is not { } selection || !selection.TryGetRange(b.Element, out int start, out int end)) return;
+        _selectionRects.Clear();
+        tl.GetSelectionRects(new TextRange(start, end), _selectionRects);
+        foreach (var r in _selectionRects)
+            _dc!.FillRect(new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height), SelectionColor);
     }
 
     /// <summary>替换元素（图片、SVG）：内容画在内容盒内，裁剪到内容盒。只遍历时也记录可见性（动画图片只在可见时推进）。</summary>

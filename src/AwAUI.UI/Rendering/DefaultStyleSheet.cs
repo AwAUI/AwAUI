@@ -44,6 +44,7 @@ public static class DefaultStyleSheet
           color: #1f2328;
           white-space: nowrap;
           cursor: default;
+          user-select: none;
         }
         button:hover { background-color: #eef1f4; }
         button:active { background-color: #e1e5ea; }

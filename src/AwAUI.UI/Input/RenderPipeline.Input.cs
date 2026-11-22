@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AwAUI.Css;
+using AwAUI.Graphics;
 using AwAUI.Text;
 
 namespace AwAUI.UI;
@@ -12,6 +13,14 @@ public sealed partial class RenderPipeline
     static readonly Color SelectionColor = new(0.31f, 0.55f, 0.97f, 0.32f);
 
     readonly List<Rect> _inputRects = new();
+
+    /// <summary>插入点闪烁周期（可见与不可见各占一半）。单个输入框可以用 <see cref="InputElement.CaretBlinkInterval"/> 覆盖。</summary>
+    public static TimeSpan CaretBlinkInterval { get; set; } = TimeSpan.FromMilliseconds(530);
+
+    InputElement? _caretBlinkInput;
+    IDisposable? _caretBlinkTimer;
+    long _caretBlinkVersion;
+    TimeSpan? _caretBlinkInterval;
 
     /// <summary>输入框的段落内容：显示文本（值 + 预编辑文本，密码框为圆点）、占位文本，或撑起一行高度的零宽空格。</summary>
     void AddInputText(InputElement input, ComputedStyle style, TextStyle ts, ParagraphBuilder builder)
@@ -153,9 +162,25 @@ public sealed partial class RenderPipeline
             foreach (var r in _inputRects) dc.FillRect(new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height), highlight);
         }
         if (!para.IsEmpty) tl.Paint(dc, origin);
+        // ::selection 的文字色（selection:text-*）：只在选区矩形内用该颜色重绘字形。
+        var elementColor = style.ResolveColor(style.Color);
+        if (focused && hasText && selStartDoc != selEndDoc && SelectionTextColor(input) is { } selColor && selColor != elementColor)
+        {
+            var paint = new Paint(selColor);
+            foreach (var r in _inputRects)
+            {
+                dc.Save();
+                dc.ClipRect(new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height));
+                tl.Paint(dc, origin, paint);
+                dc.Restore();
+            }
+        }
 
         var color = style.ResolveColor(style.Color);
         float line = 1f / _scale * Math.Max(1, (float)Math.Round(_scale));
+        bool caretActive = focused && !input.ReadOnly && selStartDoc == selEndDoc;
+        // 输入法组合期间插入点保持可见（组合自身的下划线与文节表明位置）；其余时间按周期闪烁
+        UpdateCaretBlink(input, caretActive && !input.IsComposing);
         if (input.IsComposing && !pw && input.CompositionSelectionStart != input.CompositionSelectionEnd)
         {
             // 输入法正在转换的文节：在普通下划线之上加粗
@@ -164,7 +189,7 @@ public sealed partial class RenderPipeline
             tl.GetSelectionRects(new TextRange(ds, de), _inputRects);
             foreach (var r in _inputRects) dc.FillRect(new Rect(origin.X + r.X, origin.Y + r.Bottom - 2 * line, r.Width, 2 * line), color);
         }
-        if (focused && !input.ReadOnly && selStartDoc == selEndDoc)
+        if (caretActive && input.CaretVisible)
             dc.FillRect(new Rect(Snap(origin.X + caretRect.X), origin.Y + caretRect.Y, line, caretRect.Height), color);
         if (clip) dc.Restore();
 
@@ -172,5 +197,63 @@ public sealed partial class RenderPipeline
         input.CaretLocal = new Rect(origin.X + caretRect.X - b.Border.X, origin.Y + caretRect.Y - b.Border.Y, line, caretRect.Height);
         input.PaintedText = hasText ? tl.Text : "";
         input.HasPaintedGeometry = true;
+    }
+
+    /// <summary>
+    /// 维护获得焦点的输入框的插入点闪烁：每次绘制时按光标版本重新开始可见阶段，之后由时钟定时器切换可见状态并请求重绘。
+    /// 没有时钟（无窗口渲染）时不闪烁，插入点保持可见；输入框可以把 <see cref="InputElement.CaretBlinkInterval"/> 设为
+    /// <see cref="TimeSpan.Zero"/> 或负值让插入点常亮。
+    /// </summary>
+    void UpdateCaretBlink(InputElement input, bool active)
+    {
+        if (!active || _root?.Clock is not { } clock)
+        {
+            CancelCaretBlink();
+            input.CaretVisible = true;
+            return;
+        }
+        var interval = input.CaretBlinkInterval ?? CaretBlinkInterval;
+        if (interval <= TimeSpan.Zero)
+        {
+            CancelCaretBlinkTimer();
+            _caretBlinkInput = input;
+            _caretBlinkVersion = input.CaretBlinkVersion;
+            _caretBlinkInterval = interval;
+            input.CaretVisible = true;
+            return;
+        }
+        bool reset = !ReferenceEquals(_caretBlinkInput, input) || _caretBlinkVersion != input.CaretBlinkVersion
+            || _caretBlinkInterval != interval;
+        _caretBlinkInput = input;
+        _caretBlinkVersion = input.CaretBlinkVersion;
+        _caretBlinkInterval = interval;
+        if (reset)
+        {
+            input.CaretVisible = true;
+            CancelCaretBlinkTimer();
+        }
+        _caretBlinkTimer ??= clock.Schedule(interval, OnCaretBlink);
+    }
+
+    void OnCaretBlink()
+    {
+        _caretBlinkTimer = null;
+        if (_caretBlinkInput is not { } input || !input.IsAttached || !ReferenceEquals(input.Root, _root)) return;
+        input.CaretVisible = !input.CaretVisible;
+        input.MarkDirty(ElementDirtyFlags.Paint);
+        _root?.OnElementDirty();
+    }
+
+    void CancelCaretBlink()
+    {
+        CancelCaretBlinkTimer();
+        _caretBlinkInput = null;
+        _caretBlinkInterval = null;
+    }
+
+    void CancelCaretBlinkTimer()
+    {
+        _caretBlinkTimer?.Dispose();
+        _caretBlinkTimer = null;
     }
 }

@@ -6,6 +6,10 @@
     <RootNamespace>AwAUI.UI</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <!-- 桌面组合根创建 Application / 生命周期并驱动启动序列（design/01 规则 5） -->
+    <InternalsVisibleTo Include="AwAUI.Desktop" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
     <ProjectReference Include="../AwAUI.Graphics/AwAUI.Graphics.csproj" />
     <ProjectReference Include="../AwAUI.Platform/AwAUI.Platform.csproj" />

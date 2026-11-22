@@ -88,11 +88,29 @@ public abstract class ElementNode : Node
     /// <summary>本元素或后代失去焦点（冒泡）。</summary>
     public Action<FocusEvent>? OnFocusOut { get => Get<FocusEvent>(EventKind.FocusOut); set => Set(EventKind.FocusOut, value); }
 
-    /// <summary>点按手势（识别器尚未实现，目前不会触发）。</summary>
+    /// <summary>点按手势（需要元素上有 <see cref="TapGestureRecognizer"/>）。</summary>
     public Action<TapEvent>? OnTap { get => Get<TapEvent>(EventKind.Tap); set => Set(EventKind.Tap, value); }
 
-    /// <summary>拖动手势（识别器尚未实现，目前不会触发）。</summary>
+    /// <summary>拖动手势（需要元素上有 <see cref="PanGestureRecognizer"/>）。</summary>
     public Action<PanEvent>? OnPan { get => Get<PanEvent>(EventKind.Pan); set => Set(EventKind.Pan, value); }
+
+    /// <summary>长按手势（阶段见 <see cref="LongPressPhase"/>；需要元素上有 <see cref="LongPressGestureRecognizer"/>）。</summary>
+    public Action<LongPressEvent>? OnLongPress { get => Get<LongPressEvent>(EventKind.LongPress); set => Set(EventKind.LongPress, value); }
+
+    /// <summary>双击手势（需要元素上有 <see cref="DoubleTapGestureRecognizer"/>）。</summary>
+    public Action<DoubleTapEvent>? OnDoubleTap { get => Get<DoubleTapEvent>(EventKind.DoubleTap); set => Set(EventKind.DoubleTap, value); }
+
+    /// <summary>滑动手势（需要元素上有 <see cref="SwipeGestureRecognizer"/>）。</summary>
+    public Action<SwipeEvent>? OnSwipe { get => Get<SwipeEvent>(EventKind.Swipe); set => Set(EventKind.Swipe, value); }
+
+    /// <summary>捏合手势（需要元素上有 <see cref="PinchGestureRecognizer"/>）。</summary>
+    public Action<PinchEvent>? OnPinch { get => Get<PinchEvent>(EventKind.Pinch); set => Set(EventKind.Pinch, value); }
+
+    /// <summary>旋转手势（需要元素上有 <see cref="RotateGestureRecognizer"/>）。</summary>
+    public Action<RotateEvent>? OnRotate { get => Get<RotateEvent>(EventKind.Rotate); set => Set(EventKind.Rotate, value); }
+
+    /// <summary>边缘滑动手势（需要元素上有 <see cref="EdgeSwipeGestureRecognizer"/>）。</summary>
+    public Action<EdgeSwipeEvent>? OnEdgeSwipe { get => Get<EdgeSwipeEvent>(EventKind.EdgeSwipe); set => Set(EventKind.EdgeSwipe, value); }
 
     /// <summary>本元素（滚动容器）的滚动偏移变化（每帧最多一次，不冒泡）；等价于订阅 <see cref="UI.ScrollController.Scrolled"/>。</summary>
     public Action<ScrollEvent>? OnScroll { get => Get<ScrollEvent>(EventKind.Scroll); set => Set(EventKind.Scroll, value); }
@@ -245,6 +263,12 @@ public abstract class ElementNode : Node
             case "onfocusout": return MergeHandler<FocusEvent>(EventKind.FocusOut, name, value);
             case "ontap": return MergeHandler<TapEvent>(EventKind.Tap, name, value);
             case "onpan": return MergeHandler<PanEvent>(EventKind.Pan, name, value);
+            case "onlongpress": return MergeHandler<LongPressEvent>(EventKind.LongPress, name, value);
+            case "ondoubletap": return MergeHandler<DoubleTapEvent>(EventKind.DoubleTap, name, value);
+            case "onswipe": return MergeHandler<SwipeEvent>(EventKind.Swipe, name, value);
+            case "onpinch": return MergeHandler<PinchEvent>(EventKind.Pinch, name, value);
+            case "onrotate": return MergeHandler<RotateEvent>(EventKind.Rotate, name, value);
+            case "onedgeswipe": return MergeHandler<EdgeSwipeEvent>(EventKind.EdgeSwipe, name, value);
             case "onscroll": return MergeHandler<ScrollEvent>(EventKind.Scroll, name, value);
             case "onwheel": return MergeHandler<WheelEvent>(EventKind.Wheel, name, value);
             case "onanimationstart": return MergeHandler<AnimationEvent>(EventKind.AnimationStart, name, value);

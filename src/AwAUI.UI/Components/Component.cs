@@ -84,6 +84,12 @@ public abstract class Component : Node
     /// <summary>所属 UI 根；未挂载时为 null。</summary>
     public UIRoot? Root => _root;
 
+    /// <summary>
+    /// 承载本组件的顶层窗口；无窗口宿主（测试、服务端渲染）上为 null。自绘标题栏用它实现拖动、最小化与关闭，
+    /// 例如 <c>@onpointerdown="() =&gt; HostWindow?.BeginDragMove()"</c>。
+    /// </summary>
+    protected Window? HostWindow => _root?.Host?.TopLevel;
+
     /// <summary>组件树中最近的祖先组件（DevTools、上下文与错误边界沿它查找）。</summary>
     public Component? ParentComponent => _parent;
 
@@ -136,6 +142,25 @@ public abstract class Component : Node
     protected bool TryUse<T>(out T value)
     {
         for (var c = _parent; c is not null; c = c._parent)
+        {
+            if (c is ContextProvider<T> p)
+            {
+                value = p.Read();
+                return true;
+            }
+        }
+        value = default!;
+        return false;
+    }
+
+    /// <summary>
+    /// 从本组件（含自身）向祖先查找最近的 <see cref="Context.Provide{T}"/> 值；找不到时返回 false。
+    /// 与 <see cref="TryUse{T}"/> 不同，本方法包含自身：元素由提供者直接产出时（<c>Provide(value, element)</c>），
+    /// <see cref="Element.Owner"/> 就是 <see cref="ContextProvider{T}"/> 本身，因此供手势竞技场等运行时按元素回溯设置。
+    /// </summary>
+    internal bool TryGetContext<T>(out T value)
+    {
+        for (Component? c = this; c is not null; c = c._parent)
         {
             if (c is ContextProvider<T> p)
             {

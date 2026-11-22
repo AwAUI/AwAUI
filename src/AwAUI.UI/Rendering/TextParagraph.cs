@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using AwAUI.Css;
 using AwAUI.Css.Values;
 using AwAUI.Graphics.Text;
@@ -171,9 +172,16 @@ internal readonly struct DecorationInfo : IEquatable<DecorationInfo>
 /// <summary>计算样式 → 文本栈样式（<see cref="TextStyle"/> / <see cref="ParagraphStyle"/>）。</summary>
 internal sealed class TextStyleMapper
 {
-    // 按（字体分组, 文本分组, 装饰）缓存：同一组合的 TextStyle 复用同一实例，ParagraphBuilder 可以合并相邻片段
-    readonly Dictionary<(FontStyleGroup, TextStyleGroup, DecorationInfo, float), TextStyle> _cache = new();
+    // 按（字体分组, 文本分组, 装饰, 基线偏移, 语言）缓存：同一组合的 TextStyle 复用同一实例，ParagraphBuilder 可以合并相邻片段
+    readonly Dictionary<(FontStyleGroup, TextStyleGroup, DecorationInfo, float, string?), TextStyle> _cache = new();
     const int MaxCacheEntries = 4096;
+
+    /// <summary>
+    /// 进程的语言环境（BCP 47）：解析 <c>locl</c> 特性、汉字变体与字体回退（design/19「字体回退」）。
+    /// 与 Avalonia 相同，内建控件没有独立的 <c>Language</c> 属性，默认取 <see cref="CultureInfo.CurrentUICulture"/>；
+    /// 元素上的 <c>lang</c> 目前只参与 <c>:lang()</c> 选择器。
+    /// </summary>
+    static readonly string? s_locale = CultureInfo.CurrentUICulture.Name is { Length: > 0 } name ? name : null;
 
     /// <summary>每个样式最多映射的 OpenType 特性数（font-feature-settings 与 font-variant-* 合计）。</summary>
     const int MaxFeatures = 64;
@@ -184,7 +192,7 @@ internal sealed class TextStyleMapper
     {
         var deco = DecorationInfo.Combine(DecorationInfo.Of(s), inherited);
         if (alphaFactor != 1f) return Create(s, alphaFactor, deco, baselineShift);
-        var key = (s.FontGroup, s.TextGroup, deco, baselineShift);
+        var key = (s.FontGroup, s.TextGroup, deco, baselineShift, s_locale);
         if (_cache.TryGetValue(key, out var ts)) return ts;
         ts = Create(s, 1f, deco, baselineShift);
         if (_cache.Count >= MaxCacheEntries) _cache.Clear();
@@ -257,6 +265,7 @@ internal sealed class TextStyleMapper
             Features = MapFeatures(s),
             Variation = MapVariation(s.FontVariationSettings),
             BaselineShift = baselineShift,
+            Locale = s_locale,
         };
     }
 
@@ -420,6 +429,8 @@ internal sealed class TextStyleMapper
                 CssTextAlign.Justify => TextAlign.Justify,
                 _ => TextAlign.Start,
             },
+            // 段落方向参与双向算法，并决定 start / end 对齐落在哪一侧
+            Direction = s.Direction == CssDirection.Rtl ? ParagraphDirection.RightToLeft : ParagraphDirection.LeftToRight,
             LineHeight = lineHeight,
             WhiteSpace = ws,
             WordBreak = wordBreak,

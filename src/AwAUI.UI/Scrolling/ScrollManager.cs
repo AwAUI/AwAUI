@@ -143,7 +143,7 @@ internal sealed class ScrollManager
 
     void Advance(ScrollController c, double now)
     {
-        float x = c._x, y = c._y;
+        double x = c._x, y = c._y;
         bool hadSimulation = c._simX is not null || c._simY is not null;
         if (c._simX is { } sx)
         {
@@ -160,23 +160,25 @@ internal sealed class ScrollManager
         // 平滑滚动（滚轮、键盘、程序滚动）不越界：内容在动画中变小时立即钳制到新的范围（惯性 / 回弹的越界由物理决定）
         if (hadSimulation && !c._animationIsFling && c._hasMetrics && !c._dragging)
         {
-            x = Math.Max(0, Math.Min(c.MaxOffset.X, x));
-            y = Math.Max(0, Math.Min(c.MaxOffset.Y, y));
+            x = Math.Max(0, Math.Min(c.MaxOffsetX, x));
+            y = Math.Max(0, Math.Min(c.MaxOffsetY, y));
         }
         if (hadSimulation && c._simX is null && c._simY is null)
         {
             // 模拟结束：越界的残余（回弹的容差）钳制回范围内
             if (c._hasMetrics && !c._dragging)
             {
-                x = Math.Max(0, Math.Min(c.MaxOffset.X, x));
-                y = Math.Max(0, Math.Min(c.MaxOffset.Y, y));
+                x = Math.Max(0, Math.Min(c.MaxOffsetX, x));
+                y = Math.Max(0, Math.Min(c.MaxOffsetY, y));
             }
             c.CompleteAnimation();
         }
+        bool gestureEnded = false;
         if (c._gesture && !double.IsNaN(c._gestureEndDeadline) && now >= c._gestureEndDeadline)
         {
             c._gesture = false;
             c._gestureEndDeadline = double.NaN;
+            gestureEnded = true;
         }
         else if (c._gesture && double.IsNaN(c._gestureEndDeadline))
         {
@@ -185,10 +187,18 @@ internal sealed class ScrollManager
             {
                 c._gesture = false;
                 c._gestureStaleAt = double.PositiveInfinity;
+                gestureEnded = true;
             }
             else ScheduleWakeup(c._gestureStaleAt);
         }
         c.SetOffset(x, y);
+        // 一次用户输入结束（惯性 / 滚轮动画 / 触控板手势）：尝试吸附到最近的吸附点
+        if (c._snapEligible && !c._dragging && !c._gesture && c._simX is null && c._simY is null
+            && (gestureEnded || hadSimulation))
+        {
+            c._snapEligible = false;
+            MaybeStartSnap(c);
+        }
     }
 
     void UpdateScrollbarOpacity(ScrollController c, double now)
@@ -242,8 +252,8 @@ internal sealed class ScrollManager
             {
                 var e = new ScrollEvent
                 {
-                    Offset = new Point(c._x, c._y),
-                    Delta = new Point(c._x - c._reportedX, c._y - c._reportedY),
+                    Offset = new Point((float)c._x, (float)c._y),
+                    Delta = new Point((float)(c._x - c._reportedX), (float)(c._y - c._reportedY)),
                     Controller = c,
                 };
                 c._reportedX = c._x;
@@ -289,10 +299,26 @@ internal sealed class ScrollManager
 
     // ------------------------------------------------------------ 滚动命令（输入路由用）
 
-    /// <summary>按增量滚动：平滑时叠加到进行中的平滑动画的目标上（滚轮、键盘）。</summary>
-    void ScrollBy(ScrollController c, float dx, float dy, bool smooth, double durationMs)
+    /// <summary>
+    /// 按增量滚动：平滑时叠加到进行中的平滑动画的目标上（滚轮、键盘）。<paramref name="source"/> 不是
+    /// <see cref="ScrollSource.Programmatic"/> 时调用 <see cref="NestedScrollConnection"/> 的 pre / post 钩子，并在结束后
+    /// 允许一次吸附。
+    /// </summary>
+    void ScrollBy(ScrollController c, double dx, double dy, bool smooth, double durationMs, ScrollSource source = ScrollSource.Programmatic)
     {
-        if (dx == 0 && dy == 0) return;
+        bool hooks = source != ScrollSource.Programmatic && c.NestedConnection is not null;
+        var available = new Vector2((float)dx, (float)dy);
+        if (hooks)
+        {
+            var pre = PreScroll(c, available, source);
+            dx -= pre.X;
+            dy -= pre.Y;
+        }
+        if (dx == 0 && dy == 0)
+        {
+            if (hooks) PostScroll(c, default, available, source);
+            return;
+        }
         // 惯性与程序滚动（ScrollTo / ScrollIntoView）被用户输入整体打断：两个轴都停下，任务完成之后不再推进
         // （否则另一轴上的输入只完成了任务，程序动画仍在本轴上继续）
         if (c._animationIsFling || c._animationTask is not null)
@@ -301,48 +327,68 @@ internal sealed class ScrollManager
             c._animationIsFling = false;
         }
         c.CompleteAnimation();
+        double consumedX = 0, consumedY = 0;
         if (!smooth || !_p.SmoothScrolling)
         {
             c._simX = c._simY = null;
+            double beforeX = c._x, beforeY = c._y;
             c.SetOffset(c.Clamp(c._x + dx, 0), c.Clamp(c._y + dy, 1));
-            return;
+            consumedX = c._x - beforeX;
+            consumedY = c._y - beforeY;
         }
-        double now = Now;
-        var duration = TimeSpan.FromMilliseconds(durationMs);
-        if (dx != 0)
+        else
         {
-            float from = c._x;
-            float baseTarget = c._simX is SmoothScrollSimulation s ? s.Target : c._x;
-            float target = c.Clamp(baseTarget + dx, 0);
-            c._simX = target != from ? new SmoothScrollSimulation(from, target, duration, ScrollEasing.EaseOut) : null;
-            c._simStartX = now;
+            double now = Now;
+            var duration = TimeSpan.FromMilliseconds(durationMs);
+            if (dx != 0)
+            {
+                double from = c._x;
+                double baseTarget = c._simX is SmoothScrollSimulation s ? s.Target : c._x;
+                double target = c.Clamp(baseTarget + dx, 0);
+                c._simX = target != from ? new SmoothScrollSimulation(from, target, duration, ScrollEasing.EaseOut) : null;
+                c._simStartX = now;
+                consumedX = target - from;
+            }
+            if (dy != 0)
+            {
+                double from = c._y;
+                double baseTarget = c._simY is SmoothScrollSimulation s ? s.Target : c._y;
+                double target = c.Clamp(baseTarget + dy, 1);
+                c._simY = target != from ? new SmoothScrollSimulation(from, target, duration, ScrollEasing.EaseOut) : null;
+                c._simStartY = now;
+                consumedY = target - from;
+            }
+            c._lastActivity = now;
+            Activate(c);
         }
-        if (dy != 0)
+        if (hooks) PostScroll(c, new Vector2((float)consumedX, (float)consumedY), available, source);
+        if (source == ScrollSource.Programmatic) return;
+        // 立即滚动（SmoothScrolling 关闭）没有模拟来触发结束回调，直接尝试吸附
+        if (c._simX is null && c._simY is null)
         {
-            float from = c._y;
-            float baseTarget = c._simY is SmoothScrollSimulation s ? s.Target : c._y;
-            float target = c.Clamp(baseTarget + dy, 1);
-            c._simY = target != from ? new SmoothScrollSimulation(from, target, duration, ScrollEasing.EaseOut) : null;
-            c._simStartY = now;
+            c._snapEligible = false;
+            MaybeStartSnap(c);
         }
-        c._lastActivity = now;
-        Activate(c);
+        else
+        {
+            c._snapEligible = true;
+        }
     }
 
     /// <summary>滚动容器在 <paramref name="axis"/> 方向上还能否按 <paramref name="delta"/> 的符号滚动（用户滚动）。</summary>
-    bool CanScroll(Element e, ScrollController c, int axis, float delta)
+    bool CanScroll(Element e, ScrollController c, int axis, double delta)
     {
         if (delta == 0 || !c._hasMetrics) return false;
         int axes = RenderPipeline.ScrollAxes(e);
         if ((axes & (axis == 0 ? RenderPipeline.UserScrollX : RenderPipeline.UserScrollY)) == 0) return false;
-        float max = axis == 0 ? c.MaxOffset.X : c.MaxOffset.Y;
+        double max = axis == 0 ? c.MaxOffsetX : c.MaxOffsetY;
         if (max <= 0) return false;
-        float cur = PendingTarget(c, axis);
-        return delta < 0 ? cur > 0.01f : cur < max - 0.01f;
+        double cur = PendingTarget(c, axis);
+        return delta < 0 ? cur > 0.01 : cur < max - 0.01;
     }
 
     /// <summary>平滑动画进行中时以其目标为准（连续的滚轮格数叠加时，判断「还能不能滚」看的是目标）。</summary>
-    static float PendingTarget(ScrollController c, int axis)
+    static double PendingTarget(ScrollController c, int axis)
     {
         var sim = axis == 0 ? c._simX : c._simY;
         if (sim is SmoothScrollSimulation s) return s.Target;
@@ -352,11 +398,139 @@ internal sealed class ScrollManager
     /// <summary>控制器显式设置的值优先，否则取 CSS <c>overscroll-behavior</c>（<see cref="ScrollCss"/>）。</summary>
     static OverscrollBehavior BehaviorFor(ScrollController c, int axis) => ScrollCss.Overscroll(c, axis);
 
+    // ------------------------------------------------------------ 吸附（scroll-snap-*）
+
+    /// <summary>吸附动画的时长（毫秒）：用户输入结束后从当前位置平滑到吸附点。</summary>
+    public const double SnapAnimationMs = 220;
+
+    readonly List<SnapPoint> _snapPoints = new();
+
+    /// <summary>
+    /// 一段用户输入引起的运动结束后调用：按 <c>scroll-snap-type</c> 选择最近的吸附点，用平滑模拟动画到那里。
+    /// mandatory 总是吸附；proximity 只在距离不超过 <see cref="ScrollSnap.ProximityThresholdRatio"/> × 视口（且不小于
+    /// <see cref="ScrollSnap.MinProximityPixels"/>）时吸附。没有时钟时立即跳过去；目标钳制在 [0, MaxOffset]，
+    /// 因此不会破坏越界 / 钳制行为。内容 / 视口变化不会立即重新吸附（等到下一次用户滚动），见 design/21。
+    /// </summary>
+    void MaybeStartSnap(ScrollController c)
+    {
+        if (!c._hasMetrics || c._dragging || c._element is not { IsAttached: true }) return;
+        bool snapX = ScrollSnap.Enabled(c, 0, out bool mandatoryX);
+        bool snapY = ScrollSnap.Enabled(c, 1, out bool mandatoryY);
+        if (!snapX && !snapY) return;
+        double? targetX = null, targetY = null;
+        if (snapX)
+        {
+            ScrollSnap.Collect(c, 0, _p, _snapPoints);
+            targetX = ScrollSnap.Nearest(_snapPoints, c._x, mandatoryX, c._viewportW);
+        }
+        if (snapY)
+        {
+            ScrollSnap.Collect(c, 1, _p, _snapPoints);
+            targetY = ScrollSnap.Nearest(_snapPoints, c._y, mandatoryY, c._viewportH);
+        }
+        if (targetX is null && targetY is null) return;
+        // 没有时钟（确定的离屏渲染）：没有可推进的时间，直接跳到吸附点
+        if (_root?.Clock is null)
+        {
+            c.SetOffset(targetX ?? c._x, targetY ?? c._y);
+            return;
+        }
+        double now = Now;
+        var duration = TimeSpan.FromMilliseconds(SnapAnimationMs);
+        if (targetX is { } nx)
+        {
+            c._simX = new SmoothScrollSimulation(c._x, nx, duration, ScrollEasing.EaseOut);
+            c._simStartX = now;
+        }
+        if (targetY is { } ny)
+        {
+            c._simY = new SmoothScrollSimulation(c._y, ny, duration, ScrollEasing.EaseOut);
+            c._simStartY = now;
+        }
+        c._animationIsFling = false;
+        c._lastActivity = now;
+        Activate(c);
+    }
+
+    // ------------------------------------------------------------ 嵌套滚动（NestedScrollConnection）
+
+    Vector2 PreScroll(ScrollController c, Vector2 available, ScrollSource source)
+    {
+        if (c.NestedConnection is not { } connection) return default;
+        try
+        {
+            return SanitizeConsumed(connection.OnPreScroll(available, source), available);
+        }
+        catch (Exception ex)
+        {
+            ReportHookError(c, ex);
+            return default;
+        }
+    }
+
+    Vector2 PostScroll(ScrollController c, Vector2 consumed, Vector2 available, ScrollSource source)
+    {
+        if (c.NestedConnection is not { } connection) return default;
+        try
+        {
+            return SanitizeConsumed(connection.OnPostScroll(consumed, available, source), available - consumed);
+        }
+        catch (Exception ex)
+        {
+            ReportHookError(c, ex);
+            return default;
+        }
+    }
+
+    Vector2 PreFling(ScrollController c, Vector2 velocity)
+    {
+        if (c.NestedConnection is not { } connection) return default;
+        try
+        {
+            return SanitizeConsumed(connection.OnPreFling(velocity), velocity);
+        }
+        catch (Exception ex)
+        {
+            ReportHookError(c, ex);
+            return default;
+        }
+    }
+
+    Vector2 PostFling(ScrollController c, Vector2 consumed, Vector2 available)
+    {
+        if (c.NestedConnection is not { } connection) return default;
+        try
+        {
+            return SanitizeConsumed(connection.OnPostFling(consumed, available), available - consumed);
+        }
+        catch (Exception ex)
+        {
+            ReportHookError(c, ex);
+            return default;
+        }
+    }
+
+    void ReportHookError(ScrollController c, Exception ex) =>
+        _root?.ReportError(ex, c._element?.Owner, ErrorPhase.EventHandler);
+
+    /// <summary>
+    /// 钩子返回值只保留「与可用量同方向、且不超过可用量」的部分：非有限值、反向值、超额值都被忽略（按未消费处理）。
+    /// </summary>
+    static Vector2 SanitizeConsumed(Vector2 result, Vector2 available) =>
+        new(ClampComponent(result.X, available.X), ClampComponent(result.Y, available.Y));
+
+    static float ClampComponent(float v, float available)
+    {
+        if (float.IsNaN(v) || float.IsInfinity(v)) return 0;
+        if (available >= 0) return v <= 0 ? 0 : v >= available ? available : v;
+        return v >= 0 ? 0 : v <= available ? available : v;
+    }
+
     /// <summary>
     /// 从 <paramref name="start"/> 向上找第一个能按增量滚动的滚动容器（滚动链）。某个容器自己滚不动但其 overscroll-behavior
     /// 为 contain / none 时链在它这里截断（返回 null，且 <paramref name="blocked"/> 为 true）。
     /// </summary>
-    ScrollController? FindScroller(Element? start, float dx, float dy, out bool blocked)
+    ScrollController? FindScroller(Element? start, double dx, double dy, out bool blocked, bool physicalX = false)
     {
         blocked = false;
         int dominant = Math.Abs(dx) > Math.Abs(dy) ? 0 : 1;
@@ -364,7 +538,9 @@ internal sealed class ScrollManager
         {
             if (RenderPipeline.ScrollAxes(e) == 0 || e.Render is not { HasBox: true }) continue;
             var c = e.ScrollController;
-            if (CanScroll(e, c, 0, dx) || CanScroll(e, c, 1, dy)) return c;
+            // 键盘 / 触摸给的是物理方向；RTL 容器的行内偏移方向相反
+            double cx = physicalX && c._rtl ? -dx : dx;
+            if (CanScroll(e, c, 0, cx) || CanScroll(e, c, 1, dy)) return c;
             // 只有在该方向上真的有可滚动溢出的容器才截断滚动链（CSS：overscroll-behavior 作用于滚动容器）
             if (BehaviorFor(c, dominant) != OverscrollBehavior.Auto && HasOverflow(c, dominant))
             {
@@ -375,7 +551,7 @@ internal sealed class ScrollManager
         return null;
     }
 
-    static bool HasOverflow(ScrollController c, int axis) => (axis == 0 ? c.MaxOffset.X : c.MaxOffset.Y) > 0;
+    static bool HasOverflow(ScrollController c, int axis) => (axis == 0 ? c.MaxOffsetX : c.MaxOffsetY) > 0;
 
     // ------------------------------------------------------------ 滚轮与触控板
 
@@ -387,7 +563,7 @@ internal sealed class ScrollManager
     /// </summary>
     public void OnWheel(in RawPointerEvent raw, Element? target)
     {
-        float dx = -raw.WheelDeltaX, dy = -raw.WheelDeltaY;
+        double dx = -raw.WheelDeltaX, dy = -raw.WheelDeltaY;
         bool precise = raw.PreciseWheel;
         // Shift + 纵向滚轮 = 横向（触控板自己就能横向滚动，不交换）
         if ((raw.Modifiers & KeyModifiers.Shift) != 0 && !precise && dx == 0)
@@ -400,8 +576,8 @@ internal sealed class ScrollManager
             var we = new WheelEvent
             {
                 Position = raw.Position,
-                DeltaX = dx,
-                DeltaY = dy,
+                DeltaX = (float)dx,
+                DeltaY = (float)dy,
                 DeltaMode = raw.WheelDeltaMode,
                 IsPrecise = precise,
                 ScrollPhase = raw.ScrollPhase,
@@ -434,12 +610,14 @@ internal sealed class ScrollManager
         if (hasPhase && _latched is { _element.IsAttached: true } latched) c = latched;
         else
         {
-            float probeX = dx, probeY = dy;
-            c = FindScroller(target ?? _root?.RootElement, probeX, probeY, out _);
+            double probeX = dx, probeY = dy;
+            c = FindScroller(target ?? _root?.RootElement, probeX, probeY, out _, physicalX: true);
             if (hasPhase) _latched = c;
         }
         if (c is not null)
         {
+            // 滚轮增量表达物理方向；RTL 容器从右边缘量起，横向取反
+            if (c._rtl) dx = -dx;
             if (raw.WheelDeltaMode == WheelDeltaMode.Page)
             {
                 dx *= PageSize(c._viewportW);
@@ -451,6 +629,14 @@ internal sealed class ScrollManager
             if (!CanScroll(el, c, 1, dy)) dy = 0;
             if (precise || hasPhase)
             {
+                // 嵌套滚动：父级先拿走一部分（折叠标题栏等），剩下的交给本容器
+                var available = new Vector2((float)dx, (float)dy);
+                if (c.NestedConnection is not null)
+                {
+                    var pre = PreScroll(c, available, ScrollSource.Wheel);
+                    dx -= pre.X;
+                    dy -= pre.Y;
+                }
                 // 精确设备：直接跟随，不做平滑；系统惯性相位同样直接跟随（不叠加自己的惯性）
                 c._simX = c._simY = null;
                 c.CompleteAnimation();
@@ -461,13 +647,17 @@ internal sealed class ScrollManager
                 c._gestureEndDeadline = ended ? Now + GestureEndDelaySeconds : double.NaN;
                 c._gestureStaleAt = ended ? double.PositiveInfinity : Now + GestureTimeoutSeconds;
                 if (!ended) ScheduleWakeup(c._gestureStaleAt);
+                double beforeX = c._x, beforeY = c._y;
                 c.SetOffset(c.Clamp(c._x + dx, 0), c.Clamp(c._y + dy, 1));
                 c._lastActivity = Now;
                 Activate(c);
+                if (c.NestedConnection is not null)
+                    PostScroll(c, new Vector2((float)(c._x - beforeX), (float)(c._y - beforeY)), available, ScrollSource.Wheel);
+                c._snapEligible = true;
             }
             else
             {
-                ScrollBy(c, dx, dy, smooth: true, DesktopPhysics.WheelAnimationMs);
+                ScrollBy(c, dx, dy, smooth: true, DesktopPhysics.WheelAnimationMs, ScrollSource.Wheel);
             }
         }
         if (momentum == ScrollPhase.Ended || (phase is ScrollPhase.Ended or ScrollPhase.Cancelled && momentum == ScrollPhase.None))
@@ -476,7 +666,7 @@ internal sealed class ScrollManager
         }
     }
 
-    static float PageSize(float viewport) => Math.Max(KeyLineStep, viewport * 0.875f);
+    static double PageSize(double viewport) => Math.Max(KeyLineStep, viewport * 0.875);
 
     // ------------------------------------------------------------ 键盘
 
@@ -493,7 +683,7 @@ internal sealed class ScrollManager
         var mods = raw.Modifiers;
         if ((mods & (KeyModifiers.Alt | KeyModifiers.Meta | KeyModifiers.AltGraph)) != 0) return false;
         bool ctrl = (mods & KeyModifiers.Control) != 0, shift = (mods & KeyModifiers.Shift) != 0;
-        float dx = 0, dy = 0;
+        double dx = 0, dy = 0;
         bool page = false, toStart = false, toEnd = false;
         switch (raw.Key)
         {
@@ -510,12 +700,14 @@ internal sealed class ScrollManager
         }
         Element? start = target;
         if (_root is not null && ReferenceEquals(target, _root.RootElement) && _lastPointerScope is { IsAttached: true } scope) start = scope;
-        var c = FindScroller(start, dx, dy, out bool blocked);
+        var c = FindScroller(start, dx, dy, out bool blocked, physicalX: true);
         if (c is null) return blocked;
+        // 方向键表达的是物理方向：RTL 容器中 ArrowLeft 向行内末尾滚动
+        if (c._rtl) dx = -dx;
         if (page) dy *= PageSize(c._viewportH);
         if (toStart) dy = -PendingTarget(c, 1);
-        if (toEnd) dy = c.MaxOffset.Y - PendingTarget(c, 1);
-        ScrollBy(c, dx, dy, smooth: true, page || toStart || toEnd ? 200 : DesktopPhysics.WheelAnimationMs);
+        if (toEnd) dy = c.MaxOffsetY - PendingTarget(c, 1);
+        ScrollBy(c, dx, dy, smooth: true, page || toStart || toEnd ? 200 : DesktopPhysics.WheelAnimationMs, ScrollSource.Keyboard);
         return true;
     }
 
@@ -577,7 +769,7 @@ internal sealed class ScrollManager
                     continue;
                 }
                 var target = TargetFor(c, se, ScrollCss.WithScrollMargin(el, el.BoundingRect), r.Alignment);
-                c.StartScrollTo(target, ScrollCss.DefaultAnimation(c), r.Task ?? new TaskCompletionSource<bool>());
+                c.StartScrollTo(target.X, target.Y, ScrollCss.DefaultAnimation(c), r.Task ?? new TaskCompletionSource<bool>());
                 continue;
             }
             // 焦点揭示：从内到外，每层用最小的滚动量，立即生效
@@ -588,27 +780,29 @@ internal sealed class ScrollManager
                 var sc = e.ScrollController;
                 if (!sc._hasMetrics) continue;
                 var t = TargetFor(sc, e, rect, ScrollAlignment.Nearest);
-                float ox = sc._appliedX, oy = sc._appliedY;
+                double ox = sc._appliedX, oy = sc._appliedY;
                 if (t.X == sc._x && t.Y == sc._y) continue;
                 sc.Stop();
                 sc.SetOffset(t.X, t.Y);
-                float nx = _p.SnapOffset(sc._x), ny = _p.SnapOffset(sc._y);
-                rect = rect.Offset(-(nx - ox), -(ny - oy));
+                double nx = _p.SnapOffset(sc.TranslationX(sc._x)), ny = _p.SnapOffset(sc._y);
+                rect = rect.Offset((float)-(nx - ox), (float)-(ny - oy));
             }
         }
     }
 
     /// <summary>使 <paramref name="rect"/>（绝对坐标，按当前已施加的偏移）在容器视口中按对齐方式可见的目标偏移。</summary>
-    Point TargetFor(ScrollController c, Element scroller, Rect rect, ScrollAlignment alignment)
+    (double X, double Y) TargetFor(ScrollController c, Element scroller, Rect rect, ScrollAlignment alignment)
     {
         // scroll-padding：视口中用于对齐的区域内缩
         var vp = ScrollCss.WithScrollPadding(scroller, _p.ScrollViewportRect(scroller));
-        float x = c._appliedX + Delta(rect.Left, rect.Right, vp.Left, vp.Right, alignment);
-        float y = c._appliedY + Delta(rect.Top, rect.Bottom, vp.Top, vp.Bottom, alignment);
+        double x = c._appliedX + Delta(rect.Left, rect.Right, vp.Left, vp.Right, alignment);
+        double y = c._appliedY + Delta(rect.Top, rect.Bottom, vp.Top, vp.Bottom, alignment);
         var axes = RenderPipeline.ScrollAxes(scroller);
+        // 横向 delta 是物理平移量；RTL 下换算回从右边缘量起的逻辑偏移
         if ((axes & RenderPipeline.ScrollContainerX) == 0) x = c._x;
+        else if (c._rtl) x = -x;
         if ((axes & RenderPipeline.ScrollContainerY) == 0) y = c._y;
-        return new Point(c.Clamp(x, 0), c.Clamp(y, 1));
+        return (c.Clamp(x, 0), c.Clamp(y, 1));
     }
 
     static float Delta(float lo, float hi, float vlo, float vhi, ScrollAlignment alignment)
@@ -645,7 +839,8 @@ internal sealed class ScrollManager
     ScrollController? _thumbDrag;
     long _thumbPointer;
     int _thumbAxis;
-    float _thumbStartPointer, _thumbStartOffset;
+    float _thumbStartPointer;
+    double _thumbStartOffset;
 
     /// <summary>
     /// 指针事件的预处理：滚动条上的按下 / 拖动、触摸拖动滚动（越过触摸容差后取消点击）。返回 true 表示事件被滚动系统消费，不再派发给元素。
@@ -726,7 +921,7 @@ internal sealed class ScrollManager
             bool lockX = Math.Abs(my) > settings.AxisLockRatio * Math.Abs(mx);
             bool lockY = Math.Abs(mx) > settings.AxisLockRatio * Math.Abs(my);
             float probeX = lockX ? 0 : -mx, probeY = lockY ? 0 : -my;
-            var c = FindScroller(t.Hit, probeX, probeY, out bool blocked);
+            var c = FindScroller(t.Hit, probeX, probeY, out bool blocked, physicalX: true);
             // 允许越界的物理（回弹）：在边缘也可以拖动（橡皮筋），选最内层在该方向上有可滚动溢出的容器
             if (c is null && !blocked) c = FindBouncingScroller(t.Hit, probeX, probeY);
             if (c is null)
@@ -755,11 +950,22 @@ internal sealed class ScrollManager
         }
         float dx = t.LockX ? 0 : t.Last.X - raw.Position.X;
         float dy = t.LockY ? 0 : t.Last.Y - raw.Position.Y;
+        // 手指位移是物理方向：RTL 容器从右边缘量起，横向增量取反
+        if (ctl._rtl) dx = -dx;
         t.Last = raw.Position;
         var physics = t.Physics!;
-        float ax = AxisDrag(ctl, 0, dx, physics);
-        float ay = AxisDrag(ctl, 1, dy, physics);
+        var available = new Vector2(dx, dy);
+        if (ctl.NestedConnection is not null)
+        {
+            var pre = PreScroll(ctl, available, ScrollSource.Touch);
+            dx -= pre.X;
+            dy -= pre.Y;
+        }
+        double ax = AxisDrag(ctl, 0, dx, physics);
+        double ay = AxisDrag(ctl, 1, dy, physics);
         ctl.SetOffset(ctl._x + ax, ctl._y + ay);
+        if (ctl.NestedConnection is not null)
+            PostScroll(ctl, new Vector2((float)ax, (float)ay), available, ScrollSource.Touch);
         return true;
     }
 
@@ -779,7 +985,7 @@ internal sealed class ScrollManager
         return null;
     }
 
-    float AxisDrag(ScrollController c, int axis, float delta, ScrollPhysics physics)
+    double AxisDrag(ScrollController c, int axis, double delta, ScrollPhysics physics)
     {
         if (delta == 0) return 0;
         var el = c._element!;
@@ -789,8 +995,8 @@ internal sealed class ScrollManager
         if (BehaviorFor(c, axis) == OverscrollBehavior.None || physics.Overscroll == OverscrollMode.None || physics.Overscroll != OverscrollMode.Bounce)
         {
             // 不越界：截断（拉伸 / 辉光效果尚未绘制，按截断处理）
-            float applied = physics.ApplyDrag(m, delta);
-            float target = Math.Max(Math.Min(m.Pixels, 0), Math.Min(Math.Max(m.Pixels, m.MaxScrollExtent), m.Pixels + applied));
+            double applied = physics.ApplyDrag(m, delta);
+            double target = Math.Max(Math.Min(m.Pixels, 0), Math.Min(Math.Max(m.Pixels, m.MaxScrollExtent), m.Pixels + applied));
             return target - m.Pixels;
         }
         return physics.ApplyDrag(m, delta);
@@ -803,19 +1009,54 @@ internal sealed class ScrollManager
         var v = cancelled ? Vector2.Zero : t.Tracker.GetVelocity();
         var physics = t.Physics ?? _p.DefaultScrollPhysics;
         double now = Now;
-        // 手指速度向上 = 偏移增大
-        var fx = t.LockX ? null : physics.CreateFling(c.MetricsFor(0), -v.X);
-        var fy = t.LockY ? null : physics.CreateFling(c.MetricsFor(1), -v.Y);
-        if (BehaviorFor(c, 0) == OverscrollBehavior.None && fx is not null) fx = new ClampedSimulation(fx, 0, c.MaxOffset.X);
-        if (BehaviorFor(c, 1) == OverscrollBehavior.None && fy is not null) fy = new ClampedSimulation(fy, 0, c.MaxOffset.Y);
+        // 手指速度向上 = 偏移增大；RTL 容器从右边缘量起，横向速度取反
+        double velocityX = c._rtl ? v.X : -v.X;
+        double velocityY = -v.Y;
+        var availableVelocity = new Vector2((float)velocityX, (float)velocityY);
+        if (c.NestedConnection is not null)
+        {
+            // 嵌套滚动：联结可以先消费一部分松手速度（下拉刷新、折叠头部等）
+            var pre = PreFling(c, availableVelocity);
+            velocityX -= pre.X;
+            velocityY -= pre.Y;
+        }
+        var fx = t.LockX ? null : physics.CreateFling(c.MetricsFor(0), velocityX);
+        var fy = t.LockY ? null : physics.CreateFling(c.MetricsFor(1), velocityY);
+        // scroll-snap-stop: always —— 惯性不能越过第一个 always 吸附点
+        if (fx is not null && ScrollSnap.Enabled(c, 0, out _))
+        {
+            ScrollSnap.Collect(c, 0, _p, _snapPoints);
+            if (ScrollSnap.FirstAlwaysStop(_snapPoints, c._x, velocityX) is { } cap)
+                fx = new SnapStopSimulation(fx, cap, velocityX > 0);
+        }
+        if (fy is not null && ScrollSnap.Enabled(c, 1, out _))
+        {
+            ScrollSnap.Collect(c, 1, _p, _snapPoints);
+            if (ScrollSnap.FirstAlwaysStop(_snapPoints, c._y, velocityY) is { } cap)
+                fy = new SnapStopSimulation(fy, cap, velocityY > 0);
+        }
+        if (BehaviorFor(c, 0) == OverscrollBehavior.None && fx is not null) fx = new ClampedSimulation(fx, 0, c.MaxOffsetX);
+        if (BehaviorFor(c, 1) == OverscrollBehavior.None && fy is not null) fy = new ClampedSimulation(fy, 0, c.MaxOffsetY);
         c._simX = fx;
         c._simY = fy;
         c._simStartX = c._simStartY = now;
         c._animationIsFling = fx is not null || fy is not null;
+        if (c.NestedConnection is not null)
+        {
+            var consumedVelocity = new Vector2(fx is null ? 0 : (float)velocityX, fy is null ? 0 : (float)velocityY);
+            PostFling(c, consumedVelocity, availableVelocity);
+        }
         // 没有惯性但越界（拖动松手在橡皮筋里）：交给下一帧钳制
-        if (!c._animationIsFling && (c._x < 0 || c._y < 0 || c._x > c.MaxOffset.X || c._y > c.MaxOffset.Y))
+        if (!c._animationIsFling && (c._x < 0 || c._y < 0 || c._x > c.MaxOffsetX || c._y > c.MaxOffsetY))
             c.SetOffset(c.Clamp(c._x, 0), c.Clamp(c._y, 1));
         Activate(c);
+        // 没有惯性（停住松手 / 取消）：直接进入吸附
+        if (!c._animationIsFling)
+        {
+            c._snapEligible = false;
+            MaybeStartSnap(c);
+        }
+        else c._snapEligible = true;
     }
 
     bool TryScrollbarDown(in RawPointerEvent raw)
@@ -842,10 +1083,12 @@ internal sealed class ScrollManager
             return true;
         }
         // 点击轨道：朝指针方向翻一页
-        float page = PageSize(axis == 0 ? c._viewportW : c._viewportH);
+        double page = PageSize(axis == 0 ? c._viewportW : c._viewportH);
         float dir = p < t0 ? -1 : 1;
-        if (axis == 0) ScrollBy(c, dir * page, 0, smooth: true, 200);
-        else ScrollBy(c, 0, dir * page, smooth: true, 200);
+        // RTL：滑块从右端开始，点轨道左侧是往行内末尾翻页
+        if (axis == 0 && c._rtl) dir = -dir;
+        if (axis == 0) ScrollBy(c, dir * page, 0, smooth: true, 200, ScrollSource.Scrollbar);
+        else ScrollBy(c, 0, dir * page, smooth: true, 200, ScrollSource.Scrollbar);
         return true;
     }
 
@@ -861,12 +1104,14 @@ internal sealed class ScrollManager
         var thumb = _thumbAxis == 0 ? geo.ThumbX : geo.ThumbY;
         float trackLen = _thumbAxis == 0 ? track.Width : track.Height;
         float thumbLen = _thumbAxis == 0 ? thumb.Width : thumb.Height;
-        float max = _thumbAxis == 0 ? c.MaxOffset.X : c.MaxOffset.Y;
-        float free = trackLen - thumbLen;
+        double max = _thumbAxis == 0 ? c.MaxOffsetX : c.MaxOffsetY;
+        double free = trackLen - thumbLen;
         if (free <= 0 || max <= 0) return;
         float p = _thumbAxis == 0 ? position.X : position.Y;
         if (float.IsNaN(p) || float.IsInfinity(p)) return;
-        float offset = _thumbStartOffset + (p - _thumbStartPointer) * max / free;
+        double delta = (p - _thumbStartPointer) * max / free;
+        // RTL 的滑块从右端开始：向左拖动增大行内偏移
+        double offset = _thumbAxis == 0 && c._rtl ? _thumbStartOffset - delta : _thumbStartOffset + delta;
         if (_thumbAxis == 0) c.SetOffset(c.Clamp(offset, 0), c._y);
         else c.SetOffset(c._x, c.Clamp(offset, 1));
         c._lastActivity = Now;

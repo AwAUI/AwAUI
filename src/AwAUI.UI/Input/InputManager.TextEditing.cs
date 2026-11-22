@@ -215,6 +215,7 @@ public sealed partial class InputManager
             text = Truncate(text, Math.Max(0, Platform.Clipboard.MaxTextLength - (v.Length - (end - start))));
         string nv = string.Concat(v.Substring(0, start), text, v.Substring(end));
         int caret = start + text.Length;
+        int caretBefore = e.SelectionFocus;
         bool changed;
         if (keepComposition && e.IsComposing)
         {
@@ -228,6 +229,16 @@ public sealed partial class InputManager
         else
         {
             changed = e.SetEditState(nv, caret, caret);
+            // 组合中的中间编辑不是独立的撤销组：提交时（keepComposition = false）才记录
+            if (changed)
+            {
+                // 换行结束当前编辑组（与浏览器的文本域一致），连续键入不含换行时合并为一组
+                var kind = text.IndexOf('\n') >= 0 ? TextEditHistory.EditKind.Other
+                    : end - start == 0 && text.Length > 0 ? TextEditHistory.EditKind.Insert
+                    : text.Length == 0 && end > start ? TextEditHistory.EditKind.Delete
+                    : TextEditHistory.EditKind.Other;
+                e.History.Record(e.Value, e.SelectionAnchor, e.SelectionFocus, kind, caretBefore, caret);
+            }
         }
         if (changed && e.IsAttached) Dispatch(e, new InputEvent("input", e.Value), EventKind.Input, null);
     }
@@ -267,6 +278,15 @@ public sealed partial class InputManager
                     return true;
                 case PhysicalKey.KeyV:
                     if (!composing && editable && !(_textInput?.HandlesClipboardShortcuts ?? false)) Paste(input);
+                    return true;
+                case PhysicalKey.KeyZ:
+                    // 主修饰键 + Z 撤销；加 Shift 重做（macOS 与 Windows 相同）
+                    if (!composing && editable) UndoOrRedo(input, redo: shift);
+                    return true;
+                case PhysicalKey.KeyY:
+                    // Windows / Linux 的 Ctrl+Y 重做；macOS 的 Cmd+Y 不是编辑命令
+                    if (composing || !editable || mac) return true;
+                    UndoOrRedo(input, redo: true);
                     return true;
             }
         }
@@ -334,6 +354,7 @@ public sealed partial class InputManager
                     target = input.IsPassword ? (forward ? v.Length : 0) : forward ? TextEditing.NextWordEnd(v, focus) : TextEditing.PreviousWordStart(v, focus);
                 else
                     target = forward ? TextEditing.NextGrapheme(v, focus) : TextEditing.PreviousGrapheme(v, focus);
+                input.History.BreakCoalescing(); // 光标移动后新的编辑单独成组
                 if (shift) input.SetSelectionCore(anchor, target);
                 else input.SetSelectionCore(target, target);
                 return true;
@@ -363,6 +384,19 @@ public sealed partial class InputManager
             "Insert" => PhysicalKey.Insert,
             _ => physical,
         };
+    }
+
+    // ------------------------------------------------------------ 撤销 / 重做
+
+    void UndoOrRedo(InputElement input, bool redo)
+    {
+        if (input.IsComposing) FinishComposition(input, commit: true, notifyPlatform: true);
+        bool found = redo
+            ? input.History.TryRedo(out string text, out int anchor, out int focus)
+            : input.History.TryUndo(out text, out anchor, out focus);
+        if (!found || !input.IsAttached) return;
+        bool changed = input.SetEditState(text, anchor, focus);
+        if (changed) Dispatch(input, new InputEvent("input", input.Value), EventKind.Input, null);
     }
 
     // ------------------------------------------------------------ 剪贴板
@@ -449,6 +483,7 @@ public sealed partial class InputManager
         if (raw.Device == PointerType.Mouse && raw.ChangedButton != PointerButtons.Left) return;
         if (input.IsComposing) FinishComposition(input, commit: true, notifyPlatform: true);
         if (!input.IsAttached) return;
+        input.History.BreakCoalescing(); // 点击定位后新的编辑单独成组
         // 多击：只按平台给出的真实时间戳判断（合成事件的时间戳为 0，不会被当成双击）
         var dt = raw.Timestamp - _lastClickTime;
         bool repeat = ReferenceEquals(_lastClickInput, input) && raw.Timestamp > TimeSpan.Zero && _lastClickTime > TimeSpan.Zero

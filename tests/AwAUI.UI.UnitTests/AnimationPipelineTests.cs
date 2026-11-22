@@ -307,6 +307,28 @@ public class AnimationPipelineTests
     }
 
     [Fact]
+    public void Prefers_dark_color_scheme_recomputes_styles_only_on_change()
+    {
+        const string css = """
+            .card { width: 10px; height: 10px; background-color: rgb(255, 255, 255); }
+            @media (prefers-color-scheme: dark) { .card { background-color: rgb(0, 0, 0); } }
+            """;
+        var s = new Scene("card", css);
+        Assert.Equal(new Color(1, 1, 1), s.Style.ResolveColor(s.Style.BackgroundColor));
+
+        Assert.True(s.H.Pipeline.SetPrefersDark(true));
+        s.H.Root.RunFrame();
+        Assert.Equal(new Color(0, 0, 0), s.Style.ResolveColor(s.Style.BackgroundColor));
+        // 相同外观不重算样式（宿主忽略重复通知）
+        Assert.False(s.H.Pipeline.SetPrefersDark(true));
+        Assert.False(s.H.Root.NeedsFrame);
+
+        Assert.True(s.H.Pipeline.SetPrefersDark(false));
+        s.H.Root.RunFrame();
+        Assert.Equal(new Color(1, 1, 1), s.Style.ResolveColor(s.Style.BackgroundColor));
+    }
+
+    [Fact]
     public void Animation_values_are_reflected_in_computed_style_text()
     {
         var s = new Scene("grow");

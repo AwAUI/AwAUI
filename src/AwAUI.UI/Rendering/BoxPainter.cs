@@ -137,7 +137,7 @@ internal static class BoxPainter
         }
 
         // 5. 边框
-        if (!widths.IsZero) PaintBorder(dc, s, outer, widths);
+        if (!widths.IsZero) PaintBorder(dc, s, outer, widths, scale);
     }
 
     static BoxShadow ToBoxShadow(ComputedStyle s, in CssShadow sh) =>
@@ -145,7 +145,7 @@ internal static class BoxPainter
 
     // ------------------------------------------------------------ 边框
 
-    static void PaintBorder(DrawingContext dc, ComputedStyle s, in RoundRect outer, in BorderWidths w)
+    static void PaintBorder(DrawingContext dc, ComputedStyle s, in RoundRect outer, in BorderWidths w, float scale)
     {
         var inner = InnerShape(outer, w);
         var ct = s.ResolveColor(s.BorderTopColor);
@@ -179,15 +179,35 @@ internal static class BoxPainter
             return;
         }
 
-        // 各边颜色不同：每条边是从外角到内角的梯形
+        // 各边颜色不同：每条边是从外角到内角的梯形。圆角处必须沿经过圆心的对角线分角——
+        // 若内顶点取内边距盒的直角角点，圆角外侧的楔形不在任何梯形内，四个角会失去边框（漏出背景）。
+        // 内外圆角弧同心（内半径 = 外半径 − 相邻边框宽度），所以角点就是外圆角的弧心；方角时退回内角。
+        // 相邻梯形沿对角线各自抗锯齿，覆盖率相加仍小于 100%，接缝处会透出背景；圆角时把每条边的
+        // 两个角点沿该边方向外扩一个设备像素（仍被边框环裁剪），让相邻梯形在接缝处重叠。
         var o = outer.Rect;
         var i = inner.Rect;
         var ring = outer.IsRect && inner.IsRect ? null : Ring(outer, inner);
-        PaintSide(dc, ring, ct, w.Top, new Point(o.Left, o.Top), new Point(o.Right, o.Top), new Point(i.Right, i.Top), new Point(i.Left, i.Top));
-        PaintSide(dc, ring, cr, w.Right, new Point(o.Right, o.Top), new Point(o.Right, o.Bottom), new Point(i.Right, i.Bottom), new Point(i.Right, i.Top));
-        PaintSide(dc, ring, cb, w.Bottom, new Point(o.Right, o.Bottom), new Point(o.Left, o.Bottom), new Point(i.Left, i.Bottom), new Point(i.Right, i.Bottom));
-        PaintSide(dc, ring, cl, w.Left, new Point(o.Left, o.Bottom), new Point(o.Left, o.Top), new Point(i.Left, i.Top), new Point(i.Left, i.Bottom));
+        var ctl = CornerSplit(outer.TopLeft, o.Left, o.Top, i.Left, i.Top);
+        var ctr = CornerSplit(outer.TopRight, o.Right, o.Top, i.Right, i.Top);
+        var cbr = CornerSplit(outer.BottomRight, o.Right, o.Bottom, i.Right, i.Bottom);
+        var cbl = CornerSplit(outer.BottomLeft, o.Left, o.Bottom, i.Left, i.Bottom);
+        float d = ring is null ? 0 : 1f / scale;
+
+        PaintSide(dc, ring, ct, w.Top, new Point(o.Left, o.Top), new Point(o.Right, o.Top), Shift(ctr, d, 0), Shift(ctl, -d, 0));
+        PaintSide(dc, ring, cr, w.Right, new Point(o.Right, o.Top), new Point(o.Right, o.Bottom), Shift(cbr, 0, d), Shift(ctr, 0, -d));
+        PaintSide(dc, ring, cb, w.Bottom, new Point(o.Right, o.Bottom), new Point(o.Left, o.Bottom), Shift(cbl, -d, 0), Shift(cbr, d, 0));
+        PaintSide(dc, ring, cl, w.Left, new Point(o.Left, o.Bottom), new Point(o.Left, o.Top), Shift(ctl, 0, -d), Shift(cbl, 0, d));
     }
+
+    /// <summary>圆角的对角线分割点：有半径时取外圆角的弧心，方角时取内角。</summary>
+    static Point CornerSplit(Size radius, float outerX, float outerY, float innerX, float innerY)
+    {
+        if (radius.IsEmpty) return new Point(innerX, innerY);
+        return new Point(outerX + (outerX < innerX ? radius.Width : -radius.Width),
+                         outerY + (outerY < innerY ? radius.Height : -radius.Height));
+    }
+
+    static Point Shift(Point p, float dx, float dy) => new(p.X + dx, p.Y + dy);
 
     static Size Half(Size a, Size b) => a.IsEmpty ? a : new Size((a.Width + b.Width) / 2, (a.Height + b.Height) / 2);
 

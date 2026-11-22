@@ -84,11 +84,14 @@ public class Element
     PseudoStates _forcedStates;
     ElementDirtyFlags _dirty = ElementDirtyFlags.All;
     ElementDirtyFlags _descendantDirty;
+    Element? _invalidatedBy;
+    string? _invalidatedByProperty;
 
     Role _role;
     string? _ariaLabel;
     int? _tabIndex;
     internal Delegate?[]? _handlers;
+    List<GestureRecognizer>? _gestureRecognizers;
 
     internal UIRoot? _root;
     internal Component? _owner;
@@ -455,8 +458,22 @@ public class Element
     /// <summary>未指定 TabIndex 时是否默认可聚焦（按钮、输入框）。</summary>
     public virtual bool IsFocusableByDefault => false;
 
+    /// <summary>
+    /// 自身或任一祖先带 HTML <c>inert</c> 属性：整棵子树不可聚焦、不参与 Tab 顺序
+    /// （用于过渡期间仍挂载的退出内容；<c>pointer-events</c> 等交互屏蔽由使用者自行处理）。
+    /// </summary>
+    public bool IsInert
+    {
+        get
+        {
+            for (var current = this; current is not null; current = current.Parent)
+                if (current.GetAttribute("inert") is not null) return true;
+            return false;
+        }
+    }
+
     /// <summary>当前能否获得焦点：已挂载、未禁用、且有 TabIndex 或默认可聚焦。</summary>
-    public bool IsFocusable => _root is not null && !IsDisabled && !IsTextNode && (_tabIndex.HasValue || IsFocusableByDefault);
+    public bool IsFocusable => _root is not null && !IsDisabled && !IsTextNode && !IsInert && (_tabIndex.HasValue || IsFocusableByDefault);
 
     /// <summary>是否参与 Tab 顺序（可聚焦且 TabIndex 不为负）。</summary>
     public bool IsTabStop => IsFocusable && (_tabIndex ?? 0) >= 0;
@@ -519,6 +536,42 @@ public class Element
     public void ReleasePointerCapture(long pointerId) => _root?.Input.ReleaseCapture(pointerId, this);
 
     public bool HasPointerCapture(long pointerId) => _root is not null && ReferenceEquals(_root.Input.GetCapture(pointerId), this);
+
+    // ------------------------------------------------------------ 手势识别器（design/21）
+
+    /// <summary>挂在本元素上的手势识别器（按添加顺序；一次按下时沿途收集，内层优先入场）。</summary>
+    public IReadOnlyList<GestureRecognizer> GestureRecognizers =>
+        (IReadOnlyList<GestureRecognizer>?)_gestureRecognizers ?? Array.Empty<GestureRecognizer>();
+
+    /// <summary>挂上一个手势识别器。识别器只能属于一个元素；重复挂到同一元素被忽略。</summary>
+    public void AddGestureRecognizer(GestureRecognizer recognizer)
+    {
+        if (recognizer is null) throw new ArgumentNullException(nameof(recognizer));
+        if (recognizer.Target is { } existing && !ReferenceEquals(existing, this))
+            throw new InvalidOperationException("识别器已属于另一个元素。");
+        _gestureRecognizers ??= new List<GestureRecognizer>();
+        if (_gestureRecognizers.Contains(recognizer)) return;
+        recognizer.Target = this;
+        _gestureRecognizers.Add(recognizer);
+    }
+
+    /// <summary>移除手势识别器；返回是否确实移除了。已入场（进行中）的识别器不受影响，下一次按下起不再入场。</summary>
+    public bool RemoveGestureRecognizer(GestureRecognizer recognizer)
+    {
+        if (recognizer is null) throw new ArgumentNullException(nameof(recognizer));
+        if (_gestureRecognizers is null || !_gestureRecognizers.Remove(recognizer)) return false;
+        if (ReferenceEquals(recognizer.Target, this)) recognizer.Target = null;
+        return true;
+    }
+
+    /// <summary>移除全部手势识别器。</summary>
+    public void ClearGestureRecognizers()
+    {
+        if (_gestureRecognizers is null) return;
+        for (int i = 0; i < _gestureRecognizers.Count; i++)
+            if (ReferenceEquals(_gestureRecognizers[i].Target, this)) _gestureRecognizers[i].Target = null;
+        _gestureRecognizers.Clear();
+    }
 
     // ------------------------------------------------------------ 样式与布局结果（由帧管线写入）
 
@@ -791,7 +844,7 @@ public class Element
             else list.Add(kv);
         }
         _effectiveStyle = _styleOverrides is null ? null : ComposeStyle();
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, "style");
         _root?.NotifyInlineStyleChanged(this);
     }
 
@@ -811,7 +864,7 @@ public class Element
         if (_styleOverrides is null) return;
         _styleOverrides = null;
         _effectiveStyle = null;
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, "style");
         _root?.NotifyInlineStyleChanged(this);
     }
 
@@ -928,14 +981,35 @@ public class Element
     /// <summary>后代中存在的脏标记（用于只沿脏路径遍历）。</summary>
     public ElementDirtyFlags DescendantDirtyFlags => _descendantDirty;
 
+    /// <summary>
+    /// 最近一次把本元素（或其后代）标脏的来源元素；没有记录时为 null。这是 UI 侧的近似：只跟踪经
+    /// <see cref="MarkDirty(ElementDirtyFlags)"/> 传播的最近来源，不是布局引擎内部的失效原因。
+    /// </summary>
+    internal Element? InvalidatedBy => _invalidatedBy;
+
+    /// <summary>最近一次标脏来源上的属性名（<c>id</c>、<c>class</c>、<c>style</c>、自定义属性名等）；未知时为 null。含义见 <see cref="InvalidatedBy"/>。</summary>
+    internal string? InvalidatedByProperty => _invalidatedByProperty;
+
     /// <summary>打脏标记并向祖先传播「后代脏」，同时请求一帧。</summary>
-    public void MarkDirty(ElementDirtyFlags flags)
+    public void MarkDirty(ElementDirtyFlags flags) => MarkDirty(flags, this, null);
+
+    /// <summary>打脏标记并记录来源属性（本元素即来源，同时更新祖先的 <c>invalidatedBy</c>）。</summary>
+    internal void MarkDirty(ElementDirtyFlags flags, string property) => MarkDirty(flags, this, property);
+
+    void MarkDirty(ElementDirtyFlags flags, Element source, string? property)
     {
         if (flags == ElementDirtyFlags.None) return;
         _dirty |= flags;
+        // 不分配对象：只保存来源引用与属性名字符串（内建属性名是常量，自定义属性名由调用方持有）。
+        _invalidatedBy = source;
+        _invalidatedByProperty = property;
         for (var p = _parent; p is not null; p = p._parent)
         {
-            if ((p._descendantDirty & flags) == flags) break;
+            // 「最近一次」语义：即使祖先已经有这些标记，也要把来源更新为本次的来源。
+            // 脏标记本身只需传播到第一个已经全量标记的祖先（它的祖先必然也已标记），
+            // 但来源要继续更新到根，否则同一帧内第二次失效时上层祖先会保留较旧的来源。
+            p._invalidatedBy = source;
+            p._invalidatedByProperty = property;
             p._descendantDirty |= flags;
         }
         _root?.OnElementDirty();
@@ -946,6 +1020,14 @@ public class Element
     {
         _dirty &= ~flags;
         if (includeDescendantFlags) _descendantDirty &= ~flags;
+        if ((flags & (ElementDirtyFlags.Style | ElementDirtyFlags.Layout)) != 0
+            && ((_dirty | _descendantDirty) & (ElementDirtyFlags.Style | ElementDirtyFlags.Layout)) == 0)
+        {
+            // invalidatedBy 报告到本帧的样式与布局阶段都处理掉该失效为止（帧末的 ClearAllFlags 也会清除）；
+            // 只清掉样式、布局仍待处理时保留来源，之后没有可报告的失效来源，直到下一次 MarkDirty。
+            _invalidatedBy = null;
+            _invalidatedByProperty = null;
+        }
     }
 
     // ------------------------------------------------------------ 协调器写入（只在变化时打标记与通知）
@@ -955,7 +1037,7 @@ public class Element
         if (string.Equals(_id, id, StringComparison.Ordinal)) return;
         var old = _id;
         _id = id;
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, "id");
         _root?.NotifyIdChanged(this, old);
     }
 
@@ -965,7 +1047,7 @@ public class Element
         if (string.Equals(_classText, text, StringComparison.Ordinal)) return;
         _classText = text;
         _classes = value.Split();
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, "class");
         _root?.NotifyClassesChanged(this);
     }
 
@@ -974,7 +1056,7 @@ public class Element
         if (string.Equals(_inlineStyle, text, StringComparison.Ordinal)) return;
         _inlineStyle = text;
         if (_styleOverrides is not null) _effectiveStyle = ComposeStyle();
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, "style");
         _root?.NotifyInlineStyleChanged(this);
     }
 
@@ -982,7 +1064,7 @@ public class Element
     {
         if (string.Equals(_scope, scope, StringComparison.Ordinal)) return;
         _scope = scope;
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, "scope");
     }
 
     internal void SetRole(Role role)
@@ -1009,7 +1091,7 @@ public class Element
     /// <summary>反射为属性的字段变化：打标记并通知观察者。</summary>
     private protected void PropertyChanged(string name, ElementDirtyFlags flags)
     {
-        MarkDirty(flags);
+        MarkDirty(flags, name);
         _root?.NotifyPropertyChanged(this, name);
     }
 
@@ -1037,7 +1119,7 @@ public class Element
     void AttributeChanged(string name, string? oldValue)
     {
         if (string.Equals(name, "part", StringComparison.OrdinalIgnoreCase)) _parts = null;
-        MarkDirty(ElementDirtyFlags.Style);
+        MarkDirty(ElementDirtyFlags.Style, name);
         _root?.NotifyAttributeChanged(this, name, oldValue);
     }
 

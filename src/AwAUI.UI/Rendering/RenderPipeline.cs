@@ -6,6 +6,7 @@ using AwAUI.Css.Cascade;
 using AwAUI.Css.Values;
 using AwAUI.Graphics;
 using AwAUI.Layout;
+using AwAUI.Platform;
 using AwAUI.Text;
 
 namespace AwAUI.UI;
@@ -268,6 +269,21 @@ public sealed partial class RenderPipeline : FramePipeline
         _root?.RootElement.MarkDirty(ElementDirtyFlags.Style | ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
     }
 
+    /// <summary>设置安全区（<c>env(safe-area-inset-*)</c>）。变化时重新计算样式与布局。</summary>
+    public void SetSafeArea(Thickness insets)
+    {
+        var env = _engine.Environment;
+        if (env.SafeAreaInsetTop == insets.Top && env.SafeAreaInsetRight == insets.Right &&
+            env.SafeAreaInsetBottom == insets.Bottom && env.SafeAreaInsetLeft == insets.Left) return;
+        env.SafeAreaInsetTop = insets.Top;
+        env.SafeAreaInsetRight = insets.Right;
+        env.SafeAreaInsetBottom = insets.Bottom;
+        env.SafeAreaInsetLeft = insets.Left;
+        _engine.EnvironmentChanged();
+        _fullRestyle = true;
+        _root?.RootElement.MarkDirty(ElementDirtyFlags.Style | ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
+    }
+
     bool _viewportRestyle;
 
     static float Sanitize(float v) => float.IsNaN(v) || v < 0 ? 0 : Math.Min(v, 1e6f);
@@ -298,6 +314,8 @@ public sealed partial class RenderPipeline : FramePipeline
         Attach(root);
         AddPendingAppStyleSheets(root);
         PruneGeneratedContent();
+        // 上一帧的纯滚动候选与快路径结果不跨帧
+        ResetScrollShiftState();
         // 滚动动画、惯性与回弹按帧时钟推进（偏移在布局阶段之后施加到几何上）
         LastFrameScrolled = false;
         _scrollManager?.BeginFrame();
@@ -328,8 +346,12 @@ public sealed partial class RenderPipeline : FramePipeline
         }
         double layoutMs = sw.Elapsed.TotalMilliseconds;
         sw.Restart();
-        bool repaint = geometryChanged || _forceRepaint || _scrollRepaint
-                       || (root.RootElement.DirtyFlags | root.RootElement.DescendantDirtyFlags) != ElementDirtyFlags.None;
+        var dirty = root.RootElement.DirtyFlags | root.RootElement.DescendantDirtyFlags;
+        bool repaint = geometryChanged || _forceRepaint || _scrollRepaint || dirty != ElementDirtyFlags.None;
+        // 纯滚动帧：只有滚动偏移变化，没有样式 / 布局 / 绘制变化，滚动条外观也没变。绘制之后若能证明安全，
+        // PaintPass 会把损伤缩小到新露出的条带并提供帧缓冲位块搬移（design/18）。
+        _allowScrollShift = ScrollShiftOptimization && !geometryChanged && !_forceRepaint && !_scrollInkFull
+                            && !_scrollbarVisualChanged && dirty == ElementDirtyFlags.None && _shiftCandidate is not null;
         if (repaint) PaintPass(root, geometryChanged || _forceRepaint || _scrollInkFull);
         else
         {
@@ -337,6 +359,7 @@ public sealed partial class RenderPipeline : FramePipeline
             _recordedElements.Clear();
         }
         _scrollRepaint = _scrollInkFull = false;
+        _scrollbarVisualChanged = false;
         ClearAllFlags(root.RootElement);
         // 动画事件与下一帧的请求（继续采样进行中的动画，或为延迟阶段安排定时器）
         EndAnimationFrame(root);

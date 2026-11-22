@@ -14,8 +14,8 @@ public abstract class Simulation
     /// <summary>速度容差：速度小于它视为停止（逻辑像素每秒）。</summary>
     public const float VelocityTolerance = 10f;
 
-    public abstract float Position(double seconds);
-    public abstract float Velocity(double seconds);
+    public abstract double Position(double seconds);
+    public abstract double Velocity(double seconds);
     public abstract bool IsDone(double seconds);
 }
 
@@ -45,7 +45,7 @@ public sealed class SpringSimulation : Simulation
     readonly double _r1, _r2, _c1, _c2, _w;
     readonly int _kind; // 0 临界，1 过阻尼，2 欠阻尼
 
-    public SpringSimulation(SpringDescription spring, float start, float end, float velocity)
+    public SpringSimulation(SpringDescription spring, double start, double end, double velocity)
     {
         _end = end;
         double m = spring.Mass, k = spring.Stiffness, c = spring.Damping;
@@ -77,7 +77,7 @@ public sealed class SpringSimulation : Simulation
         }
     }
 
-    static double Sanitize(float v) => float.IsNaN(v) || float.IsInfinity(v) ? 0 : v;
+    static double Sanitize(double v) => double.IsNaN(v) || double.IsInfinity(v) ? 0 : v;
 
     double X(double t) => _kind switch
     {
@@ -106,9 +106,9 @@ public sealed class SpringSimulation : Simulation
         }
     }
 
-    public override float Position(double seconds) => (float)(_end + X(Math.Max(0, seconds)));
+    public override double Position(double seconds) => _end + X(Math.Max(0, seconds));
 
-    public override float Velocity(double seconds) => (float)Dx(Math.Max(0, seconds));
+    public override double Velocity(double seconds) => Dx(Math.Max(0, seconds));
 
     public override bool IsDone(double seconds)
     {
@@ -122,27 +122,27 @@ public sealed class FrictionSimulation : Simulation
 {
     readonly double _drag, _dragLog, _x, _v;
 
-    public FrictionSimulation(float drag, float position, float velocity)
+    public FrictionSimulation(double drag, double position, double velocity)
     {
         _drag = drag > 0 && drag < 1 ? drag : 0.135;
         _dragLog = Math.Log(_drag);
         _x = position;
-        _v = float.IsNaN(velocity) || float.IsInfinity(velocity) ? 0 : velocity;
+        _v = double.IsNaN(velocity) || double.IsInfinity(velocity) ? 0 : velocity;
     }
 
     /// <summary>运动停止时的位置。</summary>
-    public float FinalPosition => (float)(_x - _v / _dragLog);
+    public double FinalPosition => _x - _v / _dragLog;
 
-    public override float Position(double seconds)
+    public override double Position(double seconds)
     {
         double t = Math.Max(0, seconds);
-        return (float)(_x + _v * Math.Pow(_drag, t) / _dragLog - _v / _dragLog);
+        return _x + _v * Math.Pow(_drag, t) / _dragLog - _v / _dragLog;
     }
 
-    public override float Velocity(double seconds) => (float)(_v * Math.Pow(_drag, Math.Max(0, seconds)));
+    public override double Velocity(double seconds) => _v * Math.Pow(_drag, Math.Max(0, seconds));
 
     /// <summary>到达位置 <paramref name="x"/> 的时间；永远到不了时为正无穷。</summary>
-    public double TimeAt(float x)
+    public double TimeAt(double x)
     {
         if (x == _x) return 0;
         double fin = FinalPosition;
@@ -160,8 +160,8 @@ public sealed class BouncingScrollSimulation : Simulation
     readonly SpringSimulation? _spring;
     readonly double _springTime;
 
-    public BouncingScrollSimulation(float position, float velocity, float leadingExtent, float trailingExtent, SpringDescription spring,
-        float drag = BouncingPhysics.Drag, float maxSpringTransferVelocity = BouncingPhysics.MaxSpringTransferVelocity)
+    public BouncingScrollSimulation(double position, double velocity, double leadingExtent, double trailingExtent, SpringDescription spring,
+        double drag = BouncingPhysics.Drag, double maxSpringTransferVelocity = BouncingPhysics.MaxSpringTransferVelocity)
     {
         trailingExtent = Math.Max(leadingExtent, trailingExtent);
         if (position < leadingExtent)
@@ -177,7 +177,7 @@ public sealed class BouncingScrollSimulation : Simulation
         else
         {
             _friction = new FrictionSimulation(drag, position, velocity);
-            float fin = _friction.FinalPosition;
+            double fin = _friction.FinalPosition;
             if (velocity > 0 && fin > trailingExtent)
             {
                 _springTime = _friction.TimeAt(trailingExtent);
@@ -197,10 +197,10 @@ public sealed class BouncingScrollSimulation : Simulation
         }
     }
 
-    public override float Position(double seconds) =>
+    public override double Position(double seconds) =>
         seconds < _springTime ? _friction!.Position(seconds) : _spring!.Position(seconds - Math.Max(0, _springTime));
 
-    public override float Velocity(double seconds) =>
+    public override double Velocity(double seconds) =>
         seconds < _springTime ? _friction!.Velocity(seconds) : _spring!.Velocity(seconds - Math.Max(0, _springTime));
 
     public override bool IsDone(double seconds) =>
@@ -218,10 +218,10 @@ public sealed class ClampingScrollSimulation : Simulation
 
     readonly double _position, _velocity, _duration, _distance;
 
-    public ClampingScrollSimulation(float position, float velocity, float friction = ClampingPhysics.Friction)
+    public ClampingScrollSimulation(double position, double velocity, double friction = ClampingPhysics.Friction)
     {
         _position = position;
-        _velocity = float.IsNaN(velocity) || float.IsInfinity(velocity) ? 0 : velocity;
+        _velocity = double.IsNaN(velocity) || double.IsInfinity(velocity) ? 0 : velocity;
         double decel = (friction > 0 ? friction : ClampingPhysics.Friction) * 61774.04968; // 9.80665 · 39.37 · 160 · friction
         double v = Math.Abs(_velocity);
         if (v < 1e-6)
@@ -238,18 +238,18 @@ public sealed class ClampingScrollSimulation : Simulation
     /// <summary>运动总时长（秒）。</summary>
     public double Duration => _duration;
 
-    public override float Position(double seconds)
+    public override double Position(double seconds)
     {
-        if (_duration <= 0) return (float)_position;
+        if (_duration <= 0) return _position;
         double t = Math.Max(0, Math.Min(1, seconds / _duration));
-        return (float)(_position + _distance * (1.2 * t * t * t - 3.27 * t * t + 3.065 * t) * Math.Sign(_velocity));
+        return _position + _distance * (1.2 * t * t * t - 3.27 * t * t + 3.065 * t) * Math.Sign(_velocity);
     }
 
-    public override float Velocity(double seconds)
+    public override double Velocity(double seconds)
     {
         if (_duration <= 0) return 0;
         double t = Math.Max(0, Math.Min(1, seconds / _duration));
-        return (float)(_velocity * (3.6 * t * t - 6.54 * t + 3.065) / InitialVelocityPenetration);
+        return _velocity * (3.6 * t * t - 6.54 * t + 3.065) / InitialVelocityPenetration;
     }
 
     public override bool IsDone(double seconds) => seconds >= _duration;
@@ -259,27 +259,27 @@ public sealed class ClampingScrollSimulation : Simulation
 public sealed class ClampedSimulation : Simulation
 {
     readonly Simulation _inner;
-    readonly float _min, _max;
+    readonly double _min, _max;
 
-    public ClampedSimulation(Simulation inner, float min, float max)
+    public ClampedSimulation(Simulation inner, double min, double max)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _min = min;
         _max = Math.Max(min, max);
     }
 
-    public override float Position(double seconds) => Math.Max(_min, Math.Min(_max, _inner.Position(seconds)));
+    public override double Position(double seconds) => Math.Max(_min, Math.Min(_max, _inner.Position(seconds)));
 
-    public override float Velocity(double seconds) => AtBound(seconds, out float v) ? 0 : v;
+    public override double Velocity(double seconds) => AtBound(seconds, out double v) ? 0 : v;
 
     public override bool IsDone(double seconds) => _inner.IsDone(seconds) || AtBound(seconds, out _);
 
     /// <summary>
     /// 位置在边界上且（内层的）速度朝外或为零：被边界挡住。从边界出发、朝范围内运动的模拟（在顶端向下甩）不算到达边界。
     /// </summary>
-    bool AtBound(double seconds, out float velocity)
+    bool AtBound(double seconds, out double velocity)
     {
-        float p = _inner.Position(seconds);
+        double p = _inner.Position(seconds);
         velocity = _inner.Velocity(seconds);
         return (p <= _min && !(velocity > 0)) || (p >= _max && !(velocity < 0));
     }
@@ -294,7 +294,7 @@ public sealed class SmoothScrollSimulation : Simulation
     readonly double _from, _to, _duration;
     readonly ScrollEasing _easing;
 
-    public SmoothScrollSimulation(float from, float to, TimeSpan duration, ScrollEasing easing = ScrollEasing.EaseOut)
+    public SmoothScrollSimulation(double from, double to, TimeSpan duration, ScrollEasing easing = ScrollEasing.EaseOut)
     {
         _from = from;
         _to = to;
@@ -302,13 +302,13 @@ public sealed class SmoothScrollSimulation : Simulation
         _easing = easing;
     }
 
-    public float Target => (float)_to;
+    public double Target => _to;
 
-    public override float Position(double seconds)
+    public override double Position(double seconds)
     {
-        if (_duration <= 0 || seconds >= _duration) return (float)_to;
+        if (_duration <= 0 || seconds >= _duration) return _to;
         double s = Math.Max(0, seconds / _duration);
-        return (float)(_from + (_to - _from) * Ease(s));
+        return _from + (_to - _from) * Ease(s);
     }
 
     double Ease(double s) => _easing switch
@@ -318,7 +318,7 @@ public sealed class SmoothScrollSimulation : Simulation
         _ => 1 - Math.Pow(1 - s, 3),
     };
 
-    public override float Velocity(double seconds)
+    public override double Velocity(double seconds)
     {
         if (_duration <= 0 || seconds >= _duration || seconds < 0) return 0;
         double s = seconds / _duration;
@@ -328,7 +328,7 @@ public sealed class SmoothScrollSimulation : Simulation
             ScrollEasing.EaseInOut => s < 0.5 ? 12 * s * s : 3 * Math.Pow(-2 * s + 2, 2),
             _ => 3 * (1 - s) * (1 - s),
         };
-        return (float)((_to - _from) * d / _duration);
+        return (_to - _from) * d / _duration;
     }
 
     public override bool IsDone(double seconds) => seconds >= _duration;

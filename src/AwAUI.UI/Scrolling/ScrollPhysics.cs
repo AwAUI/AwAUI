@@ -7,7 +7,7 @@ namespace AwAUI.UI;
 /// </summary>
 public readonly struct ScrollMetrics
 {
-    public ScrollMetrics(float pixels, float minScrollExtent, float maxScrollExtent, float viewportDimension)
+    public ScrollMetrics(double pixels, double minScrollExtent, double maxScrollExtent, double viewportDimension)
     {
         Pixels = pixels;
         MinScrollExtent = minScrollExtent;
@@ -16,24 +16,24 @@ public readonly struct ScrollMetrics
     }
 
     /// <summary>当前偏移（可能越界）。</summary>
-    public float Pixels { get; }
+    public double Pixels { get; }
 
     /// <summary>最小偏移（通常为 0）。</summary>
-    public float MinScrollExtent { get; }
+    public double MinScrollExtent { get; }
 
     /// <summary>最大偏移（内容尺寸 − 视口尺寸，不小于 <see cref="MinScrollExtent"/>）。</summary>
-    public float MaxScrollExtent { get; }
+    public double MaxScrollExtent { get; }
 
     /// <summary>视口在该轴上的尺寸。</summary>
-    public float ViewportDimension { get; }
+    public double ViewportDimension { get; }
 
     /// <summary>当前是否越界。</summary>
     public bool OutOfRange => Pixels < MinScrollExtent || Pixels > MaxScrollExtent;
 
     /// <summary>越过起点（&gt; 0）或终点（&lt; 0）的距离；未越界为 0。</summary>
-    public float Overscroll => Pixels < MinScrollExtent ? MinScrollExtent - Pixels : Pixels > MaxScrollExtent ? MaxScrollExtent - Pixels : 0;
+    public double Overscroll => Pixels < MinScrollExtent ? MinScrollExtent - Pixels : Pixels > MaxScrollExtent ? MaxScrollExtent - Pixels : 0;
 
-    public ScrollMetrics WithPixels(float pixels) => new(pixels, MinScrollExtent, MaxScrollExtent, ViewportDimension);
+    public ScrollMetrics WithPixels(double pixels) => new(pixels, MinScrollExtent, MaxScrollExtent, ViewportDimension);
 }
 
 /// <summary>越界的呈现方式。</summary>
@@ -60,10 +60,10 @@ public enum OverscrollMode : byte
 public abstract class ScrollPhysics
 {
     /// <summary>拖动中：把手指位移 <paramref name="delta"/>（换算成偏移的增量）换算成实际施加的增量（越界时加阻尼，不允许越界时截断）。</summary>
-    public abstract float ApplyDrag(in ScrollMetrics m, float delta);
+    public abstract double ApplyDrag(in ScrollMetrics m, double delta);
 
     /// <summary>松手后：返回一段运动模拟（惯性、回弹）；返回 null 表示立即停止（越界时也必须给出回到范围内的模拟）。</summary>
-    public abstract Simulation? CreateFling(in ScrollMetrics m, float velocity);
+    public abstract Simulation? CreateFling(in ScrollMetrics m, double velocity);
 
     /// <summary>是否允许越界，以及越界的呈现方式。</summary>
     public abstract OverscrollMode Overscroll { get; }
@@ -75,18 +75,18 @@ public abstract class ScrollPhysics
     public virtual float MaxFlingVelocity => 8000f;
 
     /// <summary>把速度钳制到 [−<see cref="MaxFlingVelocity"/>, <see cref="MaxFlingVelocity"/>]，低于 <see cref="MinFlingVelocity"/> 时为 0。</summary>
-    protected float ClampVelocity(float velocity)
+    protected double ClampVelocity(double velocity)
     {
-        if (float.IsNaN(velocity) || float.IsInfinity(velocity)) return 0;
+        if (double.IsNaN(velocity) || double.IsInfinity(velocity)) return 0;
         if (Math.Abs(velocity) < MinFlingVelocity) return 0;
         return Math.Max(-MaxFlingVelocity, Math.Min(MaxFlingVelocity, velocity));
     }
 
     /// <summary>不越界的拖动：截断到 [min, max]（已经越界时只允许向范围内移动）。</summary>
-    protected static float ClampDrag(in ScrollMetrics m, float delta)
+    protected static double ClampDrag(in ScrollMetrics m, double delta)
     {
-        float target = m.Pixels + delta;
-        float lo = Math.Min(m.MinScrollExtent, m.Pixels), hi = Math.Max(m.MaxScrollExtent, m.Pixels);
+        double target = m.Pixels + delta;
+        double lo = Math.Min(m.MinScrollExtent, m.Pixels), hi = Math.Max(m.MaxScrollExtent, m.Pixels);
         target = Math.Max(lo, Math.Min(hi, target));
         if (m.Pixels >= m.MinScrollExtent && target < m.MinScrollExtent) target = m.MinScrollExtent;
         if (m.Pixels <= m.MaxScrollExtent && target > m.MaxScrollExtent) target = m.MaxScrollExtent;
@@ -111,35 +111,35 @@ public sealed class BouncingPhysics : ScrollPhysics
 
     public override OverscrollMode Overscroll => OverscrollMode.Bounce;
 
-    public override float ApplyDrag(in ScrollMetrics m, float delta)
+    public override double ApplyDrag(in ScrollMetrics m, double delta)
     {
-        if (delta == 0 || float.IsNaN(delta) || float.IsInfinity(delta)) return 0;
+        if (delta == 0 || double.IsNaN(delta) || double.IsInfinity(delta)) return 0;
         if (!m.OutOfRange) return delta;
-        float pastStart = Math.Max(m.MinScrollExtent - m.Pixels, 0);
-        float pastEnd = Math.Max(m.Pixels - m.MaxScrollExtent, 0);
-        float past = Math.Max(pastStart, pastEnd);
+        double pastStart = Math.Max(m.MinScrollExtent - m.Pixels, 0);
+        double pastEnd = Math.Max(m.Pixels - m.MaxScrollExtent, 0);
+        double past = Math.Max(pastStart, pastEnd);
         // 向范围内回拉：按回拉后的越界量计算摩擦
         bool easing = (pastStart > 0 && delta > 0) || (pastEnd > 0 && delta < 0);
-        float viewport = Math.Max(1, m.ViewportDimension);
-        float friction = easing ? FrictionFactor((past - Math.Abs(delta)) / viewport) : FrictionFactor(past / viewport);
-        float abs = Math.Abs(delta);
-        float applied = easing ? ApplyFriction(past, abs, friction) : abs * friction;
+        double viewport = Math.Max(1, m.ViewportDimension);
+        double friction = easing ? FrictionFactor((past - Math.Abs(delta)) / viewport) : FrictionFactor(past / viewport);
+        double abs = Math.Abs(delta);
+        double applied = easing ? ApplyFriction(past, abs, friction) : abs * friction;
         return Math.Sign(delta) * applied;
     }
 
-    static float FrictionFactor(float overscrollFraction)
+    static double FrictionFactor(double overscrollFraction)
     {
-        float f = 1 - Math.Max(0, Math.Min(1, overscrollFraction));
-        return 0.52f * f * f;
+        double f = 1 - Math.Max(0, Math.Min(1, overscrollFraction));
+        return 0.52 * f * f;
     }
 
-    static float ApplyFriction(float extentOutside, float absDelta, float gamma)
+    static double ApplyFriction(double extentOutside, double absDelta, double gamma)
     {
         if (gamma <= 0) return absDelta;
-        float total = 0;
+        double total = 0;
         if (extentOutside > 0)
         {
-            float deltaToLimit = extentOutside / gamma;
+            double deltaToLimit = extentOutside / gamma;
             if (absDelta < deltaToLimit) return absDelta * gamma;
             total += extentOutside;
             absDelta -= deltaToLimit;
@@ -147,7 +147,7 @@ public sealed class BouncingPhysics : ScrollPhysics
         return total + absDelta;
     }
 
-    public override Simulation? CreateFling(in ScrollMetrics m, float velocity)
+    public override Simulation? CreateFling(in ScrollMetrics m, double velocity)
     {
         velocity = ClampVelocity(velocity);
         if (velocity == 0 && !m.OutOfRange) return null;
@@ -166,14 +166,14 @@ public sealed class ClampingPhysics : ScrollPhysics
 
     public override OverscrollMode Overscroll => OverscrollMode.Stretch;
 
-    public override float ApplyDrag(in ScrollMetrics m, float delta) =>
-        float.IsNaN(delta) || float.IsInfinity(delta) ? 0 : ClampDrag(m, delta);
+    public override double ApplyDrag(in ScrollMetrics m, double delta) =>
+        double.IsNaN(delta) || double.IsInfinity(delta) ? 0 : ClampDrag(m, delta);
 
-    public override Simulation? CreateFling(in ScrollMetrics m, float velocity)
+    public override Simulation? CreateFling(in ScrollMetrics m, double velocity)
     {
         if (m.OutOfRange)
             return new ClampedSimulation(new SpringSimulation(BouncingPhysics.Spring, m.Pixels, m.Pixels < m.MinScrollExtent ? m.MinScrollExtent : m.MaxScrollExtent, 0),
-                float.NegativeInfinity, float.PositiveInfinity);
+                double.NegativeInfinity, double.PositiveInfinity);
         velocity = ClampVelocity(velocity);
         if (velocity == 0) return null;
         if ((velocity < 0 && m.Pixels <= m.MinScrollExtent) || (velocity > 0 && m.Pixels >= m.MaxScrollExtent)) return null;
@@ -194,8 +194,8 @@ public sealed class DesktopPhysics : ScrollPhysics
 
     public override OverscrollMode Overscroll => OverscrollMode.None;
 
-    public override float ApplyDrag(in ScrollMetrics m, float delta) =>
-        float.IsNaN(delta) || float.IsInfinity(delta) ? 0 : ClampDrag(m, delta);
+    public override double ApplyDrag(in ScrollMetrics m, double delta) =>
+        double.IsNaN(delta) || double.IsInfinity(delta) ? 0 : ClampDrag(m, delta);
 
-    public override Simulation? CreateFling(in ScrollMetrics m, float velocity) => s_clamping.CreateFling(m, velocity);
+    public override Simulation? CreateFling(in ScrollMetrics m, double velocity) => s_clamping.CreateFling(m, velocity);
 }

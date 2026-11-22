@@ -43,7 +43,8 @@ internal sealed class CssLayoutCalc : LayoutCalc
 /// 收缩适应宽度的 <see cref="Display.InlineFlex"/>（<c>inline-block</c> 用纵向主轴，子元素像块一样堆叠）；<c>grid / inline-grid</c> 映射为网格。</item>
 /// <item>网格的轨道列表、区域与放置线按内容转换为布局类型（按计算值实例缓存）；<c>order</c>、<c>justify-self</c>、网格放置属性对所有元素映射。</item>
 /// <item>含百分比的 padding / gap 由布局引擎在解析后截断为非负；宽高等尺寸由引擎按 min/max 约束处理。</item>
-/// <item><c>position: sticky</c> 尚未实现，按 relative 处理。</item>
+/// <item><c>position: sticky</c> 映射为 <see cref="Position.Sticky"/>：布局时与 static 相同（占据静态空间），
+/// 滚动偏移产生的视觉偏移由 <see cref="RenderPipeline"/> 在绝对几何阶段施加（design/08）。</item>
 /// </list>
 /// </summary>
 internal static class LayoutMapper
@@ -58,9 +59,12 @@ internal static class LayoutMapper
         var style = new LayoutStyle
         {
             Display = display,
+            // direction 影响块级对齐、flex 主轴与网格列方向（见 LayoutEngine）
+            Direction = s.Direction == CssDirection.Rtl ? Direction.Rtl : Direction.Ltr,
             Position = s.Position switch
             {
-                CssPosition.Relative or CssPosition.Sticky => Position.Relative,
+                CssPosition.Relative => Position.Relative,
+                CssPosition.Sticky => Position.Sticky,
                 CssPosition.Absolute => Position.Absolute,
                 CssPosition.Fixed => Position.Fixed,
                 _ => Position.Static,

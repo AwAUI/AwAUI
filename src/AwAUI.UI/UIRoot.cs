@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using AwAUI.Threading;
+using AwAUI.UI.Accessibility;
 
 namespace AwAUI.UI;
 
@@ -89,15 +90,20 @@ public sealed class UIRoot
         _reconciler = new Reconciler(this);
         FocusManager = new FocusManager(this);
         Input = new InputManager(this);
+        Selection = new TextSelection(this);
         Overlay = new OverlayRoot(this);
     }
 
     /// <summary>构造时给定的 UI 线程调度器（异步图片解码据此回到 UI 线程）。</summary>
     internal IDispatcher? Dispatcher => _dispatcher;
 
+    /// <summary>承载这个根的 <see cref="UIHost"/>；无窗口渲染（测试、服务端）直接构造 <see cref="UIRoot"/> 时为 null。</summary>
+    public UIHost? Host { get; internal set; }
+
     UIClock? _clock;
     bool _clockSet;
     ImageCache? _images;
+    AccessibilityTree? _accessibility;
 
     /// <summary>
     /// UI 线程的时间源与定时器（动画图片按帧时长推进）。默认：有调度器时为 <see cref="UIClock.CreateSystem"/>，否则为 null（动画停在第一帧）。
@@ -134,8 +140,17 @@ public sealed class UIRoot
     /// <summary>指针、键盘与文本输入的派发入口。</summary>
     public InputManager Input { get; }
 
+    /// <summary>非编辑文本的鼠标选择（只读文本、代码块等）；输入框使用自身的选区。</summary>
+    public TextSelection Selection { get; }
+
     /// <summary>窗口的覆盖层：<see cref="Portal"/> 的内容挂在这里，画在常规内容之上（design/23 第 1 层）。</summary>
     public OverlayRoot Overlay { get; }
+
+    /// <summary>
+    /// 无障碍语义树（design/10）：惰性创建；只有访问它的 <see cref="AccessibilityTree.Root"/>、查询或连接平台桥时才遍历元素树。
+    /// 元素树、焦点或布局变化会使它失效，下一次访问时重建。
+    /// </summary>
+    public AccessibilityTree Accessibility => _accessibility ??= new AccessibilityTree(this);
 
     /// <summary>视口（窗口客户区）尺寸，逻辑像素；没有 <see cref="RenderPipeline"/> 时为 0×0。</summary>
     public Size ViewportSize => Pipeline is RenderPipeline p ? p.Viewport : default;
@@ -564,7 +579,15 @@ public sealed class UIRoot
 
     // ------------------------------------------------------------ 错误与诊断
 
-    internal void ReportDiagnostic(UIDiagnostic diagnostic) => Diagnostic?.Invoke(diagnostic);
+    /// <summary>
+    /// 向 <see cref="Diagnostic"/> 发布一条诊断。管线内部的样式、布局、图片与组件诊断都经过这里；
+    /// 应用与集成层（例如运行时 Tailwind 补全）也可以用它把自定义诊断送进 DevTools 控制台。
+    /// </summary>
+    public void ReportDiagnostic(UIDiagnostic diagnostic)
+    {
+        if (diagnostic is null) throw new ArgumentNullException(nameof(diagnostic));
+        Diagnostic?.Invoke(diagnostic);
+    }
 
     /// <summary>把异常交给最近的错误边界；没有则进入 <see cref="UnhandledError"/>。</summary>
     internal void ReportError(Exception ex, Component? source, ErrorPhase phase)
@@ -701,6 +724,7 @@ public sealed class UIRoot
 
     internal void NotifyTextChanged(Element e)
     {
+        Selection.OnTextChanged(e);
         foreach (var o in _observers) o.OnTextChanged(e);
     }
 

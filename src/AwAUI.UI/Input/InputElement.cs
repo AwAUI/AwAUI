@@ -23,6 +23,9 @@ public sealed class InputElement : Element
     int _compositionStart, _compositionSelStart, _compositionSelEnd;
     InputTextClient? _client;
 
+    /// <summary>撤销 / 重做历史（每次编辑后的值与选区；程序改写值会清空历史）。</summary>
+    internal readonly TextEditHistory History = new("", 0, 0);
+
     public InputElement() : this("input") { }
 
     internal InputElement(string tag) : base(tag) => SetState(PseudoStates.PlaceholderShown, false);
@@ -73,6 +76,31 @@ public sealed class InputElement : Element
     /// <inheritdoc cref="CompositionSelectionStart"/>
     public int CompositionSelectionEnd => _compositionSelEnd;
 
+    /// <summary>插入点当前是否可见（闪烁状态）。每次光标移动、键入或聚焦都从可见阶段重新开始。</summary>
+    internal bool CaretVisible = true;
+
+    /// <summary>
+    /// 该输入框的插入点闪烁周期；null 使用 <see cref="RenderPipeline.CaretBlinkInterval"/>。
+    /// <see cref="TimeSpan.Zero"/> 或负值表示不闪烁（插入点常亮）。
+    /// </summary>
+    public TimeSpan? CaretBlinkInterval
+    {
+        get => _caretBlinkInterval;
+        internal set
+        {
+            if (_caretBlinkInterval == value) return;
+            _caretBlinkInterval = value;
+            // 新周期在下一次绘制时生效（更短周期或常亮应立即看到）
+            MarkDirty(ElementDirtyFlags.Paint);
+            Root?.OnElementDirty();
+        }
+    }
+
+    TimeSpan? _caretBlinkInterval;
+
+    /// <summary>光标（选区 / 插入点）变化计数：帧管线据此重新开始闪烁。</summary>
+    internal long CaretBlinkVersion;
+
     public override bool IsFocusableByDefault => true;
 
     public override bool CanBeDisabled => true;
@@ -119,6 +147,8 @@ public sealed class InputElement : Element
     public void SetSelectionRange(int anchor, int focus)
     {
         if (IsComposing) Root?.Input.FinishComposition(this, commit: true);
+        // 光标移动后新的编辑单独成组（与浏览器一致：撤销不会跨过光标移动合并）
+        History.BreakCoalescing();
         SetSelectionCore(anchor, focus);
     }
 
@@ -132,6 +162,7 @@ public sealed class InputElement : Element
         if (anchor == _anchor && focus == _focus) return;
         _anchor = anchor;
         _focus = focus;
+        CaretBlinkVersion++;
         MarkDirty(ElementDirtyFlags.Paint);
     }
 
@@ -167,7 +198,7 @@ public sealed class InputElement : Element
         MarkDirty(ElementDirtyFlags.Layout | ElementDirtyFlags.Paint);
     }
 
-    /// <summary>值被程序（受控值）改变：插入点移到末尾，放弃进行中的组合。</summary>
+    /// <summary>值被程序（受控值）改变：插入点移到末尾，放弃进行中的组合，撤销历史清空。</summary>
     internal void SetValue(string value)
     {
         value = IsMultiline ? TextEditing.SanitizeMultiline(value) : value ?? "";
@@ -178,6 +209,7 @@ public sealed class InputElement : Element
             Root?.Input.OnCompositionDiscarded(this);
         }
         SetEditState(value, value.Length, value.Length);
+        History.Reset(value, value.Length, value.Length);
     }
 
     internal void SetPlaceholder(string? placeholder)
@@ -215,8 +247,13 @@ public sealed class InputElement : Element
     void UpdatePlaceholderShown() =>
         SetState(PseudoStates.PlaceholderShown, _value.Length == 0 && _composition.Length == 0 && !string.IsNullOrEmpty(Placeholder));
 
-    /// <summary>获得焦点：记录值（失焦时比较以派发 change）。</summary>
-    internal void OnFocused() => _valueAtFocus = _value;
+    /// <summary>获得焦点：记录值（失焦时比较以派发 change），新的编辑不与上一次合并，插入点从可见阶段开始闪烁。</summary>
+    internal void OnFocused()
+    {
+        _valueAtFocus = _value;
+        History.BreakCoalescing();
+        CaretBlinkVersion++;
+    }
 
     /// <summary>失去焦点时若内容变化则返回 true（触发 change）。</summary>
     internal bool TakeChangedSinceFocus()

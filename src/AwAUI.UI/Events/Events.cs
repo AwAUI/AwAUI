@@ -24,6 +24,12 @@ internal enum EventKind : byte
     Submit,
     Tap,
     Pan,
+    LongPress,
+    DoubleTap,
+    Swipe,
+    Pinch,
+    Rotate,
+    EdgeSwipe,
     ClickCapture,
     PointerDownCapture,
     PointerUpCapture,
@@ -235,4 +241,179 @@ public sealed class PanEvent : Event
 
     /// <summary>速度（逻辑像素每秒）。</summary>
     public Point Velocity { get; internal set; }
+}
+
+/// <summary>长按的阶段。</summary>
+public enum LongPressPhase : byte
+{
+    /// <summary>按住超过时长，长按开始。</summary>
+    Started,
+
+    /// <summary>长按开始后指针移动。</summary>
+    Moved,
+
+    /// <summary>抬起结束。</summary>
+    Ended,
+
+    /// <summary>被取消（<c>pointercancel</c> 或竞技场裁决）。</summary>
+    Cancelled,
+}
+
+/// <summary>长按手势事件（design/21，<c>longpress</c>，冒泡）。</summary>
+public sealed class LongPressEvent : Event
+{
+    public LongPressEvent() : base("longpress") { }
+
+    /// <summary>当前位置（开始 / 移动 / 结束）；取消时为最后一次已知位置。</summary>
+    public Point Position { get; internal set; }
+
+    /// <summary>本事件的阶段。</summary>
+    public new LongPressPhase Phase { get; internal set; }
+
+    /// <summary>引起手势的指针类型。</summary>
+    public PointerType PointerType { get; internal set; }
+}
+
+/// <summary>双击手势事件（design/21，<c>doubletap</c>，冒泡）。</summary>
+public sealed class DoubleTapEvent : Event
+{
+    public DoubleTapEvent() : base("doubletap") { }
+
+    /// <summary>第二次抬起的客户区坐标（逻辑像素）。</summary>
+    public Point Position { get; internal set; }
+
+    /// <summary>引起手势的指针类型。</summary>
+    public PointerType PointerType { get; internal set; }
+}
+
+/// <summary>滑动方向（按位移的主导轴判定）。</summary>
+public enum SwipeDirection : byte
+{
+    /// <summary>向左。</summary>
+    Left,
+
+    /// <summary>向右。</summary>
+    Right,
+
+    /// <summary>向上（逻辑坐标 y 减小）。</summary>
+    Up,
+
+    /// <summary>向下（逻辑坐标 y 增大）。</summary>
+    Down,
+}
+
+/// <summary>滑动手势事件（design/21，<c>swipe</c>，冒泡）。</summary>
+public sealed class SwipeEvent : Event
+{
+    public SwipeEvent() : base("swipe") { }
+
+    /// <summary>滑动方向（按位移的主导轴判定）。</summary>
+    public SwipeDirection Direction { get; internal set; }
+
+    /// <summary>抬起时的速度（逻辑像素每秒）。</summary>
+    public Point Velocity { get; internal set; }
+
+    /// <summary>自按下到抬起的累计位移（逻辑像素）。</summary>
+    public Point Distance { get; internal set; }
+
+    /// <summary>抬起位置（客户区坐标，逻辑像素）。</summary>
+    public Point Position { get; internal set; }
+
+    /// <summary>引起手势的指针类型。</summary>
+    public PointerType PointerType { get; internal set; }
+}
+
+/// <summary>屏幕边缘（边缘滑动手势的起点）。</summary>
+public enum EdgeSwipeEdge : byte
+{
+    /// <summary>左边缘（客户区 x 靠近 0）。</summary>
+    Left,
+
+    /// <summary>右边缘（客户区 x 靠近视口宽度）。</summary>
+    Right,
+
+    /// <summary>上边缘（客户区 y 靠近 0）。</summary>
+    Top,
+
+    /// <summary>下边缘（客户区 y 靠近视口高度）。</summary>
+    Bottom,
+}
+
+/// <summary>边缘滑动手势事件（<c>edgeswipe</c>，冒泡）：从屏幕边缘向内拖动后抬起时派发（design/09）。</summary>
+public sealed class EdgeSwipeEvent : Event
+{
+    public EdgeSwipeEvent() : base("edgeswipe") { }
+
+    /// <summary>手势起始的边缘。</summary>
+    public EdgeSwipeEdge Edge { get; internal set; }
+
+    /// <summary>抬起位置（客户区坐标，逻辑像素）。</summary>
+    public Point Position { get; internal set; }
+
+    /// <summary>自按下到抬起的累计位移（逻辑像素）。</summary>
+    public Point Distance { get; internal set; }
+
+    /// <summary>抬起时的速度（逻辑像素每秒）。</summary>
+    public Point Velocity { get; internal set; }
+
+    /// <summary>引起手势的指针类型。</summary>
+    public PointerType PointerType { get; internal set; }
+}
+
+/// <summary>多指手势（捏合 / 旋转）的阶段。</summary>
+public enum GesturePhase : byte
+{
+    /// <summary>超过阈值，手势开始。</summary>
+    Started,
+
+    /// <summary>识别中，本次事件带来了变化。</summary>
+    Changed,
+
+    /// <summary>正常结束（一指或两指抬起）。</summary>
+    Ended,
+
+    /// <summary>被取消（<c>pointercancel</c>）。</summary>
+    Cancelled,
+}
+
+/// <summary>捏合手势事件（design/21，<c>pinch</c>，冒泡）。</summary>
+public sealed class PinchEvent : Event
+{
+    public PinchEvent() : base("pinch") { }
+
+    /// <summary>相对手势开始时的缩放比（两指距离之比）。</summary>
+    public float Scale { get; internal set; }
+
+    /// <summary>本帧（本次事件）的缩放比增量。</summary>
+    public float DeltaScale { get; internal set; }
+
+    /// <summary>两指中点（客户区坐标，逻辑像素）。</summary>
+    public Point Focus { get; internal set; }
+
+    /// <summary>本事件的阶段。</summary>
+    public new GesturePhase Phase { get; internal set; }
+
+    /// <summary>引起变化的指针类型。</summary>
+    public PointerType PointerType { get; internal set; }
+}
+
+/// <summary>旋转手势事件（design/21，<c>rotate</c>，冒泡）。</summary>
+public sealed class RotateEvent : Event
+{
+    public RotateEvent() : base("rotate") { }
+
+    /// <summary>相对手势开始时的角度（度，顺时针为正）。</summary>
+    public float AngleDegrees { get; internal set; }
+
+    /// <summary>本帧（本次事件）的角度增量（度）。</summary>
+    public float DeltaDegrees { get; internal set; }
+
+    /// <summary>两指中点（客户区坐标，逻辑像素）。</summary>
+    public Point Focus { get; internal set; }
+
+    /// <summary>本事件的阶段。</summary>
+    public new GesturePhase Phase { get; internal set; }
+
+    /// <summary>引起变化的指针类型。</summary>
+    public PointerType PointerType { get; internal set; }
 }

@@ -11,8 +11,27 @@ namespace AwAUI.UI;
 public sealed partial class RenderPipeline
 {
     readonly Stack<Element> _layoutStack = new();
+    readonly Stack<LayoutNode> _layoutCountStack = new();
     readonly List<LayoutNode> _desiredChildren = new();
     readonly Stack<(Element Element, int Index, bool Pushed)> _inlineStack = new();
+
+    int _lastLayoutNodeCount = -1;
+    LayoutNode? _lastLayoutRoot;
+
+    /// <summary>
+    /// 最近一次完整布局计算遍历的布局节点数（含生成的伪元素节点），供 DevTools 的 <c>Layout.layoutPass</c> 事件使用。
+    /// 只在 <see cref="LayoutPass"/> 真正运行布局引擎时更新；缓存的帧保留上一次的值。
+    /// <para>计数是惰性的：布局阶段只记录根节点，只有 DevTools 真正读取时才遍历计数，未启用 DevTools 的帧没有额外开销。</para>
+    /// </summary>
+    internal int LastLayoutNodeCount
+    {
+        get
+        {
+            if (_lastLayoutNodeCount < 0 && _lastLayoutRoot is { } root)
+                _lastLayoutNodeCount = CountLayoutNodes(root);
+            return _lastLayoutNodeCount < 0 ? 0 : _lastLayoutNodeCount;
+        }
+    }
 
     /// <summary>
     /// 布局阶段：沿 Layout / Paint 脏路径同步布局树（结构、样式映射、段落），然后按需运行布局引擎、对齐像素并算出绝对几何。
@@ -38,6 +57,8 @@ public sealed partial class RenderPipeline
             {
                 _layoutEngine.Compute(node, _viewport);
                 LayoutEngine.RoundToPixels(node, _scale);
+                _lastLayoutRoot = node;
+                _lastLayoutNodeCount = -1;
                 layoutRan = true;
             }
             catch (InsufficientExecutionStackException ex)
@@ -55,6 +76,22 @@ public sealed partial class RenderPipeline
         // 滚动：「滚动到可见」与变化了的偏移（没有完整几何遍历时只平移滚动容器的子树）
         ApplyScrollGeometry(fullWalkDone: geometryChanged);
         return paragraphs;
+    }
+
+    /// <summary>遍历布局节点树计数（显式栈，不受嵌套深度影响）。</summary>
+    int CountLayoutNodes(LayoutNode root)
+    {
+        int count = 0;
+        var stack = _layoutCountStack;
+        stack.Clear();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            count++;
+            for (int i = node.ChildCount - 1; i >= 0; i--) stack.Push(node.GetChild(i));
+        }
+        return count;
     }
 
     int SyncLayoutTree(Element rootEl, bool force)
@@ -416,6 +453,21 @@ public sealed partial class RenderPipeline
             var snapped = node.SnappedBorderBox;
             var abs = new Rect(w.PX + w.PSX + snapped.X - sx, w.PY + w.PSY + snapped.Y - sy, snapped.Width, snapped.Height);
             float ux = w.UX + w.PSX + node.X - sx, uy = w.UY + w.PSY + node.Y - sy;
+            if (pos == CssPosition.Sticky)
+            {
+                // 粘性定位：静态位置已含祖先（含最近滚动容器）的滚动平移，按滚动容器的视口与包含块求视觉偏移。
+                // 只改几何（边框盒、内容原点与随后传递给子节点的原点），不重排；滚动时本函数已在纯滚动遍历中重新运行。
+                ComputeStickyOffset(e, node, abs, out float sdx, out float sdy);
+                if (sdx != 0 || sdy != 0)
+                {
+                    abs = new Rect(abs.X + sdx, abs.Y + sdy, abs.Width, abs.Height);
+                    ux += sdx;
+                    uy += sdy;
+                }
+                // 粘性盒的位移与祖先的纯滚动平移不一致（它可能停住或反向移动），墨迹的并集不能靠整体平移维护：
+                // 纯滚动遍历里保守地要求绘制阶段完整重算墨迹（不重排；像素搬移快路径也因子树含 sticky 而禁用）
+                if (scrollOnly) _scrollInkFull = true;
+            }
             if (scrollOnly)
             {
                 float ddx = abs.X - box.Border.X, ddy = abs.Y - box.Border.Y;
@@ -461,7 +513,7 @@ public sealed partial class RenderPipeline
                 if (box.Kind == BoxKind.Paragraph) SetInlineBounds(e, abs);
                 continue;
             }
-            float scrollX = 0, scrollY = 0;
+            double scrollX = 0, scrollY = 0;
             int axes = ScrollAxes(e);
             if (axes != 0)
             {
@@ -470,8 +522,10 @@ public sealed partial class RenderPipeline
                 {
                     UpdateScrollMetrics(e, node, axes, c);
                     UpdateAutoGutter(e, box, c);
-                    float ax = (axes & ScrollContainerX) != 0 ? SnapOffset(c._x) : 0;
-                    float ay = (axes & ScrollContainerY) != 0 ? SnapOffset(c._y) : 0;
+                    // 行内起点：RTL 容器从右边缘量起，几何上施加的平移方向相反
+                    c._rtl = style?.Direction == CssDirection.Rtl;
+                    double ax = (axes & ScrollContainerX) != 0 ? SnapOffset(c.TranslationX(c._x)) : 0;
+                    double ay = (axes & ScrollContainerY) != 0 ? SnapOffset(c._y) : 0;
                     if (ax != c._appliedX || ay != c._appliedY)
                     {
                         // 偏移与布局同帧变化：滑块移动，可见的滚动条计入损伤（内容的移动由子元素的几何变化计入）
@@ -490,7 +544,7 @@ public sealed partial class RenderPipeline
                 stale._appliedX = stale._appliedY = 0;
                 stale._hasMetrics = false;
             }
-            float csx = sx + scrollX, csy = sy + scrollY;
+            float csx = sx + (float)scrollX, csy = sy + (float)scrollY;
             bool positioned = e.Parent is null || (style is not null && style.Position != CssPosition.Static);
             float asx = positioned ? csx : w.ASX, asy = positioned ? csy : w.ASY;
             var ch = e.Children;

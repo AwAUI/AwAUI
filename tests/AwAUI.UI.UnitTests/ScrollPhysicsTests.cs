@@ -54,7 +54,7 @@ public class ScrollPhysicsTests
         Assert.Equal(30, p.ApplyDrag(InRange, 30));
         // 越过起点 100 像素后继续向外拖：位移被阻尼（摩擦系数 0.52·(1 − 100/600)² ≈ 0.361）
         var outside = new ScrollMetrics(-100, 0, 2000, 600);
-        float applied = p.ApplyDrag(outside, -20);
+        double applied = p.ApplyDrag(outside, -20);
         Assert.Equal(-20 * 0.52 * Math.Pow(1 - 100.0 / 600, 2), applied, 3);
         // 向范围内拉回：越过边界的部分不再阻尼
         Assert.True(p.ApplyDrag(outside, 20) > applied * -1);
@@ -82,10 +82,10 @@ public class ScrollPhysicsTests
         Assert.Equal(2000, sim.Velocity(0), 1);
         Assert.True(sim.Duration is > 0.3 and < 3, sim.Duration.ToString());
         // 单调减速、到时长末停止；样条的总距离 = v·T / 3.065 ·（1.2 − 3.27 + 3.065）
-        float prev = 0;
+        double prev = 0;
         for (double t = 0.05; t <= sim.Duration; t += 0.05)
         {
-            float x = sim.Position(t);
+            double x = sim.Position(t);
             Assert.True(x >= prev);
             prev = x;
         }
@@ -141,6 +141,6 @@ public class ScrollPhysicsTests
             Assert.Null(p.CreateFling(InRange, float.NaN));
         }
         var spring = new SpringSimulation(BouncingPhysics.Spring, 0, 10, float.NaN);
-        Assert.False(float.IsNaN(spring.Position(0.1)));
+        Assert.False(double.IsNaN(spring.Position(0.1)));
     }
 }

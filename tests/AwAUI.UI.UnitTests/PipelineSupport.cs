@@ -1,5 +1,6 @@
 using AwAUI.Graphics;
 using AwAUI.Render;
+using AwAUI.Text;
 using AwAUI.Text.Testing;
 
 namespace AwAUI.UI.UnitTests;
@@ -9,14 +10,15 @@ sealed class PipelineHarness
 {
     public readonly UIRoot Root;
     public readonly RenderPipeline Pipeline;
-    public readonly TestTextEngine Text = new();
+    public readonly TextEngine Text;
     public int FrameRequests;
 
     readonly Node _node;
 
-    public PipelineHarness(Node node, string? css = null, float width = 400, float height = 300, float scale = 1, bool defaultSheet = true, bool deferMount = false)
+    public PipelineHarness(Node node, string? css = null, float width = 400, float height = 300, float scale = 1, bool defaultSheet = true, bool deferMount = false, TextEngine? engine = null)
     {
         _node = node;
+        Text = engine ?? new TestTextEngine();
         Pipeline = new RenderPipeline(Text, includeDefaultStyleSheet: defaultSheet);
         if (css is not null) Pipeline.AddStyleSheet(css, "test.css");
         Pipeline.SetViewport(new Size(width, height), scale);
