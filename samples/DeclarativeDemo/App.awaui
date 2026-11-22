@@ -1,0 +1,154 @@
+@using DeclarativeDemo.Pages
+
+@* The application shell: sidebar navigation, header, routed content, mobile Sheet and Toaster. *@
+<div class="app-shell">
+    <div class="app-sidebar" role="navigation" aria-label="Primary navigation">
+        <div class="app-brand">
+            <div class="app-brand-mark">N</div>
+            <div class="app-brand-copy">
+                <text class="app-brand-name">Northwind</text>
+                <text class="app-brand-sub">Product workspace</text>
+            </div>
+        </div>
+        <div class="app-sidebar-body">
+            @foreach (var section in SampleData.NavSections)
+            {
+                <div class="app-nav-section" @key="section.Title">
+                    <text class="app-nav-heading">@section.Title</text>
+                    <div class="app-nav-group">
+                        @foreach (var item in FilterItems(section))
+                        {
+                            @(NavLink(item))
+                        }
+                    </div>
+                </div>
+            }
+            @if (!HasMatches)
+            {
+                <text class="app-nav-empty">No pages match “@_query.Value”.</text>
+            }
+        </div>
+        <div class="app-sidebar-foot">
+            <div class="app-upgrade">
+                <text class="app-upgrade-title">Pro workspace</text>
+                <text class="app-upgrade-copy">Unlimited projects, advanced reports and priority support.</text>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Size="ButtonSize.Sm" Class="app-upgrade-button" @onclick="OpenSettings">Manage plan</AwAUI.Shadcn.Button>
+            </div>
+            <div class="app-user">
+                <AwAUI.Shadcn.Avatar Size="AvatarSize.Sm"><AwAUI.Shadcn.AvatarFallback>AR</AwAUI.Shadcn.AvatarFallback></AwAUI.Shadcn.Avatar>
+                <div class="app-user-copy">
+                    <text class="app-user-name">Alex Rivera</text>
+                    <text class="app-user-mail">alex@northwind.dev</text>
+                </div>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconXs" @onclick="OpenSettings" aria-label="Account settings">
+                    <Svg Document="@LucideIcons.Settings" Class="app-icon" />
+                </AwAUI.Shadcn.Button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-main">
+        <div class="app-header">
+            <div class="app-header-left">
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconSm" Class="app-menu" @onclick="OpenMobile" aria-label="Open navigation">
+                    <Svg Document="@LucideIcons.PanelLeft" Class="app-icon" />
+                </AwAUI.Shadcn.Button>
+                <AwAUI.Shadcn.Breadcrumb>
+                    <AwAUI.Shadcn.BreadcrumbList>
+                        <AwAUI.Shadcn.BreadcrumbItem><AwAUI.Shadcn.BreadcrumbLink OnClick="_ => OpenDashboard()">Workspace</AwAUI.Shadcn.BreadcrumbLink></AwAUI.Shadcn.BreadcrumbItem>
+                        <AwAUI.Shadcn.BreadcrumbSeparator />
+                        <AwAUI.Shadcn.BreadcrumbItem><AwAUI.Shadcn.BreadcrumbPage>@CurrentTitle</AwAUI.Shadcn.BreadcrumbPage></AwAUI.Shadcn.BreadcrumbItem>
+                    </AwAUI.Shadcn.BreadcrumbList>
+                </AwAUI.Shadcn.Breadcrumb>
+                <AwAUI.Shadcn.Badge Variant="BadgeVariant.Secondary" Class="app-live">Live</AwAUI.Shadcn.Badge>
+            </div>
+            <div class="app-header-actions">
+                <div class="app-search">
+                    <Svg Document="@LucideIcons.Search" Class="app-search-icon" />
+                    <AwAUI.Shadcn.Input Class="app-search-input" Placeholder="Search pages…" Value="@_query.Value" ValueChanged="OnSearch" OnSubmit="OnSearchSubmit" aria-label="Search pages" />
+                </div>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconSm" @onclick="ToggleTheme" aria-label="Toggle theme">
+                    <Svg Document="@ThemeIcon" Class="app-icon" />
+                </AwAUI.Shadcn.Button>
+                <AwAUI.Shadcn.DropdownMenu OnOpenChange="OnNotificationsOpen">
+                    <AwAUI.Shadcn.DropdownMenuTrigger AsChild>
+                        <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconSm" Class="app-bell" aria-label="Notifications">
+                            <Svg Document="@LucideIcons.Bell" Class="app-icon" />
+                            @if (UnreadCount > 0)
+                            {
+                                <div class="app-bell-dot">@UnreadCount</div>
+                            }
+                        </AwAUI.Shadcn.Button>
+                    </AwAUI.Shadcn.DropdownMenuTrigger>
+                    <AwAUI.Shadcn.DropdownMenuContent Align="PopperAlign.End" Class="app-notifications">
+                        <AwAUI.Shadcn.DropdownMenuLabel>Notifications</AwAUI.Shadcn.DropdownMenuLabel>
+                        <AwAUI.Shadcn.DropdownMenuSeparator />
+                        @foreach (var note in _notifications.Value)
+                        {
+                            <AwAUI.Shadcn.DropdownMenuItem @key="note.Title" OnSelect="_ => OpenNotification(note)">
+                                <div class="app-note">
+                                    <div class="app-note-head">
+                                        <text class="app-note-title">@note.Title</text>
+                                        <text class="app-note-time">@note.Time</text>
+                                    </div>
+                                    <text class="app-note-detail">@note.Detail</text>
+                                </div>
+                            </AwAUI.Shadcn.DropdownMenuItem>
+                        }
+                    </AwAUI.Shadcn.DropdownMenuContent>
+                </AwAUI.Shadcn.DropdownMenu>
+                <AwAUI.Shadcn.Avatar Size="AvatarSize.Sm"><AwAUI.Shadcn.AvatarFallback>AR</AwAUI.Shadcn.AvatarFallback></AwAUI.Shadcn.Avatar>
+            </div>
+        </div>
+
+        <div class="app-content" id="content">
+            @if (_pageId.Value == "dashboard")
+            {
+                <Dashboard Toasts="@_toasts" OnNavigate="Navigate" OnNewProject="NewProject" />
+            }
+            else if (_pageId.Value == "projects")
+            {
+                <Projects Toasts="@_toasts" StartWithDialog="@_dialogRequested.Value" />
+            }
+            else if (_pageId.Value == "schedule")
+            {
+                <Schedule Toasts="@_toasts" />
+            }
+            else if (_pageId.Value == "settings")
+            {
+                <Settings Toasts="@_toasts" />
+            }
+            else
+            {
+                <Dashboard Toasts="@_toasts" OnNavigate="Navigate" OnNewProject="NewProject" />
+            }
+        </div>
+    </div>
+</div>
+
+@* A Sheet with the same navigation for narrow windows (the sidebar hides below 900 px). *@
+<AwAUI.Shadcn.Sheet Open="@_mobileOpen.Value" OnOpenChange="OnMobileOpenChange">
+    <AwAUI.Shadcn.SheetContent Side="Side.Left" Class="app-sheet">
+        <AwAUI.Shadcn.SheetHeader>
+            <AwAUI.Shadcn.SheetTitle>Northwind</AwAUI.Shadcn.SheetTitle>
+            <AwAUI.Shadcn.SheetDescription>Navigate the workspace</AwAUI.Shadcn.SheetDescription>
+        </AwAUI.Shadcn.SheetHeader>
+        <div class="app-sheet-nav">
+            @foreach (var section in SampleData.NavSections)
+            {
+                <div class="app-nav-section" @key="section.Title">
+                    <text class="app-nav-heading">@section.Title</text>
+                    <div class="app-nav-group">
+                        @foreach (var item in section.Items)
+                        {
+                            @(NavLink(item))
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </AwAUI.Shadcn.SheetContent>
+</AwAUI.Shadcn.Sheet>
+
+@* Sonner-style viewport. Pages call ToastStore.Show through the Toasts parameter. *@
+<AwAUI.Shadcn.Toaster Store="@_toasts" Position="ToasterPosition.BottomRight" />

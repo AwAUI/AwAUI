@@ -1,0 +1,16 @@
+.project-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+
+.dialog-form { display: flex; flex-direction: column; gap: 18px; padding: 2px 0 6px; }
+.dialog-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+
+.dialog-select { width: 100%; }
+.dialog-date { width: 100%; }
+.dialog-combobox { width: 100%; }
+
+.member-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 16px; }
+.member-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.member-row > .tiny { margin-left: auto; }
+
+@media (width < 560px) {
+    .dialog-grid, .member-grid { grid-template-columns: minmax(0, 1fr); }
+}

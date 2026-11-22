@@ -1,0 +1,96 @@
+<div class="page projects">
+    <div class="page-head">
+        <div class="page-head-copy">
+            <text class="page-kicker">Workspace</text>
+            <text class="page-title">Projects</text>
+            <text class="page-subtitle">Filter, sort and select across pages. Every control below drives the same headless DataTableModel.</text>
+        </div>
+        <div class="page-actions">
+            <AwAUI.Shadcn.Button @onclick="OpenDialog"><Svg Document="@LucideIcons.Plus" Class="icon-16" />New project</AwAUI.Shadcn.Button>
+        </div>
+    </div>
+
+    <div class="projects-card">
+        <div class="projects-toolbar">
+            <div class="projects-search">
+                <Svg Document="@LucideIcons.Search" Class="projects-search-icon" />
+                <AwAUI.Shadcn.Input Class="projects-search-input" Placeholder="Search projects…" Value="@_model.GlobalFilter" ValueChanged="OnSearch" aria-label="Search projects" />
+            </div>
+
+            <AwAUI.Shadcn.Select Value="@_status.Value" ValueChanged="OnStatusFilter">
+                <AwAUI.Shadcn.SelectTrigger Class="projects-filter"><AwAUI.Shadcn.SelectValue Placeholder="All statuses" /></AwAUI.Shadcn.SelectTrigger>
+                <AwAUI.Shadcn.SelectContent>
+                    <AwAUI.Shadcn.SelectItem Value="all">All statuses</AwAUI.Shadcn.SelectItem>
+                    <AwAUI.Shadcn.SelectItem Value="Active">Active</AwAUI.Shadcn.SelectItem>
+                    <AwAUI.Shadcn.SelectItem Value="Planning">Planning</AwAUI.Shadcn.SelectItem>
+                    <AwAUI.Shadcn.SelectItem Value="On hold">On hold</AwAUI.Shadcn.SelectItem>
+                    <AwAUI.Shadcn.SelectItem Value="Completed">Completed</AwAUI.Shadcn.SelectItem>
+                </AwAUI.Shadcn.SelectContent>
+            </AwAUI.Shadcn.Select>
+
+            <AwAUI.Shadcn.DropdownMenu>
+                <AwAUI.Shadcn.DropdownMenuTrigger AsChild>
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Size="ButtonSize.Sm" Class="projects-tool" aria-label="Visible columns">
+                        <Svg Document="@LucideIcons.GripVertical" Class="icon-14" />Columns
+                    </AwAUI.Shadcn.Button>
+                </AwAUI.Shadcn.DropdownMenuTrigger>
+                <AwAUI.Shadcn.DropdownMenuContent Align="PopperAlign.End">
+                    <AwAUI.Shadcn.DropdownMenuLabel>Visible columns</AwAUI.Shadcn.DropdownMenuLabel>
+                    <AwAUI.Shadcn.DropdownMenuSeparator />
+                    @foreach (var choice in ColumnChoices)
+                    {
+                        <AwAUI.Shadcn.DropdownMenuCheckboxItem @key="choice.Key" Checked="@_model.GetColumnVisibility(choice.Key)"
+                                                  CheckedChanged="value => ToggleColumn(choice.Key, value)">@choice.Label</AwAUI.Shadcn.DropdownMenuCheckboxItem>
+                    }
+                </AwAUI.Shadcn.DropdownMenuContent>
+            </AwAUI.Shadcn.DropdownMenu>
+
+            <AwAUI.Shadcn.DropdownMenu>
+                <AwAUI.Shadcn.DropdownMenuTrigger AsChild>
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Size="ButtonSize.Sm" Class="projects-tool" aria-label="Sort options">
+                        <Svg Document="@LucideIcons.ChevronsUpDown" Class="icon-14" />Sort
+                    </AwAUI.Shadcn.Button>
+                </AwAUI.Shadcn.DropdownMenuTrigger>
+                <AwAUI.Shadcn.DropdownMenuContent Align="PopperAlign.End">
+                    <AwAUI.Shadcn.DropdownMenuLabel>Toggle a sort layer</AwAUI.Shadcn.DropdownMenuLabel>
+                    <AwAUI.Shadcn.DropdownMenuSeparator />
+                    @foreach (var choice in SortChoices)
+                    {
+                        <AwAUI.Shadcn.DropdownMenuItem @key="choice.Key" OnSelect="_ => ToggleSort(choice.Key)">
+                            <div class="sort-item">
+                                <text class="sort-item-label">@choice.Label</text>
+                                <text class="tiny">@SortState(choice.Key)</text>
+                            </div>
+                        </AwAUI.Shadcn.DropdownMenuItem>
+                    }
+                    <AwAUI.Shadcn.DropdownMenuSeparator />
+                    <AwAUI.Shadcn.DropdownMenuItem OnSelect="_ => ClearSorts()">Clear sorting</AwAUI.Shadcn.DropdownMenuItem>
+                </AwAUI.Shadcn.DropdownMenuContent>
+            </AwAUI.Shadcn.DropdownMenu>
+
+            <div class="toolbar-spacer"></div>
+
+            @if (_model.SelectedCount > 0)
+            {
+                <AwAUI.Shadcn.Badge Variant="BadgeVariant.Secondary" Class="projects-selected">@_model.SelectedCount selected</AwAUI.Shadcn.Badge>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.Sm" @onclick="ClearSelection">Clear</AwAUI.Shadcn.Button>
+            }
+        </div>
+
+        @if (_model.SortDescriptors.Count > 0)
+        {
+            <div class="sort-chips">
+                <text class="tiny">Sort</text>
+                @foreach (var sort in _model.SortDescriptors)
+                {
+                    <AwAUI.Shadcn.Badge @key="sort.ColumnKey" Variant="BadgeVariant.Outline" Class="sort-chip">@SortChip(sort)</AwAUI.Shadcn.Badge>
+                }
+            </div>
+        }
+
+        <AwAUI.Shadcn.DataTable<ProjectRow> Model="_model" Filterable="false" Paginated="true" Selectable="true"
+                               Label="Projects" PageSizes="_pageSizes" Class="projects-table" />
+    </div>
+
+    <ProjectDialog Open="@_dialogOpen.Value" OnOpenChange="OnDialogOpenChange" Toasts="@Toasts" OnCreated="OnProjectCreated" />
+</div>

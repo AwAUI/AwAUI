@@ -1,0 +1,14 @@
+<div class="@Cx("stat-card", ("stat-up", Positive), ("stat-down", !Positive))">
+    <div class="stat-top">
+        <text class="stat-label">@Label</text>
+        @if (Icon is not null)
+        {
+            <div class="stat-icon"><Svg Document="@Icon" /></div>
+        }
+    </div>
+    <text class="stat-value">@Value</text>
+    <div class="stat-foot">
+        <text class="stat-delta">@Delta</text>
+        <text class="stat-hint">@Hint</text>
+    </div>
+</div>

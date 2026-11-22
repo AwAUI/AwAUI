@@ -11,6 +11,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <RootNamespace>TailwindDemo</RootNamespace>
+    <!-- 运行时补全示例：生成入口 CSS 与 CreateRuntime()（需要引用 AwAUI.Tailwind）；样式表由 Program 手动登记 -->
+    <AwAUITailwindRuntime>true</AwAUITailwindRuntime>
+    <AwAUITailwindRegister>false</AwAUITailwindRegister>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />

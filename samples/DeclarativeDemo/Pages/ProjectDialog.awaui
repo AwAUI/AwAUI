@@ -1,0 +1,107 @@
+<AwAUI.Shadcn.Dialog Open="Open" OnOpenChange="OnOpenChange">
+    <AwAUI.Shadcn.DialogContent Class="project-dialog">
+        <AwAUI.Shadcn.DialogHeader>
+            <AwAUI.Shadcn.DialogTitle>New project</AwAUI.Shadcn.DialogTitle>
+            <AwAUI.Shadcn.DialogDescription>Give the work a name, an owner and a start date. Required fields are validated inline.</AwAUI.Shadcn.DialogDescription>
+        </AwAUI.Shadcn.DialogHeader>
+
+        <AwAUI.Shadcn.Form Controller="_controller" OnValid="OnValid" OnInvalid="OnInvalid">
+            <div class="dialog-form">
+                <AwAUI.Shadcn.FormField Name="name" DefaultValue="" Validators="_nameValidators">
+                    <AwAUI.Shadcn.FormItem>
+                        <AwAUI.Shadcn.FormLabel>Project name</AwAUI.Shadcn.FormLabel>
+                        <AwAUI.Shadcn.FormControl>
+                            <AwAUI.Shadcn.Input Placeholder="e.g. Atlas design system" />
+                        </AwAUI.Shadcn.FormControl>
+                        <AwAUI.Shadcn.FormDescription>Use a short name that the team will recognise.</AwAUI.Shadcn.FormDescription>
+                        <AwAUI.Shadcn.FormMessage />
+                    </AwAUI.Shadcn.FormItem>
+                </AwAUI.Shadcn.FormField>
+
+                <AwAUI.Shadcn.FormField Name="description" DefaultValue="" Validators="_descriptionValidators">
+                    <AwAUI.Shadcn.FormItem>
+                        <AwAUI.Shadcn.FormLabel>Description</AwAUI.Shadcn.FormLabel>
+                        <AwAUI.Shadcn.FormControl>
+                            <AwAUI.Shadcn.Textarea Placeholder="What is this project meant to deliver?" />
+                        </AwAUI.Shadcn.FormControl>
+                        <AwAUI.Shadcn.FormDescription>Optional, up to 240 characters.</AwAUI.Shadcn.FormDescription>
+                        <AwAUI.Shadcn.FormMessage />
+                    </AwAUI.Shadcn.FormItem>
+                </AwAUI.Shadcn.FormField>
+
+                <div class="dialog-grid">
+                    <AwAUI.Shadcn.FormField Name="owner" DefaultValue="Alex Rivera">
+                        <AwAUI.Shadcn.FormItem>
+                            <AwAUI.Shadcn.FormLabel>Owner</AwAUI.Shadcn.FormLabel>
+                            <AwAUI.Shadcn.FormControl>
+                                <AwAUI.Shadcn.Combobox Value="@_owner.Value" ValueChanged="OnOwnerChanged" Placeholder="Choose an owner" Class="dialog-combobox">
+                                    @foreach (var member in SampleData.Team)
+                                    {
+                                        <AwAUI.Shadcn.ComboboxItem @key="member.Name" Value="@member.Name">@member.Name</AwAUI.Shadcn.ComboboxItem>
+                                    }
+                                </AwAUI.Shadcn.Combobox>
+                            </AwAUI.Shadcn.FormControl>
+                            <AwAUI.Shadcn.FormDescription>The person accountable for delivery.</AwAUI.Shadcn.FormDescription>
+                        </AwAUI.Shadcn.FormItem>
+                    </AwAUI.Shadcn.FormField>
+
+                    <AwAUI.Shadcn.FormField Name="priority" DefaultValue="Medium">
+                        <AwAUI.Shadcn.FormItem>
+                            <AwAUI.Shadcn.FormLabel>Priority</AwAUI.Shadcn.FormLabel>
+                            <AwAUI.Shadcn.FormControl>
+                                <AwAUI.Shadcn.Select Value="@_priority.Value" ValueChanged="OnPriorityChanged">
+                                    <AwAUI.Shadcn.SelectTrigger Class="dialog-select"><AwAUI.Shadcn.SelectValue Placeholder="Choose a priority" /></AwAUI.Shadcn.SelectTrigger>
+                                    <AwAUI.Shadcn.SelectContent>
+                                        <AwAUI.Shadcn.SelectItem Value="High">High</AwAUI.Shadcn.SelectItem>
+                                        <AwAUI.Shadcn.SelectItem Value="Medium">Medium</AwAUI.Shadcn.SelectItem>
+                                        <AwAUI.Shadcn.SelectItem Value="Low">Low</AwAUI.Shadcn.SelectItem>
+                                    </AwAUI.Shadcn.SelectContent>
+                                </AwAUI.Shadcn.Select>
+                            </AwAUI.Shadcn.FormControl>
+                        </AwAUI.Shadcn.FormItem>
+                    </AwAUI.Shadcn.FormField>
+                </div>
+
+                <AwAUI.Shadcn.FormField Name="start" DefaultValue="">
+                    <AwAUI.Shadcn.FormItem>
+                        <AwAUI.Shadcn.FormLabel>Start date</AwAUI.Shadcn.FormLabel>
+                        <AwAUI.Shadcn.FormControl>
+                            <AwAUI.Shadcn.DatePicker SelectedDate="@_startDate.Value" SelectedDateChanged="OnStartDate" MinDate="@DateTime.Today"
+                                        Placeholder="Pick a start date" Format="MMM d, yyyy" Class="dialog-date" />
+                        </AwAUI.Shadcn.FormControl>
+                        <AwAUI.Shadcn.FormDescription>Past dates are disabled.</AwAUI.Shadcn.FormDescription>
+                    </AwAUI.Shadcn.FormItem>
+                </AwAUI.Shadcn.FormField>
+
+                <AwAUI.Shadcn.Field>
+                    <AwAUI.Shadcn.FieldLabel>Team members</AwAUI.Shadcn.FieldLabel>
+                    <AwAUI.Shadcn.FieldDescription>Anyone selected here gets a workspace invitation.</AwAUI.Shadcn.FieldDescription>
+                    <div class="member-grid">
+                        @foreach (var member in SampleData.Team)
+                        {
+                            <div class="member-row" @key="member.Name">
+                                <AwAUI.Shadcn.Checkbox Id="@("member-" + member.Initials)" Checked="@IsMember(member.Name)"
+                                          CheckedChanged="value => SetMember(member.Name, value)" />
+                                <AwAUI.Shadcn.Label For="@("member-" + member.Initials)">@member.Name</AwAUI.Shadcn.Label>
+                                <text class="tiny">@member.Role</text>
+                            </div>
+                        }
+                    </div>
+                </AwAUI.Shadcn.Field>
+
+                <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal">
+                    <AwAUI.Shadcn.Switch Id="notify-team" Checked="@_notify.Value" CheckedChanged="OnNotifyChanged" />
+                    <AwAUI.Shadcn.FieldContent>
+                        <AwAUI.Shadcn.FieldLabel For="notify-team">Notify the team</AwAUI.Shadcn.FieldLabel>
+                        <AwAUI.Shadcn.FieldDescription>Send a summary and the kickoff checklist after creation.</AwAUI.Shadcn.FieldDescription>
+                    </AwAUI.Shadcn.FieldContent>
+                </AwAUI.Shadcn.Field>
+            </div>
+        </AwAUI.Shadcn.Form>
+
+        <AwAUI.Shadcn.DialogFooter>
+            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" @onclick="Cancel">Cancel</AwAUI.Shadcn.Button>
+            <AwAUI.Shadcn.Button @onclick="Submit">Create project</AwAUI.Shadcn.Button>
+        </AwAUI.Shadcn.DialogFooter>
+    </AwAUI.Shadcn.DialogContent>
+</AwAUI.Shadcn.Dialog>

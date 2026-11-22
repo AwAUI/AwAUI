@@ -1,0 +1,30 @@
+.settings-stack { display: flex; flex-direction: column; gap: 22px; padding-top: 10px; }
+.avatar-field { align-items: center; }
+.slider-readout { display: flex; align-items: center; gap: 14px; max-width: 420px; }
+.slider-value { font-size: 13px; font-weight: 650; min-width: 46px; text-align: right; }
+.radio-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; }
+.radio-row > .tiny { margin-left: 4px; }
+.settings-select { width: 260px; max-width: 100%; }
+
+.plan-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.plan-copy { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+
+.danger-set {
+    border: 1px solid var(--destructive);
+    border-radius: 12px;
+    padding: 16px;
+    background: var(--muted);
+}
+.danger-field { align-items: center; }
+.settings-dialog { width: min(480px, calc(100vw - 32px)); }
+
+@media (width < 720px) {
+    .settings-select { width: 100%; }
+}

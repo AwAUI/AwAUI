@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    无边框窗口与自绘标题栏（design/04）：WindowDecorations.None + IWindowChrome。
+    标题栏拖动窗口、按钮最小化 / 最大化 / 关闭，全部由 .awaui 里的节点完成。
+  -->
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.props" />
+  <Import Project="$(RepoRoot)src/AwAUI.Desktop/buildTransitive/AwAUI.Desktop.props" />
+  <PropertyGroup>
+    <!-- WinExe：Windows 上使用 GUI 子系统，从资源管理器启动不会分配控制台窗口；其他平台等同 Exe -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>CustomChrome</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Desktop/AwAUI.Desktop.csproj"
+                      AdditionalProperties="AwAUIDesktopTargetOS=$(AwAUIDesktopTargetOS)" />
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
+</Project>

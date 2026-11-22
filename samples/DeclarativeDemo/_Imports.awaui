@@ -1,0 +1,7 @@
+@* Directory-level imports (Blazor's _Imports.razor counterpart). They apply to this
+   directory and every subdirectory, so pages and components stay free of boilerplate. *@
+@using AwAUI.Shadcn
+@using AwAUI.Controls.Primitives
+@using AwAUI.Icons.Lucide
+@using DeclarativeDemo
+@using DeclarativeDemo.Components

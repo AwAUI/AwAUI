@@ -1,0 +1,227 @@
+<div class="page settings">
+    <div class="page-head">
+        <div class="page-head-copy">
+            <text class="page-kicker">Account</text>
+            <text class="page-title">Settings</text>
+            <text class="page-subtitle">Manage your profile, notification preferences and billing. Tabs keep each area on the same page.</text>
+        </div>
+        <div class="page-actions">
+            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" @onclick="ResetProfile">Discard changes</AwAUI.Shadcn.Button>
+            <AwAUI.Shadcn.Button @onclick="SaveProfile">Save changes</AwAUI.Shadcn.Button>
+        </div>
+    </div>
+
+    <AwAUI.Shadcn.Tabs Value="@_tab.Value" ValueChanged="SetTab">
+        <AwAUI.Shadcn.TabsList>
+            <AwAUI.Shadcn.TabsTrigger Value="profile">Profile</AwAUI.Shadcn.TabsTrigger>
+            <AwAUI.Shadcn.TabsTrigger Value="notifications">Notifications</AwAUI.Shadcn.TabsTrigger>
+            <AwAUI.Shadcn.TabsTrigger Value="billing">Billing</AwAUI.Shadcn.TabsTrigger>
+        </AwAUI.Shadcn.TabsList>
+
+        <AwAUI.Shadcn.TabsContent Value="profile">
+            <div class="settings-stack">
+                <AwAUI.Shadcn.FieldSet>
+                    <AwAUI.Shadcn.FieldLegend>Profile</AwAUI.Shadcn.FieldLegend>
+                    <AwAUI.Shadcn.FieldDescription>This information is visible to everyone in the workspace.</AwAUI.Shadcn.FieldDescription>
+                    <AwAUI.Shadcn.FieldGroup>
+                        <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal" Class="avatar-field">
+                            <AwAUI.Shadcn.Avatar Size="AvatarSize.Lg"><AwAUI.Shadcn.AvatarFallback>AR</AwAUI.Shadcn.AvatarFallback></AwAUI.Shadcn.Avatar>
+                            <AwAUI.Shadcn.FieldContent>
+                                <AwAUI.Shadcn.FieldTitle>Avatar</AwAUI.Shadcn.FieldTitle>
+                                <AwAUI.Shadcn.FieldDescription>PNG or SVG, up to 2 MB. A square image works best.</AwAUI.Shadcn.FieldDescription>
+                                <div class="row">
+                                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Size="ButtonSize.Sm" @onclick="UploadAvatar">Upload</AwAUI.Shadcn.Button>
+                                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.Sm" @onclick="RemoveAvatar">Remove</AwAUI.Shadcn.Button>
+                                </div>
+                            </AwAUI.Shadcn.FieldContent>
+                        </AwAUI.Shadcn.Field>
+
+                        <AwAUI.Shadcn.Field>
+                            <AwAUI.Shadcn.FieldLabel For="display-name">Display name</AwAUI.Shadcn.FieldLabel>
+                            <AwAUI.Shadcn.Input Id="display-name" Value="@_displayName.Value" ValueChanged="OnDisplayName" />
+                            <AwAUI.Shadcn.FieldDescription>Shown on comments, mentions and activity entries.</AwAUI.Shadcn.FieldDescription>
+                            @if (_profileError.Value is not null)
+                            {
+                                <AwAUI.Shadcn.FieldError Errors="ProfileErrors" />
+                            }
+                        </AwAUI.Shadcn.Field>
+
+                        <AwAUI.Shadcn.Field>
+                            <AwAUI.Shadcn.FieldLabel For="account-email">Email</AwAUI.Shadcn.FieldLabel>
+                            <AwAUI.Shadcn.Input Id="account-email" Value="@_email.Value" ValueChanged="OnEmail" InputType="email" />
+                            <AwAUI.Shadcn.FieldDescription>Used for notifications and sign-in links.</AwAUI.Shadcn.FieldDescription>
+                        </AwAUI.Shadcn.Field>
+
+                        <AwAUI.Shadcn.Field>
+                            <AwAUI.Shadcn.FieldLabel For="account-bio">Bio</AwAUI.Shadcn.FieldLabel>
+                            <AwAUI.Shadcn.Textarea Id="account-bio" Value="@_bio.Value" ValueChanged="OnBio" Placeholder="A short introduction" />
+                            <AwAUI.Shadcn.FieldDescription>Up to 180 characters. Markdown is not supported.</AwAUI.Shadcn.FieldDescription>
+                        </AwAUI.Shadcn.Field>
+
+                        <AwAUI.Shadcn.Field>
+                            <AwAUI.Shadcn.FieldLabel>Focus hours per week</AwAUI.Shadcn.FieldLabel>
+                            <div class="slider-readout">
+                                <AwAUI.Shadcn.Slider Value="@_hours.Value" ValueChanged="OnHours" Min="4" Max="40" Step="1" aria-label="Focus hours" />
+                                <text class="slider-value">@_hours.Value.ToString("0") h</text>
+                            </div>
+                            <AwAUI.Shadcn.FieldDescription>Used by the planning assistant to suggest a realistic workload.</AwAUI.Shadcn.FieldDescription>
+                        </AwAUI.Shadcn.Field>
+
+                        <AwAUI.Shadcn.Field>
+                            <AwAUI.Shadcn.FieldLabel>Default project visibility</AwAUI.Shadcn.FieldLabel>
+                            <AwAUI.Shadcn.RadioGroup Value="@_visibility.Value" ValueChanged="OnVisibility">
+                                <div class="radio-row">
+                                    <AwAUI.Shadcn.RadioGroupItem Value="team" Id="vis-team" />
+                                    <AwAUI.Shadcn.Label For="vis-team">Team</AwAUI.Shadcn.Label>
+                                    <text class="tiny">Anyone in the workspace can find the project.</text>
+                                </div>
+                                <div class="radio-row">
+                                    <AwAUI.Shadcn.RadioGroupItem Value="private" Id="vis-private" />
+                                    <AwAUI.Shadcn.Label For="vis-private">Private</AwAUI.Shadcn.Label>
+                                    <text class="tiny">Only invited members can see it.</text>
+                                </div>
+                            </AwAUI.Shadcn.RadioGroup>
+                        </AwAUI.Shadcn.Field>
+
+                        <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal">
+                            <AwAUI.Shadcn.Checkbox Id="email-updates" Checked="@_emailUpdates.Value" CheckedChanged="OnEmailUpdates" />
+                            <AwAUI.Shadcn.FieldContent>
+                                <AwAUI.Shadcn.FieldLabel For="email-updates">Product email updates</AwAUI.Shadcn.FieldLabel>
+                                <AwAUI.Shadcn.FieldDescription>Occasional release notes and tips. No more than twice a month.</AwAUI.Shadcn.FieldDescription>
+                            </AwAUI.Shadcn.FieldContent>
+                        </AwAUI.Shadcn.Field>
+
+                        <div class="row">
+                            <AwAUI.Shadcn.Button @onclick="SaveProfile">Save profile</AwAUI.Shadcn.Button>
+                            <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" @onclick="ResetProfile">Reset</AwAUI.Shadcn.Button>
+                        </div>
+                    </AwAUI.Shadcn.FieldGroup>
+                </AwAUI.Shadcn.FieldSet>
+            </div>
+        </AwAUI.Shadcn.TabsContent>
+
+        <AwAUI.Shadcn.TabsContent Value="notifications">
+            <div class="settings-stack">
+                <AwAUI.Shadcn.FieldSet>
+                    <AwAUI.Shadcn.FieldLegend>Notifications</AwAUI.Shadcn.FieldLegend>
+                    <AwAUI.Shadcn.FieldDescription>Choose what reaches your inbox and what stays in the app.</AwAUI.Shadcn.FieldDescription>
+                    <AwAUI.Shadcn.FieldGroup>
+                        <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal">
+                            <AwAUI.Shadcn.Switch Id="weekly-digest" Checked="@_weeklyDigest.Value" CheckedChanged="OnWeeklyDigest" />
+                            <AwAUI.Shadcn.FieldContent>
+                                <AwAUI.Shadcn.FieldTitle>Weekly digest</AwAUI.Shadcn.FieldTitle>
+                                <AwAUI.Shadcn.FieldDescription>A Monday summary of activity across every project you follow.</AwAUI.Shadcn.FieldDescription>
+                            </AwAUI.Shadcn.FieldContent>
+                        </AwAUI.Shadcn.Field>
+                        <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal">
+                            <AwAUI.Shadcn.Switch Id="mentions" Checked="@_mentions.Value" CheckedChanged="OnMentions" />
+                            <AwAUI.Shadcn.FieldContent>
+                                <AwAUI.Shadcn.FieldTitle>Mentions and replies</AwAUI.Shadcn.FieldTitle>
+                                <AwAUI.Shadcn.FieldDescription>Immediate email when someone mentions you in a comment.</AwAUI.Shadcn.FieldDescription>
+                            </AwAUI.Shadcn.FieldContent>
+                        </AwAUI.Shadcn.Field>
+                        <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal">
+                            <AwAUI.Shadcn.Switch Id="product-news" Checked="@_productNews.Value" CheckedChanged="OnProductNews" />
+                            <AwAUI.Shadcn.FieldContent>
+                                <AwAUI.Shadcn.FieldTitle>Product news</AwAUI.Shadcn.FieldTitle>
+                                <AwAUI.Shadcn.FieldDescription>Early access invitations and roadmap updates.</AwAUI.Shadcn.FieldDescription>
+                            </AwAUI.Shadcn.FieldContent>
+                        </AwAUI.Shadcn.Field>
+                        <AwAUI.Shadcn.Field>
+                            <AwAUI.Shadcn.FieldLabel>Delivery channel</AwAUI.Shadcn.FieldLabel>
+                            <AwAUI.Shadcn.Select Value="@_channel.Value" ValueChanged="OnChannel">
+                                <AwAUI.Shadcn.SelectTrigger Class="settings-select"><AwAUI.Shadcn.SelectValue Placeholder="Choose a channel" /></AwAUI.Shadcn.SelectTrigger>
+                                <AwAUI.Shadcn.SelectContent>
+                                    <AwAUI.Shadcn.SelectItem Value="email">Email only</AwAUI.Shadcn.SelectItem>
+                                    <AwAUI.Shadcn.SelectItem Value="inbox">In-app inbox only</AwAUI.Shadcn.SelectItem>
+                                    <AwAUI.Shadcn.SelectItem Value="both">Email and in-app</AwAUI.Shadcn.SelectItem>
+                                </AwAUI.Shadcn.SelectContent>
+                            </AwAUI.Shadcn.Select>
+                            <AwAUI.Shadcn.FieldDescription>Mentions always arrive immediately, regardless of this setting.</AwAUI.Shadcn.FieldDescription>
+                        </AwAUI.Shadcn.Field>
+                    </AwAUI.Shadcn.FieldGroup>
+                </AwAUI.Shadcn.FieldSet>
+            </div>
+        </AwAUI.Shadcn.TabsContent>
+
+        <AwAUI.Shadcn.TabsContent Value="billing">
+            <div class="settings-stack">
+                <AwAUI.Shadcn.FieldSet>
+                    <AwAUI.Shadcn.FieldLegend>Plan</AwAUI.Shadcn.FieldLegend>
+                    <AwAUI.Shadcn.FieldDescription>Switch plans at any time. The change is prorated automatically.</AwAUI.Shadcn.FieldDescription>
+                    <AwAUI.Shadcn.RadioGroup Value="@_plan.Value" ValueChanged="OnPlan">
+                        <div class="plan-row">
+                            <AwAUI.Shadcn.RadioGroupItem Value="starter" Id="plan-starter" />
+                            <div class="plan-copy">
+                                <AwAUI.Shadcn.Label For="plan-starter">Starter</AwAUI.Shadcn.Label>
+                                <text class="tiny">$0 per month · 3 projects · community support</text>
+                            </div>
+                        </div>
+                        <div class="plan-row">
+                            <AwAUI.Shadcn.RadioGroupItem Value="pro" Id="plan-pro" />
+                            <div class="plan-copy">
+                                <AwAUI.Shadcn.Label For="plan-pro">Pro</AwAUI.Shadcn.Label>
+                                <text class="tiny">$24 per month · unlimited projects · priority support</text>
+                            </div>
+                            <AwAUI.Shadcn.Badge Variant="BadgeVariant.Secondary">Current</AwAUI.Shadcn.Badge>
+                        </div>
+                    </AwAUI.Shadcn.RadioGroup>
+                </AwAUI.Shadcn.FieldSet>
+
+                <AwAUI.Shadcn.Card>
+                    <AwAUI.Shadcn.CardHeader>
+                        <AwAUI.Shadcn.CardTitle>Invoices</AwAUI.Shadcn.CardTitle>
+                        <AwAUI.Shadcn.CardDescription>The last four invoices for this workspace.</AwAUI.Shadcn.CardDescription>
+                    </AwAUI.Shadcn.CardHeader>
+                    <AwAUI.Shadcn.CardContent>
+                        <AwAUI.Shadcn.Table Columns="4">
+                            <AwAUI.Shadcn.TableHeader>
+                                <AwAUI.Shadcn.TableRow>
+                                    <AwAUI.Shadcn.TableHead>Invoice</AwAUI.Shadcn.TableHead>
+                                    <AwAUI.Shadcn.TableHead>Date</AwAUI.Shadcn.TableHead>
+                                    <AwAUI.Shadcn.TableHead>Amount</AwAUI.Shadcn.TableHead>
+                                    <AwAUI.Shadcn.TableHead>Status</AwAUI.Shadcn.TableHead>
+                                </AwAUI.Shadcn.TableRow>
+                            </AwAUI.Shadcn.TableHeader>
+                            <AwAUI.Shadcn.TableBody>
+                                @foreach (var invoice in SampleData.Invoices)
+                                {
+                                    <AwAUI.Shadcn.TableRow @key="invoice.Id">
+                                        <AwAUI.Shadcn.TableCell>@invoice.Id</AwAUI.Shadcn.TableCell>
+                                        <AwAUI.Shadcn.TableCell>@invoice.Date</AwAUI.Shadcn.TableCell>
+                                        <AwAUI.Shadcn.TableCell>@invoice.Amount</AwAUI.Shadcn.TableCell>
+                                        <AwAUI.Shadcn.TableCell><AwAUI.Shadcn.Badge Variant="@(invoice.Status == "Paid" ? BadgeVariant.Secondary : BadgeVariant.Outline)">@invoice.Status</AwAUI.Shadcn.Badge></AwAUI.Shadcn.TableCell>
+                                    </AwAUI.Shadcn.TableRow>
+                                }
+                            </AwAUI.Shadcn.TableBody>
+                        </AwAUI.Shadcn.Table>
+                    </AwAUI.Shadcn.CardContent>
+                </AwAUI.Shadcn.Card>
+
+                <AwAUI.Shadcn.FieldSet Class="danger-set">
+                    <AwAUI.Shadcn.FieldLegend Variant="FieldLegendVariant.Label">Danger zone</AwAUI.Shadcn.FieldLegend>
+                    <AwAUI.Shadcn.Field Orientation="FieldOrientation.Horizontal" Class="danger-field">
+                        <AwAUI.Shadcn.FieldContent>
+                            <AwAUI.Shadcn.FieldTitle>Delete workspace</AwAUI.Shadcn.FieldTitle>
+                            <AwAUI.Shadcn.FieldDescription>Permanently remove every project, file and member. This cannot be undone.</AwAUI.Shadcn.FieldDescription>
+                        </AwAUI.Shadcn.FieldContent>
+                        <AwAUI.Shadcn.Button Variant="ButtonVariant.Destructive" @onclick="OpenConfirm">Delete workspace</AwAUI.Shadcn.Button>
+                    </AwAUI.Shadcn.Field>
+                </AwAUI.Shadcn.FieldSet>
+            </div>
+        </AwAUI.Shadcn.TabsContent>
+    </AwAUI.Shadcn.Tabs>
+
+    <AwAUI.Shadcn.Dialog Open="@_confirmOpen.Value" OnOpenChange="OnConfirmOpenChange">
+        <AwAUI.Shadcn.DialogContent Class="settings-dialog">
+            <AwAUI.Shadcn.DialogHeader>
+                <AwAUI.Shadcn.DialogTitle>Delete this workspace?</AwAUI.Shadcn.DialogTitle>
+                <AwAUI.Shadcn.DialogDescription>All 18 projects, 214 tasks and the billing history will be removed after a 30-day grace period.</AwAUI.Shadcn.DialogDescription>
+            </AwAUI.Shadcn.DialogHeader>
+            <AwAUI.Shadcn.DialogFooter>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" @onclick="CloseConfirm">Cancel</AwAUI.Shadcn.Button>
+                <AwAUI.Shadcn.Button Variant="ButtonVariant.Destructive" @onclick="ConfirmDelete">Delete workspace</AwAUI.Shadcn.Button>
+            </AwAUI.Shadcn.DialogFooter>
+        </AwAUI.Shadcn.DialogContent>
+    </AwAUI.Shadcn.Dialog>
+</div>

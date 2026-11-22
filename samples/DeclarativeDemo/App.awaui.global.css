@@ -1,0 +1,26 @@
+/*
+ * App.awaui.global.css: component-global styles (registered when App first mounts, not scoped).
+ * Use this file for nodes created in App.awaui.cs - NavLink() returns nodes that never receive
+ * the App scope attribute, so App.awaui.css cannot reach them.
+ */
+.app-nav-link {
+    width: 100% !important;
+    height: 32px;
+    justify-content: flex-start !important;
+    gap: 8px;
+    padding: 0 8px;
+    font-size: 12.5px;
+    font-weight: 550;
+    color: var(--muted-foreground);
+}
+
+.app-nav-link:hover { color: var(--foreground); }
+
+.app-nav-link.is-active {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.app-nav-icon { width: 15px; height: 15px; flex: none; }
+.app-nav-label { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-nav-badge { margin-left: auto; font-size: 10px; padding: 0 6px; }

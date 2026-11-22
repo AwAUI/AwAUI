@@ -271,36 +271,17 @@ string? Arg(string name)
 static class SampleSetup
 {
     /// <summary>
-    /// 文本引擎：注册随附的 Noto Sans（OFL）并作为通用族 sans-serif / system-ui 的默认字体（平台还没有系统字体枚举）。
-    /// 若本机有中日韩字体，按顺序取第一个注册为回退字体：macOS 的 Arial Unicode（TrueType 轮廓），没有时用系统自带的
-    /// 冬青黑体（Hiragino Sans GB）或ヒラギノ角ゴシック W3（CFF 轮廓，.ttc）。
+    /// 文本引擎：注册随附的 Noto Sans（OFL）并作为通用族 sans-serif / system-ui 的默认字体；缺字（中文、日文、韩文等）
+    /// 回退到系统字体（design/19「字体回退」）。
     /// </summary>
     public static TextEngine CreateTextEngine(out bool hasCjk)
     {
-        var fonts = new FontCollection();
+        var fonts = new FontCollection { SystemFonts = SystemFonts.Default };
         var dir = Path.Combine(AppContext.BaseDirectory, "Fonts");
         fonts.RegisterFile(Path.Combine(dir, "NotoSans-Regular.ttf"));
         foreach (var generic in new[] { "sans-serif", "system-ui", "ui-sans-serif", "serif", "monospace" })
             fonts.SetGenericFamily(generic, "Noto Sans");
-        hasCjk = false;
-        foreach (var candidate in new[]
-                 {
-                     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf", "/Library/Fonts/Arial Unicode.ttf",
-                     "/System/Library/Fonts/Hiragino Sans GB.ttc", "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
-                 })
-        {
-            if (!File.Exists(candidate)) continue;
-            try
-            {
-                fonts.RegisterFile(candidate);
-                hasCjk = true;
-                break;
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"[font] {candidate}: {ex.Message}");
-            }
-        }
+        hasCjk = SystemFonts.Default.FontFiles.Count > 0;
         return new DefaultTextEngine(fonts);
     }
 

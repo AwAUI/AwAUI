@@ -28,7 +28,7 @@ var variant = Option("--theme") switch
     var value => throw new ArgumentException($"Unknown theme: {value}. Use system, light, dark, or high-contrast."),
 };
 
-var fonts = new FontCollection();
+var fonts = new FontCollection { SystemFonts = SystemFonts.Default };
 fonts.RegisterFile(Path.Combine(AppContext.BaseDirectory, "Fonts", "NotoSans-Regular.ttf"));
 fonts.SetGenericFamily("sans-serif", "Noto Sans");
 fonts.SetGenericFamily("system-ui", "Noto Sans");

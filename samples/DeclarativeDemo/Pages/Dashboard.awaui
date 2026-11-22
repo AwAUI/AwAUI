@@ -1,0 +1,128 @@
+<div class="page dashboard">
+    <div class="page-head">
+        <div class="page-head-copy">
+            <text class="page-kicker">Overview</text>
+            <text class="page-title">Good morning, Alex</text>
+            <text class="page-subtitle">Here is how the workspace is doing this week, with the goals and reviews that need your attention.</text>
+        </div>
+        <div class="page-actions">
+            <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" @onclick="OpenSchedule"><Svg Document="@LucideIcons.Calendar" Class="icon-16" />Schedule</AwAUI.Shadcn.Button>
+            <AwAUI.Shadcn.Button @onclick="NewProject"><Svg Document="@LucideIcons.Plus" Class="icon-16" />New project</AwAUI.Shadcn.Button>
+        </div>
+    </div>
+
+    <div class="stat-grid">
+        @foreach (var stat in SampleData.Stats)
+        {
+            <StatCard @key="stat.Label" Label="@stat.Label" Value="@stat.Value" Delta="@stat.Delta" Hint="@stat.Hint" Positive="@stat.Positive" Icon="@stat.Icon" />
+        }
+    </div>
+
+    <div class="dashboard-main">
+        <AwAUI.Shadcn.Card Class="dashboard-chart-card">
+            <AwAUI.Shadcn.CardHeader>
+                <div class="spread">
+                    <div class="stack">
+                        <AwAUI.Shadcn.CardTitle>Revenue</AwAUI.Shadcn.CardTitle>
+                        <AwAUI.Shadcn.CardDescription>Weekly recurring revenue across the last eight weeks.</AwAUI.Shadcn.CardDescription>
+                    </div>
+                    <AwAUI.Shadcn.Badge Variant="BadgeVariant.Outline">8 weeks</AwAUI.Shadcn.Badge>
+                </div>
+            </AwAUI.Shadcn.CardHeader>
+            <AwAUI.Shadcn.CardContent>
+                <AwAUI.Shadcn.Chart Kind="ChartKind.Area" Labels="_chartLabels" Series="_chartSeries" Config="_chartConfig"
+                       Height="228" ShowLegend="true" ShowGrid="true" Class="dashboard-chart" />
+            </AwAUI.Shadcn.CardContent>
+        </AwAUI.Shadcn.Card>
+
+        <div class="dashboard-side">
+            <AwAUI.Shadcn.Card>
+                <AwAUI.Shadcn.CardHeader>
+                    <AwAUI.Shadcn.CardTitle>Quarterly goal</AwAUI.Shadcn.CardTitle>
+                    <AwAUI.Shadcn.CardDescription>Drag either thumb to move the target band.</AwAUI.Shadcn.CardDescription>
+                </AwAUI.Shadcn.CardHeader>
+                <AwAUI.Shadcn.CardContent>
+                    <div class="goal-head">
+                        <text class="goal-number">@GoalText</text>
+                        <AwAUI.Shadcn.Badge Variant="@(GoalOnTrack ? BadgeVariant.Secondary : BadgeVariant.Outline)">@GoalStatus</AwAUI.Shadcn.Badge>
+                    </div>
+                    <AwAUI.Shadcn.Slider Values="@_goal.Value" ValuesChanged="OnGoalChanged" Min="0" Max="100" Step="1" aria-label="Goal range" />
+                    <div class="goal-scale"><text class="tiny">0%</text><text class="tiny">100%</text></div>
+                    <div class="goal-progress"><AwAUI.Shadcn.Progress Value="@GoalProgress" Max="1" /></div>
+                    <text class="muted">@AttainmentText</text>
+                </AwAUI.Shadcn.CardContent>
+            </AwAUI.Shadcn.Card>
+
+            <AwAUI.Shadcn.Card>
+                <AwAUI.Shadcn.CardHeader>
+                    <AwAUI.Shadcn.CardTitle>Next review</AwAUI.Shadcn.CardTitle>
+                    <AwAUI.Shadcn.CardDescription>Pick the date for the planning sync.</AwAUI.Shadcn.CardDescription>
+                </AwAUI.Shadcn.CardHeader>
+                <AwAUI.Shadcn.CardContent>
+                    <AwAUI.Shadcn.DatePicker SelectedDate="@_reviewDate.Value" SelectedDateChanged="OnReviewDate" MinDate="@_today"
+                                Placeholder="Pick a review date" Format="MMMM d, yyyy" Class="dashboard-date" />
+                    @if (_reviewDate.Value is DateTime review)
+                    {
+                        <text class="muted">Scheduled for @review.ToString("dddd, MMMM d", System.Globalization.CultureInfo.InvariantCulture)</text>
+                    }
+                    else
+                    {
+                        <text class="muted">No review date selected yet.</text>
+                    }
+                </AwAUI.Shadcn.CardContent>
+            </AwAUI.Shadcn.Card>
+        </div>
+    </div>
+
+    <div class="dashboard-bottom">
+        <AwAUI.Shadcn.Card>
+            <AwAUI.Shadcn.CardHeader>
+                <div class="spread">
+                    <div class="stack">
+                        <AwAUI.Shadcn.CardTitle>Recent activity</AwAUI.Shadcn.CardTitle>
+                        <AwAUI.Shadcn.CardDescription>What changed across the workspace in the last day.</AwAUI.Shadcn.CardDescription>
+                    </div>
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Ghost" Size="ButtonSize.Sm" @onclick="ViewActivity">View all</AwAUI.Shadcn.Button>
+                </div>
+            </AwAUI.Shadcn.CardHeader>
+            <AwAUI.Shadcn.CardContent>
+                <div class="activity-list">
+                    @foreach (var entry in SampleData.Activity)
+                    {
+                        <div class="activity-row" @key="entry.Title">
+                            <div class="activity-dot" data-tone="@entry.Tone"></div>
+                            <div class="activity-copy">
+                                <text class="activity-title">@entry.Title</text>
+                                <text class="activity-detail">@entry.Detail</text>
+                            </div>
+                            <text class="activity-time">@entry.Time</text>
+                        </div>
+                    }
+                </div>
+            </AwAUI.Shadcn.CardContent>
+        </AwAUI.Shadcn.Card>
+
+        <AwAUI.Shadcn.Card>
+            <AwAUI.Shadcn.CardHeader>
+                <AwAUI.Shadcn.CardTitle>Quick actions</AwAUI.Shadcn.CardTitle>
+                <AwAUI.Shadcn.CardDescription>Jump straight into the common tasks.</AwAUI.Shadcn.CardDescription>
+            </AwAUI.Shadcn.CardHeader>
+            <AwAUI.Shadcn.CardContent>
+                <div class="quick-grid">
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Class="quick-action" @onclick="NewProject">
+                        <Svg Document="@LucideIcons.Plus" Class="icon-16" /><text>Create project</text>
+                    </AwAUI.Shadcn.Button>
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Class="quick-action" @onclick="OpenProjects">
+                        <Svg Document="@LucideIcons.GripVertical" Class="icon-16" /><text>Open projects</text>
+                    </AwAUI.Shadcn.Button>
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Class="quick-action" @onclick="OpenSchedule">
+                        <Svg Document="@LucideIcons.Calendar" Class="icon-16" /><text>Review schedule</text>
+                    </AwAUI.Shadcn.Button>
+                    <AwAUI.Shadcn.Button Variant="ButtonVariant.Outline" Class="quick-action" @onclick="OpenSettings">
+                        <Svg Document="@LucideIcons.Ellipsis" Class="icon-16" /><text>Workspace settings</text>
+                    </AwAUI.Shadcn.Button>
+                </div>
+            </AwAUI.Shadcn.CardContent>
+        </AwAUI.Shadcn.Card>
+    </div>
+</div>

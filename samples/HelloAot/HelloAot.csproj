@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    最小桌面程序：界面全部写在 App.awaui 里（声明式），Program.cs 只做组合根。
+    NativeAOT 单文件发布：
+      dotnet publish samples/HelloAot -c Release -r osx-arm64 -p:NativeAot=true -o artifacts/hello-aot
+  -->
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.props" />
+  <!-- 目标桌面平台（Windows/macOS/Linux）按 RuntimeIdentifier 或宿主 OS 判定 -->
+  <Import Project="$(RepoRoot)src/AwAUI.Desktop/buildTransitive/AwAUI.Desktop.props" />
+  <PropertyGroup>
+    <!-- WinExe：Windows 上使用 GUI 子系统，从资源管理器启动不会分配控制台窗口；其他平台等同 Exe -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>HelloAot</RootNamespace>
+    <PublishAot Condition="'$(NativeAot)' == 'true'">true</PublishAot>
+  </PropertyGroup>
+  <!-- 体积优先的 AOT 发布：-p:NativeAot=true -p:SizeOptimized=true（示例程序，关闭 globalization 与符号/堆栈跟踪以换取体积） -->
+  <PropertyGroup Condition="'$(NativeAot)' == 'true' and '$(SizeOptimized)' == 'true'">
+    <StripSymbols>true</StripSymbols>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <InvariantTimezone>true</InvariantTimezone>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <StackTraceSupport>false</StackTraceSupport>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <IlcFoldIdenticalMethodBodies>all</IlcFoldIdenticalMethodBodies>
+    <IlcGenerateCompleteTypeMetadata>false</IlcGenerateCompleteTypeMetadata>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 组件库与桌面组合根：应用不再直接引用任何平台程序集。
+         AdditionalProperties 把目标平台传给 AwAUI.Desktop；MSBuild 不会自动把 RuntimeIdentifier 传给引用项目。 -->
+    <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Desktop/AwAUI.Desktop.csproj"
+                      AdditionalProperties="AwAUIDesktopTargetOS=$(AwAUIDesktopTargetOS)" />
+    <!-- .awaui 源生成器与 Props 胶水生成器 -->
+    <ProjectReference Include="../../src/Markup/AwAUI.Markup.Generator/AwAUI.Markup.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <Import Project="$(RepoRoot)src/Markup/AwAUI.Markup.Generator/buildTransitive/AwAUI.Markup.targets" />
+</Project>

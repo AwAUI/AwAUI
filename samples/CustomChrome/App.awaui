@@ -1,0 +1,94 @@
+@* 无边框窗口（WindowDecorations.None）：标题栏与窗口按钮都由这里自绘。 *@
+<div class="chrome">
+    <div class="titlebar" @onpointerdown="() => HostWindow?.BeginDragMove()">
+        <text class="title">AwAUI · 自绘标题栏</text>
+        <Button class="win-btn" aria-label="最小化"
+                @onpointerdown="e => e.StopPropagation()"
+                @onclick="() => HostWindow?.Minimize()">–</Button>
+        <Button class="win-btn" aria-label="最大化"
+                @onpointerdown="e => e.StopPropagation()"
+                @onclick="() => HostWindow?.ToggleMaximize()">□</Button>
+        <Button class="win-btn close" aria-label="关闭"
+                @onpointerdown="e => e.StopPropagation()"
+                @onclick="() => HostWindow?.Close()">×</Button>
+    </div>
+    <div class="body">
+        <text class="hello">无边框窗口</text>
+        <text class="hint">拖动标题栏移动；按钮经 IWindowChrome 完成最小化、最大化与关闭。</text>
+    </div>
+</div>
+
+<style global>
+    :root {
+        font-family: sans-serif;
+        font-size: 14px;
+        background-color: #0f172a;
+        display: flex;
+    }
+</style>
+
+<style>
+    .chrome {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .titlebar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        height: 40px;
+        padding-left: 14px;
+        padding-right: 8px;
+        background-color: #111827;
+        border-bottom: 1px solid #1f2937;
+        user-select: none;
+    }
+
+    .title {
+        flex: 1;
+        font-size: 13px;
+        color: #e5e7eb;
+    }
+
+    .win-btn {
+        width: 34px;
+        height: 26px;
+        border: none;
+        border-radius: 6px;
+        background-color: transparent;
+        color: #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .win-btn:hover {
+        background-color: #1f2937;
+    }
+
+    .win-btn.close:hover {
+        background-color: #dc2626;
+        color: #ffffff;
+    }
+
+    .body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .hello {
+        font-size: 20px;
+        color: #f8fafc;
+    }
+
+    .hint {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+</style>

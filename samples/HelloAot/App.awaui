@@ -1,0 +1,57 @@
+@* 最小桌面程序：全部界面在这里声明，由 AwAUI.Markup 源生成器编译为 C# 组件。 *@
+<div class="card">
+    <text class="title">Hello, AwAUI</text>
+    <text class="subtitle">声明式界面 · NativeAOT</text>
+    <Button class="primary" id="count-button" @onclick="() => clicks.Value++">@("点击 " + clicks.Value + " 次")</Button>
+</div>
+
+@code {
+    readonly State<int> clicks = new(0);
+}
+
+<style global>
+    :root {
+        font-family: sans-serif;
+        font-size: 14px;
+        background-color: #f4f6fb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<style>
+    .card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 28px 40px;
+        border-radius: 16px;
+        background-color: #ffffff;
+        box-shadow: 0 10px 30px rgba(30, 41, 59, 0.12);
+    }
+
+    .title {
+        font-size: 28px;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .subtitle {
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    .primary {
+        margin-top: 8px;
+        padding: 0 18px;
+        height: 38px;
+        border-radius: 10px;
+        border: 0;
+        color: #ffffff;
+        background-color: #4f46e5;
+        font-size: 14px;
+        cursor: pointer;
+    }
+</style>
