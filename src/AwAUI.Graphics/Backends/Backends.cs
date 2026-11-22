@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AwAUI.Graphics;
 
@@ -25,13 +26,42 @@ public enum BackendCapabilities
     AdvancedBlendModes = 1 << 7,
 }
 
+/// <summary>
+/// 帧间复用已有像素的位块搬移（design/18「滚动：位块搬移已有像素 + 重画新露出的条带」）。
+/// <see cref="Source"/> 是设备像素坐标下的源区域，目标区域是同一矩形平移 (<see cref="Dx"/>, <see cref="Dy"/>) 之后的结果；
+/// 重叠的复制必须按 memmove 语义处理。渲染后端在光栅化 <see cref="RenderOptions.Damage"/> 之前执行搬移。
+/// </summary>
+public readonly struct FramebufferShift
+{
+    public FramebufferShift(PixelRect source, int dx, int dy)
+    {
+        Source = source;
+        Dx = dx;
+        Dy = dy;
+    }
+
+    /// <summary>源区域（设备像素），必须已经在目标位图之内。</summary>
+    public PixelRect Source { get; }
+
+    /// <summary>内容在设备像素上的水平位移（正 = 向右）。</summary>
+    public int Dx { get; }
+
+    /// <summary>内容在设备像素上的垂直位移（正 = 向下）。</summary>
+    public int Dy { get; }
+
+    /// <summary>没有可搬移的内容。</summary>
+    public bool IsEmpty => Source.IsEmpty || (Dx == 0 && Dy == 0);
+}
+
 /// <summary>一次渲染的参数。</summary>
 public readonly struct RenderOptions
 {
-    public RenderOptions(Color clearColor, PixelRect? damage = null)
+    public RenderOptions(Color clearColor, PixelRect? damage = null, FramebufferShift? shift = null, IReadOnlyList<PixelRect>? damageRects = null)
     {
         ClearColor = clearColor;
         Damage = damage;
+        Shift = shift;
+        DamageRects = damageRects;
     }
 
     /// <summary>绘制前用此颜色清空目标（受损区域内）。</summary>
@@ -39,6 +69,19 @@ public readonly struct RenderOptions
 
     /// <summary>只需重画的设备像素区域；为空表示整个目标。</summary>
     public PixelRect? Damage { get; }
+
+    /// <summary>
+    /// 受损区域的精确分解（设备像素，均在 <see cref="Damage"/> 之内）。纯滚动帧的损伤是「新露出的条带 + 滚动条条带」，
+    /// 它们的包围盒是整个视口，所以支持多矩形的后端应按这些矩形分别重画；不支持的后端退回按 <see cref="Damage"/> 重画。
+    /// </summary>
+    public IReadOnlyList<PixelRect>? DamageRects { get; }
+
+    /// <summary>
+    /// 光栅化之前先把已有像素按此位移搬移（纯滚动帧的快路径）。只在 <see cref="Damage"/> 不为空时生效：
+    /// 目的区域由搬移得到，其余受损区域（新露出的条带、滚动条）从 DisplayList 重画。
+    /// 后端不支持复用像素时忽略它（结果仍是完整重画，因为 <see cref="Damage"/> 之外的像素保持不变）。
+    /// </summary>
+    public FramebufferShift? Shift { get; }
 }
 
 /// <summary>
@@ -71,6 +114,32 @@ public interface IMetalLayerSurface
 {
     /// <summary>CAMetalLayer* 指针。层的生命周期由平台层管理，至少要长于交换链。</summary>
     IntPtr MetalLayer { get; }
+}
+
+/// <summary>
+/// 提供 <c>ANativeWindow*</c> 的 Android 表面（<c>SurfaceView</c> 的 holder；EGL 据此创建窗口表面）。
+/// 表面能力接口（design/02、design/24），平台层因此不必引用 GLES 实现。
+/// </summary>
+public interface IAndroidWindowSurface
+{
+    /// <summary><c>ANativeWindow*</c> 指针；表面销毁或尚未创建时为 <see cref="IntPtr.Zero"/>。</summary>
+    IntPtr ANativeWindow { get; }
+}
+
+/// <summary>
+/// 提供 <c>wl_egl_window*</c> 的 Wayland 表面（EGL 据此创建窗口表面）。
+/// 表面能力接口（design/02、design/24），平台层因此不必引用 GLES 实现。
+/// </summary>
+public interface IWlEglSurface
+{
+    /// <summary><c>wl_display*</c> 指针（平台连接）。</summary>
+    IntPtr WlDisplay { get; }
+
+    /// <summary><c>wl_surface*</c> 指针；表面销毁后为 <see cref="IntPtr.Zero"/>。</summary>
+    IntPtr WlSurface { get; }
+
+    /// <summary><c>wl_egl_window*</c> 指针；尚未创建时为 <see cref="IntPtr.Zero"/>。</summary>
+    IntPtr WlEglWindow { get; }
 }
 
 /// <summary>锁定期间可写的像素缓冲；Dispose 时提交显示。</summary>

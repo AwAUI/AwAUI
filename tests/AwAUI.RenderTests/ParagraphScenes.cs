@@ -131,7 +131,7 @@ public static class ParagraphScenes
         const string alef = "א", bet = "ב", gimel = "ג";
         string hebrew = alef + bet + gimel + bet;
         var rtl = Paragraph(hebrew + " one " + hebrew + gimel + " two 123 " + alef + bet + "! " + hebrew + " three four five six seven",
-            new ParagraphStyle { TextStyle = Base(15), Direction = BidiDirection.RightToLeft, TextAlign = TextAlign.Start }, 295);
+            new ParagraphStyle { TextStyle = Base(15), Direction = ParagraphDirection.RightToLeft, TextAlign = TextAlign.Start }, 295);
         var o = new Point(115, 95);
         dc.FillRect(new Rect(o.X, o.Y, 295, rtl.Height), C("#f1f8e9"));
         var sel = new List<Rect>();

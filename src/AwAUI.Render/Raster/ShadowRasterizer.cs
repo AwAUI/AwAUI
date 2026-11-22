@@ -29,6 +29,119 @@ internal sealed class ShadowRasterizer
 
     public ShadowRasterizer(Rasterizer rasterizer) => _rasterizer = rasterizer;
 
+    // ---------------------------------------------------------------- 结果缓存
+
+    /// <summary>
+    /// 缓存的蒙版总量上限（浮点数个数，约 4 MB）。超过上限的单个蒙版不缓存；放不下时淘汰最久未用的项。
+    /// 缓存的蒙版由多次 <see cref="Compute"/> 共享，调用方只读。
+    /// </summary>
+    internal const int MaxCachedFloats = 1 << 20;
+    const int MaxCacheEntries = 16;
+
+    readonly struct CacheKey : IEquatable<CacheKey>
+    {
+        readonly RoundRect _shape;
+        readonly float _offsetX, _offsetY, _blur, _spread;
+        readonly int _inset;
+        readonly Matrix3x2 _ctm;
+        readonly PixelRect _window;
+        readonly long _workPixels;
+
+        public CacheKey(in BoxShadowCmd c, in Matrix3x2 ctm, PixelRect window, long workPixels)
+        {
+            _shape = c.Shape;
+            _offsetX = c.OffsetX; _offsetY = c.OffsetY; _blur = c.Blur; _spread = c.Spread;
+            _inset = c.Inset;
+            _ctm = ctm;
+            _window = window;
+            _workPixels = workPixels;
+        }
+
+        public bool Equals(CacheKey o) =>
+            _shape.Equals(o._shape) && _offsetX == o._offsetX && _offsetY == o._offsetY && _blur == o._blur && _spread == o._spread
+            && _inset == o._inset && _ctm == o._ctm && _window.Equals(o._window) && _workPixels == o._workPixels;
+
+        public override bool Equals(object? obj) => obj is CacheKey o && Equals(o);
+        public override int GetHashCode() => _shape.GetHashCode() ^ _blur.GetHashCode() ^ _ctm.GetHashCode();
+    }
+
+    sealed class CacheEntry
+    {
+        public CacheKey Key;
+        public float[] Mask = Array.Empty<float>();
+        public PixelRect MaskRect, OutRect;
+        public long LastUsed;
+    }
+
+    readonly System.Collections.Generic.List<CacheEntry> _cache = new();
+    long _cacheClock;
+    int _cachedFloats;
+
+    /// <summary>缓存命中次数（测试与诊断）。</summary>
+    internal long CacheHits { get; private set; }
+
+    /// <summary>当前缓存的蒙版总量（浮点数个数；测试与诊断）。</summary>
+    internal int CachedFloats => _cachedFloats;
+
+    bool TryGetCached(in CacheKey key, PixelRect outRect, out float[] mask, out PixelRect maskRect)
+    {
+        foreach (var e in _cache)
+        {
+            if (!e.Key.Equals(key)) continue;
+            var o = e.OutRect;
+            if (outRect.X < o.X || outRect.Y < o.Y || outRect.Right > o.Right || outRect.Bottom > o.Bottom) break;
+            e.LastUsed = ++_cacheClock;
+            CacheHits++;
+            mask = e.Mask;
+            maskRect = e.MaskRect;
+            return true;
+        }
+        mask = Array.Empty<float>();
+        maskRect = default;
+        return false;
+    }
+
+    void Store(in CacheKey key, float[] mask, PixelRect maskRect, PixelRect outRect)
+    {
+        // 同一个阴影的旧结果（输出区较小，例如上次只重画了一部分）被新结果取代
+        for (int i = _cache.Count - 1; i >= 0; i--)
+            if (_cache[i].Key.Equals(key)) Evict(i);
+        if (mask.Length > MaxCachedFloats) return;
+        while (_cache.Count > 0 && (_cachedFloats + mask.Length > MaxCachedFloats || _cache.Count >= MaxCacheEntries))
+        {
+            int oldest = 0;
+            for (int i = 1; i < _cache.Count; i++)
+                if (_cache[i].LastUsed < _cache[oldest].LastUsed) oldest = i;
+            Evict(oldest);
+        }
+        _cache.Add(new CacheEntry { Key = key, Mask = mask, MaskRect = maskRect, OutRect = outRect, LastUsed = ++_cacheClock });
+        _cachedFloats += mask.Length;
+    }
+
+    void Evict(int index)
+    {
+        _cachedFloats -= _cache[index].Mask.Length;
+        _cache.RemoveAt(index);
+    }
+
+    /// <summary>把形状覆盖率的补（1 − 覆盖率）逐行乘进蒙版。</summary>
+    sealed class ComplementSink : CoverageSink
+    {
+        float[] _mask = Array.Empty<float>();
+        PixelRect _rect;
+
+        public ComplementSink Reset(float[] mask, PixelRect rect)
+        {
+            _mask = mask; _rect = rect;
+            return this;
+        }
+
+        public override void Row(int y, int x, Span<float> coverage) =>
+            Kernels.MultiplyByComplement(_mask.AsSpan((y - _rect.Y) * _rect.Width + (x - _rect.X), coverage.Length), coverage);
+    }
+
+    readonly ComplementSink _complement = new();
+
     static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
 
     /// <summary>参数是否都是有限值（否则阴影被忽略，调用方上报降级）。</summary>
@@ -99,14 +212,17 @@ internal sealed class ShadowRasterizer
             k = kl;
             workMargin = Math.Max(margin, Blur.Support(sigma, k)) + k;
         }
+        // 相同几何的阴影（界面的大多数重绘：文字、悬停状态变了，卡片没动）直接复用上次的结果。
+        // 蒙版与裁剪无关，所以裁剪后的输出区只要落在缓存项的输出区之内就可以用。
+        var key = new CacheKey(c, ctm, window, WorkPixelsOverride ?? MaxShadowWorkPixels);
+        if (TryGetCached(key, outRect, out mask, out maskRect)) return true;
+
         var rasterWindow = Inflate(window, workMargin + k);
         var work = AlignOut(Inflate(outRect, workMargin), k);
-        float[] shapeMask;
         if (lowRes)
         {
             mask = BlurredLowRes(blurred, ctm, work, outRect, sigma, k, inset, rasterWindow);
             maskRect = outRect;
-            shapeMask = Coverage(box, ctm, outRect, rasterWindow);
         }
         else
         {
@@ -115,10 +231,22 @@ internal sealed class ShadowRasterizer
                 for (int i = 0; i < mask.Length; i++) mask[i] = 1 - mask[i];
             Blur.Gaussian(mask, work.Width, work.Height, sigma, work.X, work.Y);
             maskRect = work;
-            shapeMask = Coverage(box, ctm, work, rasterWindow);
         }
-        if (inset) Kernels.Multiply(mask, shapeMask);
-        else Kernels.MultiplyByComplement(mask, shapeMask);
+        if (inset)
+        {
+            // 内阴影：乘上形状覆盖率，形状之外必须变成 0，需要完整的形状蒙版
+            Kernels.Multiply(mask, Coverage(box, ctm, maskRect, rasterWindow, scratch: true));
+            if (_shape.Length > MaxRetainedScratch) _shape = Array.Empty<float>();
+        }
+        else
+        {
+            // 外阴影：挖掉形状。光栅器没有送来的像素覆盖率为 0，乘 (1 - 0) 不变，
+            // 所以逐行直接乘进蒙版即可，不必再分配一份与工作区等大的形状蒙版
+            _scratch.Clear();
+            Flattener.FlattenToPolygons(box, ctm, Flattener.DefaultTolerance, _scratch, CullRect.FromPixels(rasterWindow, 1));
+            _rasterizer.Fill(_scratch, box.FillRule, true, maskRect, rasterWindow, _complement.Reset(mask, maskRect));
+        }
+        Store(key, mask, maskRect, outRect);
         return true;
     }
 
@@ -173,9 +301,26 @@ internal sealed class ShadowRasterizer
     internal static int FloorDiv(int a, int b) => a >= 0 ? a / b : -(int)(((long)-a + b - 1) / b);
     static int CeilDiv(int a, int b) => -FloorDiv(-a, b);
 
-    float[] Coverage(VectorPath path, in Matrix3x2 ctm, PixelRect rect, PixelRect window)
+    // 形状自身的覆盖率只用来与模糊结果相乘，用完即弃：复用同一块缓冲，避免每个阴影多分配一份与工作区等大的数组。
+    // 超过上限（约 1 MB）的缓冲不保留，免得一次大阴影让进程长期多占内存。
+    float[] _shape = Array.Empty<float>();
+    const int MaxRetainedScratch = 1 << 18;
+
+    /// <summary>
+    /// 路径在 <paramref name="rect"/> 内的覆盖率。<paramref name="scratch"/> 为 true 时返回复用的缓冲
+    /// （长度可能大于 <c>rect</c> 的像素数，只有前面的部分有效，下次调用前有效）。
+    /// </summary>
+    float[] Coverage(VectorPath path, in Matrix3x2 ctm, PixelRect rect, PixelRect window, bool scratch = false)
     {
-        var mask = new float[rect.Width * rect.Height];
+        int n = rect.Width * rect.Height;
+        float[] mask;
+        if (!scratch) mask = new float[n];
+        else if (_shape.Length < n) mask = _shape = new float[n];
+        else
+        {
+            mask = _shape;
+            Array.Clear(mask, 0, n);
+        }
         _scratch.Clear();
         Flattener.FlattenToPolygons(path, ctm, Flattener.DefaultTolerance, _scratch, CullRect.FromPixels(window, 1));
         _rasterizer.Fill(_scratch, path.FillRule, true, rect, window, new MaskSink(mask, rect, null));

@@ -36,6 +36,20 @@ internal sealed partial class RasterContext
     long _workBudget;
     long _filterWork;
     bool _budgetReported;
+    long _frameCommands;
+    long _frameRasterPixels;
+
+    /// <summary>最近一帧重放的命令数（含嵌套 DisplayList 展开）。诊断与测量用。</summary>
+    public long LastFrameCommands => _frameCommands;
+
+    /// <summary>最近一帧实际着色的像素数（已按裁剪区域截断，不含被裁剪掉的覆盖）。诊断与测量用。</summary>
+    public long LastFrameRasterizedPixels => _frameRasterPixels;
+
+    /// <summary>最近一帧执行的帧间位块搬移次数（纯滚动快路径）。</summary>
+    public int LastFrameBlitCalls { get; private set; }
+
+    /// <summary>最近一帧位块搬移复制的像素数（纯滚动快路径）。</summary>
+    public long LastFrameBlitPixels { get; private set; }
 
     /// <summary>嵌套 DisplayList 的最大深度；更深的部分忽略并上报降级（防止恶意构造的深嵌套耗尽栈）。</summary>
     public const int MaxNestingDepth = 256;
@@ -65,6 +79,9 @@ internal sealed partial class RasterContext
 
     /// <summary>当前帧（或最近一帧）已消耗的工作量（诊断与测试）。</summary>
     internal long FrameWork => _rasterizer.Work + _fillSink.Pixels + _filterWork;
+
+    /// <summary>最近一帧的工作量（诊断与测量；下一次渲染之前保持有效）。</summary>
+    public long LastFrameWork => FrameWork;
 
     /// <summary>
     /// 一个滤镜图层的最大面积（设备像素）。超出时不应用滤镜（按普通图层绘制）并上报降级：滤镜图层不受裁剪限制，
@@ -126,31 +143,69 @@ internal sealed partial class RasterContext
     public void Render(DisplayList list, Bitmap target, double scale, in RenderOptions options)
     {
         var full = new PixelRect(0, 0, target.Width, target.Height);
-        var area = options.Damage is { } dmg ? dmg.Intersect(full) : full;
-        if (area.IsEmpty) return;
+        _frameCommands = 0;
+        _frameRasterPixels = 0;
+        LastFrameBlitCalls = 0;
+        LastFrameBlitPixels = 0;
+        // 受损区域可以分解成多个互不相连的矩形（纯滚动帧：新露出的条带 + 滚动条条带）。包围盒是整个视口，
+        // 只按包围盒重画会失去像素复用的意义；每个矩形单独清屏 + 重放（光栅结果与裁剪无关，见 Rasterizer）。
+        bool multi = options.DamageRects is { Count: > 0 };
+        var single = (options.Damage is { } dmg ? dmg : full).Intersect(full);
+        if (!multi && single.IsEmpty) return;
 
         _surface = new Surface(target, 0, 0);
         _window = full;
-        _stack.Clear();
-        _layers.Clear();
         _layerDepth = 0;
         _commandBudget = MaxCommandsPerFrame;
         _workBudget = WorkBudgetOverride ?? MaxWorkPerFrame;
         _rasterizer.Work = 0;
         _fillSink.Pixels = 0;
+        _fillSink.RasterPixels = 0;
         _filterWork = 0;
         _budgetReported = false;
         _reportedThisFrame.Clear();
-        _state = new State(Matrix3x2.CreateScale((float)scale), new ClipState(area), false);
 
         BeginImageFrame();
-        ClearArea(target, area, options.ClearColor);
-        Replay(list, 0);
-        // 损坏的输入可能留下未关闭的图层：合成回去并释放离屏位图
-        while (_layers.Count > 0) PopLayer();
+        // 纯滚动快路径：先把上一帧的像素搬到新位置，再只重画受损区域（新露出的条带、滚动条）。
+        // 只有 Damage 非空（局部光栅化）时才搬移；整帧重画时搬移没有意义。
+        if (options.Damage is not null && options.Shift is { } shift)
+        {
+            long moved = FramebufferBlit.Shift(target, shift);
+            if (moved > 0)
+            {
+                LastFrameBlitCalls = 1;
+                LastFrameBlitPixels = moved;
+            }
+        }
+        if (multi)
+        {
+            var rects = options.DamageRects!;
+            for (int i = 0; i < rects.Count; i++)
+            {
+                var area = rects[i].Intersect(full);
+                if (!area.IsEmpty) RenderArea(list, target, scale, area, options.ClearColor);
+            }
+        }
+        else
+        {
+            RenderArea(list, target, scale, single, options.ClearColor);
+        }
+        _frameRasterPixels = _fillSink.RasterPixels;
         _surface = null!;
         // 目标位图的内容变了：把它当作图片画的缓存（按版本做键）随之失效
         target.Invalidate();
+    }
+
+    void RenderArea(DisplayList list, Bitmap target, double scale, PixelRect area, Color clearColor)
+    {
+        _stack.Clear();
+        _layers.Clear();
+        _layerDepth = 0;
+        _state = new State(Matrix3x2.CreateScale((float)scale), new ClipState(area), false);
+        ClearArea(target, area, clearColor);
+        Replay(list, 0);
+        // 损坏的输入可能留下未关闭的图层：合成回去并释放离屏位图
+        while (_layers.Count > 0) PopLayer();
     }
 
     static void ClearArea(Bitmap target, PixelRect area, Color color)
@@ -169,6 +224,7 @@ internal sealed partial class RasterContext
         int layerIndex = 0;
         while (reader.MoveNext())
         {
+            _frameCommands++;
             if (--_commandBudget < 0)
             {
                 if (!_budgetReported) _degraded?.Invoke($"More than {MaxCommandsPerFrame} draw commands in one frame (including nested display lists); the rest were skipped.");
@@ -397,9 +453,10 @@ internal sealed partial class RasterContext
     void RectCoverage(Rect dev, PixelRect area, FillSink sink)
     {
         // 解析式覆盖率：水平覆盖 × 垂直覆盖
-        var cov = new float[area.Width];
-        var horizontal = new float[area.Width];
-        for (int x = 0; x < area.Width; x++)
+        // 行缓冲复用：每个矩形填充（背景、边框、选区……）都走这里，逐次分配会让每一帧产生与绘制命令数成正比的垃圾
+        var cov = RowScratch(ref _rowA, area.Width);
+        var horizontal = RowScratch(ref _rowB, area.Width);
+        for (int x = 0; x < horizontal.Length; x++)
         {
             float px = area.X + x;
             horizontal[x] = Overlap(px, px + 1, dev.Left, dev.Right);
@@ -411,6 +468,16 @@ internal sealed partial class RasterContext
             Kernels.Scale(horizontal, vy, cov);
             sink.Row(y, area.X, cov);
         }
+    }
+
+    // 逐行覆盖率的临时缓冲（只在一次绘制命令内有效；CoverageSink 不保留传入的 Span）
+    float[] _rowA = Array.Empty<float>();
+    float[] _rowB = Array.Empty<float>();
+
+    static Span<float> RowScratch(ref float[] buffer, int width)
+    {
+        if (buffer.Length < width) buffer = new float[Math.Max(width, 256)];
+        return buffer.AsSpan(0, width);
     }
 
     static float Overlap(float a0, float a1, float b0, float b1) =>
@@ -494,10 +561,10 @@ internal sealed partial class RasterContext
     void Composite(PixelRect maskRect, float[] mask, PixelRect outRect, Vector4 color)
     {
         _fillSink.Reset(_surface.Bitmap, _surface.OffsetX, _surface.OffsetY, _state.Clip, new SolidShader(color), BlendMode.SrcOver);
-        var row = new float[outRect.Width];
+        var row = RowScratch(ref _rowA, outRect.Width);
         for (int y = outRect.Y; y < outRect.Bottom; y++)
         {
-            Array.Copy(mask, (y - maskRect.Y) * maskRect.Width + (outRect.X - maskRect.X), row, 0, outRect.Width);
+            mask.AsSpan((y - maskRect.Y) * maskRect.Width + (outRect.X - maskRect.X), outRect.Width).CopyTo(row);
             _fillSink.Row(y, outRect.X, row);
         }
     }
@@ -787,6 +854,9 @@ internal sealed partial class RasterContext
 
         /// <summary>本帧经过裁剪与混合的像素数（工作量统计，见 <see cref="MaxWorkPerFrame"/>）。</summary>
         public long Pixels;
+
+        /// <summary>本帧实际着色的像素数：已按裁剪区域截断并去掉零覆盖的两端（测量用，不计工作量）。</summary>
+        public long RasterPixels;
         bool _isSolid;
         float[] _cov = new float[256];
 
@@ -843,6 +913,7 @@ internal sealed partial class RasterContext
             while (last >= first && cov[last] <= 0) last--;
             if (first > last) return;
             int count = last - first + 1;
+            RasterPixels += count;
 
             var dst = _target.GetRow(y - _oy).Slice((start + first - _ox) * 4, count * 4);
             bool bgra = _target.Format == PixelFormat.Bgra8888;

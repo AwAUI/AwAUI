@@ -27,6 +27,34 @@ public sealed class SoftwareRenderBackend : RenderBackend
     internal RasterContext CreateContext() => new(ReportDegradation);
 }
 
+/// <summary>软件后端一帧的工作量统计（确定性，可用于测量滚动快路径的效果）。</summary>
+public readonly struct SoftwareFrameStats
+{
+    public SoftwareFrameStats(long rasterizedPixels, long rasterWork, long commandCount, int blitCalls, long blitPixels)
+    {
+        RasterizedPixels = rasterizedPixels;
+        RasterWork = rasterWork;
+        CommandCount = commandCount;
+        BlitCalls = blitCalls;
+        BlitPixels = blitPixels;
+    }
+
+    /// <summary>实际着色的像素数（已按损伤区域裁剪；帧间位块搬移不计入）。</summary>
+    public long RasterizedPixels { get; }
+
+    /// <summary>光栅器与填充的抽象工作量（与 <see cref="RasterContext.MaxWorkPerFrame"/> 同单位）。</summary>
+    public long RasterWork { get; }
+
+    /// <summary>重放的 DisplayList 命令数（含嵌套列表展开）。</summary>
+    public long CommandCount { get; }
+
+    /// <summary>帧间位块搬移的次数（纯滚动快路径为 1，其余为 0）。</summary>
+    public int BlitCalls { get; }
+
+    /// <summary>帧间位块搬移复制的像素数。</summary>
+    public long BlitPixels { get; }
+}
+
 /// <summary>渲染到自有位图的离屏目标。</summary>
 public sealed class BitmapRenderTarget : RenderTarget
 {
@@ -44,6 +72,10 @@ public sealed class BitmapRenderTarget : RenderTarget
     public Bitmap Bitmap => _bitmap;
     public override PixelSize PixelSize => _bitmap.Size;
     public override double Scale => _scale;
+
+    /// <summary>最近一次 <see cref="Render"/> 的工作量统计。</summary>
+    public SoftwareFrameStats LastFrameStats => new(_context.LastFrameRasterizedPixels, _context.LastFrameWork,
+        _context.LastFrameCommands, _context.LastFrameBlitCalls, _context.LastFrameBlitPixels);
 
     public override void Resize(PixelSize size, double scale)
     {
