@@ -50,6 +50,8 @@ public static class PopperEngine
         Placement placement, IReadOnlyList<PopperMiddleware?>? middleware = null)
     {
         if (environment is null) throw new ArgumentNullException(nameof(environment));
+        // 逻辑边先在入口解析成物理边：中间件、翻转与 data-side 看到的都是物理方位
+        placement = new Placement(Placement.ResolveSide(placement.Side, environment.Rtl), placement.Align);
         var rects = new ElementRects(reference, floating);
         var state = new PopperState(placement, rects, environment);
         var p = ComputeCoordsFromPlacement(rects, placement, environment.Rtl);
@@ -89,12 +91,13 @@ public static class PopperEngine
         var reference = rects.Reference;
         var floating = rects.Floating;
         bool isVertical = placement.IsVertical;
+        var side = Placement.ResolveSide(placement.Side, rtl);
         float commonX = reference.X + reference.Width / 2 - floating.Width / 2;
         float commonY = reference.Y + reference.Height / 2 - floating.Height / 2;
         var alignmentAxis = placement.AlignmentAxis;
         float commonAlign = Length(reference, alignmentAxis) / 2 - Length(floating, alignmentAxis) / 2;
         float x, y;
-        switch (placement.Side)
+        switch (side)
         {
             case Side.Top: x = commonX; y = reference.Y - floating.Height; break;
             case Side.Bottom: x = commonX; y = reference.Y + reference.Height; break;

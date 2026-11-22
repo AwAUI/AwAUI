@@ -2,15 +2,21 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Globalization;
+using AwAUI.Controls.Primitives;
 using AwAUI.UI;
 using UIText = AwAUI.UI.Text;
 
 namespace AwAUI.Controls;
 
-/// <summary>Presents a sequence of data or nodes. Every item is rendered.</summary>
+/// <summary>
+/// Presents a sequence of data or nodes. By default every item is rendered; set <see cref="IsVirtualized"/>
+/// to mount only the rows in and near the viewport.
+/// </summary>
 public partial class ItemsControl : Control
 {
     ItemView? _items;
+    VirtualizerHost? _virtualizerHost;
 
     /// <summary>
     /// The items to present. Assign a new source to replace a non-observable sequence. Observable sources
@@ -27,13 +33,123 @@ public partial class ItemsControl : Control
     /// <summary>Static items to present when <see cref="ItemsSource"/> is null.</summary>
     public NodeList? Children { get; set; }
 
+    /// <summary>
+    /// Mounts only the rows in and near the viewport. Off by default, which mounts every item. The control needs a
+    /// constrained height (CSS <c>height</c> or <c>max-height</c>) for a viewport to exist, and <see cref="ItemsPanel"/>
+    /// is ignored while virtualized.
+    /// </summary>
+    public bool IsVirtualized { get; set; }
+
+    /// <summary>
+    /// Fixed row height in logical pixels when virtualized, or <c>null</c> to measure each row after layout (variable-height mode).
+    /// Fixed-height rows are clipped to these bounds. Ignored when <see cref="Orientation"/> is horizontal.
+    /// </summary>
+    public double? ItemHeight { get; set; } = 32;
+
+    /// <summary>Height assumed for rows that have not been measured yet in variable-height mode.</summary>
+    public double EstimatedItemHeight { get; set; } = 32;
+
+    /// <summary>
+    /// Fixed item width in logical pixels when virtualized horizontally, or <c>null</c> to measure each item after layout.
+    /// Ignored in the default vertical mode.
+    /// </summary>
+    public double? ItemWidth { get; set; } = 32;
+
+    /// <summary>Width assumed for items that have not been measured yet in horizontal variable-width mode.</summary>
+    public double EstimatedItemWidth { get; set; } = 32;
+
+    /// <summary>
+    /// Main axis of the virtualized list. Horizontal mode scrolls right, uses <see cref="ItemWidth"/> /
+    /// <see cref="EstimatedItemWidth"/>, and needs a constrained width.
+    /// </summary>
+    public Orientation Orientation { get; set; } = Primitives.Orientation.Vertical;
+
+    /// <summary>Number of rows mounted just outside each edge of the viewport while virtualized.</summary>
+    public int Overscan { get; set; } = 2;
+
+    private protected VirtualizerHost Host => _virtualizerHost ??= new VirtualizerHost(InvalidateFromLayout);
+
     protected override Node Build()
     {
         var items = ReadItems();
+        return IsVirtualized
+            ? Apply(BuildVirtualized(items), "aw-items-control")
+            : Apply(BuildAll(items), "aw-items-control");
+    }
+
+    Div BuildAll(ItemView items)
+    {
+        // 从虚拟化切回普通挂载：停止布局回写，避免旧宿主继续请求重建
+        _virtualizerHost?.Deactivate();
         var children = new NodeList();
         for (int i = 0; i < items.Count; i++) children.Add(PresentItem(items[i]));
-        return Apply(new Div { Children = PresentItems(children) }, "aw-items-control");
+        return new Div { Children = PresentItems(children) };
     }
+
+    Div BuildVirtualized(ItemView items)
+    {
+        var host = Host;
+        host.Mount(Root);
+        bool horizontal = Orientation == Orientation.Horizontal;
+        double? requestedSize = horizontal ? ItemWidth : ItemHeight;
+        bool fixedSize = requestedSize is double requested && requested > 0 && !double.IsInfinity(requested);
+        double size = fixedSize ? requestedSize!.Value : 0;
+        double estimated = horizontal ? EstimatedItemWidth : EstimatedItemHeight;
+        double estimate = estimated > 0 && !double.IsInfinity(estimated) ? estimated : 32;
+        // 定长与变长是两种项结构：SetOptions 在两者之间切换时会丢弃测量
+        host.SetOptions(new VirtualizerOptions
+        {
+            ItemSize = fixedSize ? size : null,
+            EstimatedItemSize = estimate,
+            Overscan = Math.Max(0, Overscan),
+            Horizontal = horizontal,
+        });
+        var realized = host.Begin(items.Count);
+        // 外层才是滚动容器；内层按总尺寸撑开并作为绝对定位项的定位上下文
+        var viewport = new Div { Style = "overflow:auto;" };
+        viewport.ScrollController = host.Controller;
+        var extent = new Div
+        {
+            Style = horizontal
+                ? "position:relative;width:" + Pixels(host.Virtualizer.TotalSize) + ";height:100%"
+                : "position:relative;height:" + Pixels(host.Virtualizer.TotalSize),
+        };
+        extent.Attributes["part"] = "extent";
+        // 变长项不写固定尺寸：布局后按内容尺寸测量，再把尺寸写回虚拟化器
+        string rowStyle = horizontal
+            ? "position:absolute;inset-block:0;box-sizing:border-box;overflow:clip;"
+                + (fixedSize ? "width:" + Pixels(size) + ";" : "")
+            : "position:absolute;inset-inline:0;box-sizing:border-box;overflow:clip;"
+                + (fixedSize ? "height:" + Pixels(size) + ";" : "");
+        string setSize = items.Count.ToString(CultureInfo.InvariantCulture);
+        foreach (var item in realized)
+        {
+            // Key 与 Ref 都取自该项的 ItemRow：集合重建后同一项仍复用同一个行元素与滚动状态
+            var row = items.RowAt(item.Index);
+            var reference = row.ElementRef ??= new Ref<Element>();
+            host.Track(item.Index, reference);
+            var node = new Div
+            {
+                Key = row,
+                Ref = reference,
+                Style = rowStyle + (horizontal ? "inset-inline-start:" : "top:") + Pixels(item.Start) + ";",
+                Children = [PresentItem(items[item.Index])],
+            };
+            node.Attributes["part"] = "item";
+            node.Attributes["data-index"] = item.Index.ToString(CultureInfo.InvariantCulture);
+            node.Attributes["aria-posinset"] = (item.Index + 1).ToString(CultureInfo.InvariantCulture);
+            node.Attributes["aria-setsize"] = setSize;
+            extent.Children.Add(node);
+        }
+        viewport.Children.Add(extent);
+        return viewport;
+    }
+
+    protected override void OnMount() => _virtualizerHost?.Mount(Root);
+
+    protected override void OnUnmount() => _virtualizerHost?.Unmount();
+
+    private protected static string Pixels(double value) => value.ToString("0.#########", CultureInfo.InvariantCulture) + "px";
 
     protected Node PresentItem(object? item) =>
         ItemTemplate?.Invoke(item) ?? (item is Node node ? node : new UIText(item?.ToString()));

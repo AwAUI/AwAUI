@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    数据表格（design/23「数据」）：与 Avalonia 相同的拆分，独立程序集，只依赖基础控件与 UI。
+    反射式 Binding 与 AutoGenerateColumns 本质上是动态的，不做裁剪/AOT 分析（同 Avalonia DataGrid 的取舍）。
+  -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <Description>Data grid with sorting, selection, editing, and fixed-height row virtualization.</Description>
+    <RootNamespace>AwAUI.Controls.DataGrid</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
+    <ProjectReference Include="../AwAUI.Platform/AwAUI.Platform.csproj" />
+    <ProjectReference Include="../AwAUI.Layout/AwAUI.Layout.csproj" />
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <ProjectReference Include="../AwAUI.Controls/AwAUI.Controls.csproj" />
+    <!-- 组件的 Props 胶水（PropsEqual / AdoptProps）由源生成器生成：只在编译期使用，不进入运行时引用 -->
+    <ProjectReference Include="../tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

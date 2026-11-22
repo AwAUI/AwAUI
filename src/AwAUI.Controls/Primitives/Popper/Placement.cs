@@ -3,13 +3,19 @@ using System.Collections.Generic;
 
 namespace AwAUI.Controls.Primitives;
 
-/// <summary>浮层相对锚点所在的边（Radix 的 <c>side</c>，CSS 中为 <c>data-side</c>）。</summary>
+/// <summary>
+/// 浮层相对锚点所在的边（Radix 的 <c>side</c>，CSS 中为 <c>data-side</c>）。
+/// <see cref="InlineStart"/> / <see cref="InlineEnd"/> 是逻辑方向，在定位时按 RTL 解析成左 / 右；
+/// 解析后的方位（含 <c>data-side</c>）始终是物理的 top / right / bottom / left。
+/// </summary>
 public enum Side : byte
 {
     Top,
     Right,
     Bottom,
     Left,
+    InlineStart,
+    InlineEnd,
 }
 
 /// <summary>
@@ -76,21 +82,33 @@ public readonly struct Placement : IEquatable<Placement>
     /// <summary>边是否在竖直方向（上 / 下）：主轴为 y。</summary>
     public bool IsVertical => Side is Side.Top or Side.Bottom;
 
+    /// <summary>把逻辑行内边解析成物理边：LTR 的 <c>inline-start</c> 在左，RTL 在右；物理边原样返回。</summary>
+    public static Side ResolveSide(Side side, bool rtl) => side switch
+    {
+        Side.InlineStart => rtl ? Side.Right : Side.Left,
+        Side.InlineEnd => rtl ? Side.Left : Side.Right,
+        _ => side,
+    };
+
     public static Side OppositeSide(Side side) => side switch
     {
         Side.Top => Side.Bottom,
         Side.Bottom => Side.Top,
         Side.Left => Side.Right,
-        _ => Side.Left,
+        Side.Right => Side.Left,
+        Side.InlineStart => Side.InlineEnd,
+        _ => Side.InlineStart,
     };
 
-    /// <summary>CSS 属性值形式：<c>data-side</c> 的取值（<c>top / right / bottom / left</c>）。</summary>
+    /// <summary>CSS 属性值形式：<c>data-side</c> 的取值（<c>top / right / bottom / left</c>，逻辑边为 <c>inline-start / inline-end</c>）。</summary>
     public static string SideName(Side side) => side switch
     {
         Side.Top => "top",
         Side.Right => "right",
         Side.Bottom => "bottom",
-        _ => "left",
+        Side.Left => "left",
+        Side.InlineStart => "inline-start",
+        _ => "inline-end",
     };
 
     /// <summary>CSS 属性值形式：<c>data-align</c> 的取值（<c>start / center / end</c>）。</summary>
@@ -106,16 +124,22 @@ public readonly struct Placement : IEquatable<Placement>
     {
         placement = default;
         if (text is null) return false;
-        int dash = text.IndexOf('-');
-        string sidePart = dash < 0 ? text : text.Substring(0, dash);
         Side side;
-        switch (sidePart)
+        int dash;
+        if (text == "inline-start") { side = Side.InlineStart; dash = -1; }
+        else if (text == "inline-end") { side = Side.InlineEnd; dash = -1; }
+        else
         {
-            case "top": side = Side.Top; break;
-            case "right": side = Side.Right; break;
-            case "bottom": side = Side.Bottom; break;
-            case "left": side = Side.Left; break;
-            default: return false;
+            dash = text.IndexOf('-');
+            string sidePart = dash < 0 ? text : text.Substring(0, dash);
+            switch (sidePart)
+            {
+                case "top": side = Side.Top; break;
+                case "right": side = Side.Right; break;
+                case "bottom": side = Side.Bottom; break;
+                case "left": side = Side.Left; break;
+                default: return false;
+            }
         }
         var align = PopperAlign.Center;
         if (dash >= 0)

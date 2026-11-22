@@ -193,8 +193,8 @@ public sealed partial class PopperContent : Component
         var env = new PopperEnvironment(new Rect(0, 0, viewport.Width, viewport.Height))
         {
             ReferenceClippingRect = anchorElement is not null && scope.VirtualAnchor is null ? anchorElement.GetClippingRect() : null,
-            // CSS direction 尚未实现：start / end 按 LTR
-            Rtl = false,
+            // direction 是继承属性：浮层元素的计算方向决定上 / 下边时 start / end 的物理侧（与 Floating UI 读取浮层元素一致）
+            Rtl = (content ?? anchorElement)?.ComputedStyle is { Direction: AwAUI.Css.Values.CssDirection.Rtl },
         };
         var arrow = scope.Arrow is { IsMounted: true } a ? a : null;
         var options = new PopperOptions

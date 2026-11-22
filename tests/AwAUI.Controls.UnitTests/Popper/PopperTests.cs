@@ -39,6 +39,25 @@ public class PopperTests
         Assert.Equal(new Point(x, y), p);
     }
 
+    [Theory]
+    [InlineData(false, -50f)] // LTR：inline-start 在左
+    [InlineData(true, 100f)]  // RTL：inline-start 在右
+    public void Logical_inline_side_resolves_against_the_direction(bool rtl, float x)
+    {
+        var env = new PopperEnvironment(new Rect(0, 0, 1000, 1000)) { Rtl = rtl };
+        var start = PopperEngine.ComputePosition(Reference, Floating, env, new Placement(Side.InlineStart));
+        Assert.Equal(x, start.X);
+        Assert.Equal(rtl ? Side.Right : Side.Left, start.Placement.Side);
+
+        var end = PopperEngine.ComputePosition(Reference, Floating, env, new Placement(Side.InlineEnd));
+        Assert.Equal(x == -50f ? 100f : -50f, end.X);
+        Assert.Equal(rtl ? Side.Left : Side.Right, end.Placement.Side);
+
+        // 直接调用基本坐标函数时同样解析逻辑边
+        var p = PopperEngine.ComputeCoordsFromPlacement(new ElementRects(Reference, Floating), Placement.Parse("inline-start"), rtl);
+        Assert.Equal(x, p.X);
+    }
+
     [Fact]
     public void ComputePosition_without_middleware()
     {

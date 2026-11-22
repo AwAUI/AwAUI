@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Controls.DataGrid/AwAUI.Controls.DataGrid.csproj" />
+    <!-- 无头端到端装配（UIHarness）复用 Controls 测试的同一套实现：软件后端 + 键盘 / 指针模拟 -->
+    <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Text/AwAUI.Text.csproj" />
+    <ProjectReference Include="../../src/AwAUI.Graphics/AwAUI.Graphics.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../AwAUI.Controls.UnitTests/Integration/UIHarness.cs" Link="Integration/UIHarness.cs" />
+  </ItemGroup>
+</Project>

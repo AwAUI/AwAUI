@@ -11,7 +11,8 @@ public class ArchitectureTests
 {
     static readonly string[] Allowed =
     {
-        "AwAUI.Foundation", "AwAUI.Graphics", "AwAUI.Platform", "AwAUI.Css", "AwAUI.Layout", "AwAUI.Text", "AwAUI.UI",
+        // ProgressRing 用 SVG 描边画圆环（BoxPainter 不画 conic-gradient），因此允许 AwAUI.Svg。
+        "AwAUI.Foundation", "AwAUI.Graphics", "AwAUI.Platform", "AwAUI.Css", "AwAUI.Layout", "AwAUI.Text", "AwAUI.UI", "AwAUI.Svg",
     };
 
     static Assembly Controls => typeof(SelectionModel<>).Assembly;
@@ -43,7 +44,9 @@ public class ArchitectureTests
     [Fact]
     public void Primitives_live_in_their_namespace()
     {
-        var stray = Controls.GetExportedTypes().Where(t => t.Namespace != "AwAUI.Controls.Primitives").Select(t => t.FullName).ToArray();
+        var stray = Controls.GetExportedTypes()
+            .Where(t => t.Namespace is not ("AwAUI.Controls" or "AwAUI.Controls.Primitives"))
+            .Select(t => t.FullName).ToArray();
         Assert.True(stray.Length == 0, string.Join(", ", stray));
     }
 }

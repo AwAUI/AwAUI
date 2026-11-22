@@ -2,6 +2,8 @@
   <Import Project="$(RepoRoot)build/Tests.props" />
   <ItemGroup>
     <ProjectReference Include="../../src/AwAUI.Controls/AwAUI.Controls.csproj" />
+    <!-- Shadcn S1 组件的键盘 / 指针验收也走同一套无头端到端装配 -->
+    <ProjectReference Include="../../src/AwAUI.Shadcn/AwAUI.Shadcn.csproj" />
     <!-- UI 接入的无头端到端测试：软件后端光栅化与 PNG 截图（测试不受依赖规则约束）；测试组件的 Props 胶水由源生成器生成 -->
     <ProjectReference Include="../../src/AwAUI.Render/AwAUI.Render.csproj" />
     <ProjectReference Include="../../src/AwAUI.Imaging/AwAUI.Imaging.csproj" />
@@ -10,6 +12,11 @@
   <ItemGroup>
     <!-- 复杂度测试用线程 CPU 时间代替墙钟（机器负载高时更稳定） -->
     <Compile Include="../Shared/ThreadCpuClock.cs" Link="Shared/ThreadCpuClock.cs" />
+    <!-- The docs gallery page registry is plain C#; linking it lets the acceptance suite render every page. -->
+    <Compile Include="../../samples/ShadcnGallery/DocsCatalog.cs" Link="DocsGallery/DocsCatalog.cs" />
+    <Compile Include="../../samples/ShadcnGallery/DocsUi.cs" Link="DocsGallery/DocsUi.cs" />
+    <Compile Include="../../samples/ShadcnGallery/DocsDescriptions.cs" Link="DocsGallery/DocsDescriptions.cs" />
+    <Compile Include="../../samples/ShadcnGallery/Pages.*.cs" Link="DocsGallery/%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <!-- Floating UI 的参考输出（由 Popper/floating-ui-gen.mjs 生成，测试不依赖 Node） -->

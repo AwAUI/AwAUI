@@ -19,7 +19,7 @@ public static class VirtualizerScrolling
         if (controller is null) throw new ArgumentNullException(nameof(controller));
         var before = virtualizer.GetRange();
         bool horizontal = virtualizer.Options.Horizontal;
-        virtualizer.ScrollOffset = horizontal ? controller.Offset.X : controller.Offset.Y;
+        virtualizer.ScrollOffset = horizontal ? controller.OffsetX : controller.OffsetY;
         virtualizer.ViewportSize = horizontal ? controller.ViewportSize.Width : controller.ViewportSize.Height;
         var after = virtualizer.GetRange();
         return before.OverscanStartIndex != after.OverscanStartIndex || before.OverscanEndIndex != after.OverscanEndIndex
@@ -36,8 +36,8 @@ public static class VirtualizerScrolling
         if (virtualizer is null) throw new ArgumentNullException(nameof(virtualizer));
         if (controller is null) throw new ArgumentNullException(nameof(controller));
         if (delta == 0 || double.IsNaN(delta)) return;
-        var o = controller.Offset;
-        controller.JumpTo(virtualizer.Options.Horizontal ? new Point(o.X + (float)delta, o.Y) : new Point(o.X, o.Y + (float)delta));
+        if (virtualizer.Options.Horizontal) controller.JumpTo(controller.OffsetX + delta, controller.OffsetY);
+        else controller.JumpTo(controller.OffsetX, controller.OffsetY + delta);
     }
 
     /// <summary>滚动到第 <paramref name="index"/> 项（默认平滑，见 <see cref="ScrollController.ScrollTo"/>）。</summary>
@@ -46,8 +46,8 @@ public static class VirtualizerScrolling
     {
         if (virtualizer is null) throw new ArgumentNullException(nameof(virtualizer));
         if (controller is null) throw new ArgumentNullException(nameof(controller));
-        float target = (float)virtualizer.GetOffsetForIndex(index, alignment);
-        var o = controller.Offset;
-        return controller.ScrollTo(virtualizer.Options.Horizontal ? new Point(target, o.Y) : new Point(o.X, target), animation);
+        double target = virtualizer.GetOffsetForIndex(index, alignment);
+        if (virtualizer.Options.Horizontal) return controller.ScrollTo(target, controller.OffsetY, animation);
+        return controller.ScrollTo(controller.OffsetX, target, animation);
     }
 }

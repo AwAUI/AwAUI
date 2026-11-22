@@ -13,6 +13,8 @@
     --aw-accent-pressed: #004578;
     --aw-focus: #005fb8;
     --aw-danger: #b10e1e;
+    --aw-success: #0f7b0f;
+    --aw-warning: #9d5d00;
     --aw-control: #ffffff;
     --aw-control-hover: #f5f5f5;
     --aw-control-pressed: #ebebeb;
@@ -58,6 +60,8 @@
       --aw-accent-pressed: #49b7eb;
       --aw-focus: #60cdff;
       --aw-danger: #ff99a4;
+      --aw-success: #6ccb5f;
+      --aw-warning: #fce100;
       --aw-control: #333333;
       --aw-control-hover: #3e3e3e;
       --aw-control-pressed: #292929;
@@ -81,6 +85,8 @@
     --aw-accent-pressed: #49b7eb;
     --aw-focus: #60cdff;
     --aw-danger: #ff99a4;
+    --aw-success: #6ccb5f;
+    --aw-warning: #fce100;
     --aw-control: #333333;
     --aw-control-hover: #3e3e3e;
     --aw-control-pressed: #292929;
@@ -105,6 +111,8 @@
       --aw-accent-pressed: #d8d800;
       --aw-focus: #00ffff;
       --aw-danger: #ff9dca;
+      --aw-success: #00ff00;
+      --aw-warning: #ffff00;
       --aw-control: #000000;
       --aw-control-hover: #292929;
       --aw-control-pressed: #444444;
@@ -128,6 +136,8 @@
     --aw-accent-pressed: #d8d800;
     --aw-focus: #00ffff;
     --aw-danger: #ff9dca;
+    --aw-success: #00ff00;
+    --aw-warning: #ffff00;
     --aw-control: #000000;
     --aw-control-hover: #292929;
     --aw-control-pressed: #444444;
@@ -734,4 +744,648 @@
     rotate: -90deg;
   }
   :where(:root[data-aw-fluent]) .aw-tree-view [part="indicator"][data-state="open"]::before { rotate: 0deg; }
+
+  /* Menus, context menus and split buttons (Controls A). */
+  :where(:root[data-aw-fluent]) .aw-menu-content {
+    color: var(--aw-text);
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+    box-shadow: 0 4px 12px #0003;
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-item:not(:disabled):is(:hover, :focus) {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-item:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-item:disabled {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-split-button > [part="toggle"] > [part="indicator"] {
+    border-color: currentColor;
+  }
+  :where(:root[data-aw-fluent]) .aw-menu-content .aw-menu-item {
+    min-height: var(--aw-control-height);
+  }
+
+  /* Relative panel, grid splitter and carousel. */
+  :where(:root[data-aw-fluent]) .aw-relative-panel {
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-grid-splitter > [part="splitter"] {
+    background-color: var(--aw-border);
+    border-radius: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-grid-splitter > [part="splitter"]:hover {
+    background-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-grid-splitter > [part="splitter"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 1px;
+  }
+  :where(:root[data-aw-fluent]) .aw-carousel {
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-carousel [part="previous"],
+  :where(:root[data-aw-fluent]) .aw-carousel [part="next"] {
+    color: var(--aw-text);
+    background-color: var(--aw-control);
+    border: 1px solid var(--aw-control-edge);
+  }
+  :where(:root[data-aw-fluent]) .aw-carousel [part="previous"]:not(:disabled):hover,
+  :where(:root[data-aw-fluent]) .aw-carousel [part="next"]:not(:disabled):hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-carousel [part="indicator"] {
+    background-color: var(--aw-input-edge);
+    border: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-carousel [part="indicator"][aria-selected="true"] {
+    background-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-carousel [part="indicator"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+
+  /* Numeric up/down and auto-complete box. */
+  /* The root owns the border so the spinner sits inside the field instead of beside it. */
+  :where(:root[data-aw-fluent]) .aw-numeric-updown {
+    min-height: var(--aw-control-height);
+    background: var(--aw-control);
+    border: 1px solid var(--aw-control-edge);
+    border-radius: var(--aw-radius);
+    overflow: hidden;
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-numeric-updown:focus-within {
+    border-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-numeric-updown > [part="container"] {
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+  :where(:root[data-aw-fluent]) .aw-numeric-updown [part="input"] {
+    padding: var(--aw-control-padding-y) var(--aw-control-padding-x);
+    background: transparent;
+    border: 0;
+    color: inherit;
+  }
+  :where(:root[data-aw-fluent]) .aw-numeric-updown-button {
+    color: var(--aw-text);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-numeric-updown-button:not(:disabled):hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-numeric-updown[data-disabled] {
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box > [part="container"] {
+    display: flex;
+    align-items: center;
+    min-height: var(--aw-control-height);
+    background: var(--aw-control);
+    border: 1px solid var(--aw-control-edge);
+    border-radius: var(--aw-radius);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box > [part="container"]:focus-within {
+    border-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box [part="input"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--aw-control-padding-y) var(--aw-control-padding-x);
+    background: transparent;
+    border: 0;
+    color: inherit;
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box-button {
+    flex: 0 0 auto;
+    color: var(--aw-text-muted);
+    background: transparent;
+    border: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box [part="indicator"] {
+    width: 9px;
+    height: 6px;
+    display: block;
+    background-color: currentColor;
+    clip-path: polygon(0 0, 50% 70%, 100% 0, 100% 30%, 50% 100%, 0 30%);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box-popup {
+    padding: 3px;
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background: var(--aw-control);
+    color: var(--aw-text);
+    box-shadow: 0 4px 12px #0002;
+    transform-origin: var(--aw-popper-transform-origin, center);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box-item {
+    display: flex;
+    align-items: center;
+    min-height: var(--aw-control-height);
+    padding-inline: var(--aw-control-padding-x);
+    border: 1px solid transparent;
+    border-radius: var(--aw-radius);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box-item[data-highlighted] {
+    background: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-autocomplete-box-item[aria-selected="true"] {
+    color: var(--aw-accent);
+    border-color: var(--aw-accent);
+  }
+
+  /* 第 13 批：DataGrid。行与单元格使用源码写死的绝对定位和尺寸，CSS 只负责颜色、内边距与状态。 */
+  :where(:root[data-aw-fluent]) .aw-datagrid {
+    display: block;
+    min-width: 0;
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid[aria-disabled="true"] {
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-header {
+    border-bottom: 1px solid var(--aw-border);
+    background-color: var(--aw-control);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-row {
+    background-color: var(--aw-surface);
+    color: var(--aw-text);
+  }
+  /* 斑马纹按实际挂载的兄弟位置交替；虚拟化时滚动会重新配对，但仍保持交替观感。 */
+  :where(:root[data-aw-fluent]) .aw-datagrid-row:nth-child(even) {
+    background-color: var(--aw-bg);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-row:hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-row[data-selected="true"] {
+    background-color: color-mix(in srgb, var(--aw-accent) 20%, var(--aw-surface));
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-datagrid-cell, .aw-datagrid-column-header, .aw-datagrid-row-header, .aw-datagrid-corner) {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding-inline: var(--aw-control-padding-x);
+    color: inherit;
+    font-size: var(--aw-font-size);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-column-header {
+    gap: 4px;
+    font-weight: 600;
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-column-header[data-sortable="true"] {
+    cursor: pointer;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-column-header[data-sortable="true"]:hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-column-header[data-sortable="true"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-column-header[data-sorted] {
+    color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-sort-indicator {
+    margin-left: auto;
+    color: var(--aw-text-muted);
+    font-size: 10px;
+    line-height: 1;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-column-header[data-sorted] .aw-datagrid-sort-indicator {
+    color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-datagrid-row-header, .aw-datagrid-corner) {
+    justify-content: center;
+    border-right: 1px solid var(--aw-border);
+    background-color: var(--aw-control);
+    color: var(--aw-text-muted);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-cell[data-current="true"] {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-cell[data-editing="true"] {
+    z-index: 2;
+    background-color: var(--aw-surface);
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-cell[data-invalid="true"] {
+    background-color: color-mix(in srgb, var(--aw-danger) 12%, var(--aw-surface));
+    outline-color: var(--aw-danger);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-gridlines-horizontal .aw-datagrid-row {
+    border-bottom: 1px solid var(--aw-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-gridlines-vertical :is(.aw-datagrid-cell, .aw-datagrid-column-header, .aw-datagrid-row-header, .aw-datagrid-corner) {
+    border-right: 1px solid var(--aw-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-editor {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background-color: var(--aw-control);
+    color: var(--aw-text);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--aw-input-edge);
+    border-radius: 2px;
+    background-color: var(--aw-control);
+    color: var(--aw-accent-text);
+    font-size: 12px;
+    line-height: 1;
+  }
+  :where(:root[data-aw-fluent]) .aw-datagrid-checkbox[data-checked="true"] {
+    border-color: var(--aw-accent);
+    background-color: var(--aw-accent);
+  }
+
+  /* 第 13 批：Calendar 月网格与选择状态。 */
+  :where(:root[data-aw-fluent]) .aw-calendar {
+    padding: 4px;
+    border: 1px solid var(--aw-border);
+    border-radius: 8px;
+    background-color: var(--aw-surface);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="header"] {
+    gap: 2px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--aw-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="caption"] {
+    color: var(--aw-text);
+    font-weight: 600;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar :is([part="previous-year"], [part="previous-month"], [part="next-month"], [part="next-year"]) {
+    border: 0;
+    border-radius: var(--aw-radius);
+    background-color: transparent;
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar :is([part="previous-year"], [part="previous-month"], [part="next-month"], [part="next-year"]):not(:disabled):hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar :is([part="previous-year"], [part="previous-month"], [part="next-month"], [part="next-year"]):disabled {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="grid"] {
+    gap: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="weekday"] {
+    opacity: 1;
+    color: var(--aw-text-muted);
+    font-weight: 600;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"] {
+    min-width: 32px;
+    min-height: 32px;
+    border: 1px solid transparent;
+    border-radius: var(--aw-radius);
+    background-color: transparent;
+    color: var(--aw-text);
+    font: inherit;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"]:not([aria-disabled="true"]):hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 0;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"][data-outside] {
+    opacity: 1;
+    color: var(--aw-text-muted);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"][data-today] {
+    border-color: var(--aw-accent);
+    font-weight: 600;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"][data-selected="true"] {
+    border-color: var(--aw-accent);
+    background-color: var(--aw-accent);
+    color: var(--aw-accent-text);
+  }
+  /* 范围选择用强调色淡底表示区间，端点同样清晰可辨。 */
+  :where(:root[data-aw-fluent]) .aw-calendar[data-selection-mode="range"] [part="day"][data-selected="true"] {
+    border-color: var(--aw-accent);
+    background-color: color-mix(in srgb, var(--aw-accent) 30%, var(--aw-surface));
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"][aria-disabled="true"],
+  :where(:root[data-aw-fluent]) .aw-calendar [part="day"][data-selected="true"][aria-disabled="true"] {
+    border-color: transparent;
+    background-color: transparent;
+    opacity: 1;
+    color: var(--aw-disabled-text);
+  }
+
+  /* 第 13 批：CalendarDatePicker 的字段与弹层。弹层内容通过 Portal 挂载，因此用 :has 定位日历年本身。 */
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker {
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="field"] {
+    min-height: var(--aw-control-height);
+    border: 1px solid var(--aw-control-edge);
+    border-bottom: 2px solid var(--aw-input-edge);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-control);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="field"]:focus-within {
+    border-bottom-color: var(--aw-focus);
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="field"]:has([aria-invalid="true"]) {
+    border-bottom-color: var(--aw-danger);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="input"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: calc(var(--aw-control-height) - 3px);
+    padding: var(--aw-control-padding-y) var(--aw-control-padding-x);
+    border: 0;
+    outline: none;
+    background-color: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="input"]::placeholder {
+    color: var(--aw-text-muted);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="button"] {
+    min-width: var(--aw-control-height);
+    min-height: var(--aw-control-height);
+    padding: 0;
+    border: 0;
+    border-left: 1px solid var(--aw-border);
+    border-radius: 0 var(--aw-radius) var(--aw-radius) 0;
+    background-color: transparent;
+    color: var(--aw-text-muted);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="button"]:not(:disabled):hover {
+    background-color: var(--aw-control-hover);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="button"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) .aw-calendar-date-picker [part="button"]:disabled {
+    opacity: 1;
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-popup[part="content"]:has(.aw-calendar) {
+    padding: 4px;
+  }
+  :where(:root[data-aw-fluent]) .aw-popup[part="content"]:has(.aw-calendar) .aw-calendar {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+  }
+
+  /* 第 13 批：DatePicker / TimePicker 的列表列与选项。 */
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker) {
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-surface);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker) > :is([part="year"], [part="month"], [part="day"], [part="hour"], [part="minute"], [part="second"], [part="period"]) {
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius);
+    background-color: var(--aw-control);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker) [part="option"] {
+    min-height: 28px;
+    border-radius: 3px;
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker) [part="option"]:hover {
+    background-color: var(--aw-control-hover);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker) [part="option"][data-selected] {
+    background-color: var(--aw-accent);
+    color: var(--aw-accent-text);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker) [part="option"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: -2px;
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker)[data-disabled] {
+    color: var(--aw-disabled-text);
+  }
+  :where(:root[data-aw-fluent]) :is(.aw-date-picker, .aw-time-picker)[data-disabled] [part="option"] {
+    color: var(--aw-disabled-text);
+  }
+
+  /* 第 13 批：ProgressBar / ProgressRing。引擎支持 @keyframes，因此不确定态使用 CSS 动画。 */
+  :where(:root[data-aw-fluent]) .aw-progressbar {
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-progressbar [part="track"] {
+    height: 4px;
+    border-radius: 999px;
+    background-color: var(--aw-border);
+  }
+  :where(:root[data-aw-fluent]) .aw-progressbar [part="indicator"] {
+    border-radius: inherit;
+    background-color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-progressbar[data-indeterminate] [part="indicator"] {
+    width: 30%;
+    background-color: var(--aw-accent);
+    animation: aw-fluent-progress-slide 1.6s ease-in-out infinite;
+  }
+  :where(:root[data-aw-fluent]) .aw-progressbar [part="progress-text"] {
+    color: var(--aw-text-muted);
+  }
+  @keyframes aw-fluent-progress-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(333%); }
+  }
+  :where(:root[data-aw-fluent]) .aw-progress-ring {
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-progress-ring [part="svg"] {
+    color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-progress-ring[data-indeterminate] [part="svg"] {
+    animation: aw-fluent-progress-spin 1s linear infinite;
+  }
+  :where(:root[data-aw-fluent]) .aw-progress-ring [part="progress-text"] {
+    color: var(--aw-text-muted);
+  }
+  @keyframes aw-fluent-progress-spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :where(:root[data-aw-fluent]) .aw-progressbar[data-indeterminate] [part="indicator"] {
+      width: 100%;
+      animation: none;
+      background-color: transparent;
+      background-image: repeating-linear-gradient(45deg, var(--aw-accent) 0, var(--aw-accent) 6px, transparent 6px, transparent 12px);
+    }
+    :where(:root[data-aw-fluent]) .aw-progress-ring[data-indeterminate] [part="svg"] {
+      animation: none;
+    }
+  }
+
+  /* 第 13 批：InfoBar 四级严重色与关闭按钮。 */
+  :where(:root[data-aw-fluent]) .aw-infobar {
+    padding: 10px var(--aw-content-padding);
+    border: 1px solid var(--aw-border);
+    border-left: 4px solid var(--aw-accent);
+    border-radius: var(--aw-radius);
+    background-color: color-mix(in srgb, var(--aw-accent) 8%, var(--aw-surface));
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="icon"] {
+    color: var(--aw-accent);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="title"] {
+    color: var(--aw-text);
+    font-weight: 600;
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="message"] {
+    color: var(--aw-text-muted);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="action"] {
+    align-self: center;
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar[data-severity="success"] {
+    border-left-color: var(--aw-success);
+    background-color: color-mix(in srgb, var(--aw-success) 10%, var(--aw-surface));
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar[data-severity="success"] [part="icon"] {
+    color: var(--aw-success);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar[data-severity="warning"] {
+    border-left-color: var(--aw-warning);
+    background-color: color-mix(in srgb, var(--aw-warning) 12%, var(--aw-surface));
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar[data-severity="warning"] [part="icon"] {
+    color: var(--aw-warning);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar[data-severity="error"] {
+    border-left-color: var(--aw-danger);
+    background-color: color-mix(in srgb, var(--aw-danger) 10%, var(--aw-surface));
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar[data-severity="error"] [part="icon"] {
+    color: var(--aw-danger);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="close"] {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--aw-radius);
+    background-color: transparent;
+    color: var(--aw-text-muted);
+    font-size: 16px;
+    line-height: 1;
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="close"]:hover {
+    background-color: var(--aw-control-hover);
+    color: var(--aw-text);
+  }
+  :where(:root[data-aw-fluent]) .aw-infobar [part="close"]:focus-visible {
+    outline: 2px solid var(--aw-focus);
+    outline-offset: 2px;
+  }
+
+  /* 第 13 批：Separator 使用主题边框色，避免默认的 currentColor 半透明在深色下偏暗。 */
+  :where(:root[data-aw-fluent]) .aw-separator {
+    opacity: 1;
+    background-color: var(--aw-border);
+  }
+
+  /* 紧凑模式：行高由 DataGrid 的行内样式决定，这里调整单元格内边距、日历格与选项高度。 */
+  :where(:root[data-aw-fluent][data-aw-compact]) :is(.aw-datagrid-cell, .aw-datagrid-column-header) {
+    padding-inline: 6px;
+    font-size: 13px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) :is(.aw-datagrid-row-header, .aw-datagrid-corner) {
+    padding-inline: 2px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) .aw-calendar [part="header"] {
+    padding-bottom: 2px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) .aw-calendar [part="day"] {
+    min-width: 26px;
+    min-height: 26px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) .aw-calendar [part="weekday"] {
+    min-height: 20px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) :is(.aw-date-picker, .aw-time-picker) [part="option"] {
+    min-height: 24px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) :is(.aw-date-picker, .aw-time-picker) > :is([part="year"], [part="month"], [part="day"], [part="hour"], [part="minute"], [part="second"], [part="period"]) {
+    max-height: 180px;
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) .aw-infobar {
+    padding: 6px var(--aw-content-padding);
+  }
+  :where(:root[data-aw-fluent][data-aw-compact]) .aw-progressbar [part="track"] {
+    height: 3px;
+  }
+
+  /* 高对比：令牌已给出白色边框，这里为选中项补上可见轮廓。 */
+  :root[data-aw-fluent][data-theme="high-contrast"] .aw-datagrid-row[data-selected="true"],
+  :root[data-aw-fluent][data-theme="high-contrast"] .aw-calendar [part="day"][data-selected="true"],
+  :root[data-aw-fluent][data-theme="high-contrast"] :is(.aw-date-picker, .aw-time-picker) [part="option"][data-selected] {
+    outline: 1px solid var(--aw-border);
+    outline-offset: -1px;
+  }
+  @media (forced-colors: active), (prefers-contrast: more) {
+    :where(:root[data-aw-fluent]:not([data-theme]), :root[data-aw-fluent][data-theme="system"]) .aw-datagrid-row[data-selected="true"],
+    :where(:root[data-aw-fluent]:not([data-theme]), :root[data-aw-fluent][data-theme="system"]) .aw-calendar [part="day"][data-selected="true"],
+    :where(:root[data-aw-fluent]:not([data-theme]), :root[data-aw-fluent][data-theme="system"]) :is(.aw-date-picker, .aw-time-picker) [part="option"][data-selected] {
+      outline: 1px solid var(--aw-border);
+      outline-offset: -1px;
+    }
+  }
 }

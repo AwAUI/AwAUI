@@ -23,14 +23,20 @@ sealed class UIHarness
 {
     public readonly UIRoot Root;
     public readonly RenderPipeline Pipeline;
+    /// <summary>构建过程中发布的诊断（AW1005、AW2002 等），供需要断言无警告的用例使用。</summary>
+    public readonly List<UIDiagnostic> Diagnostics = new();
     TimeSpan _time;
 
-    public UIHarness(Func<Node> render, string? css = null, float width = 800, float height = 600, float scale = 1, TextEngine? text = null)
+    public UIHarness(Func<Node> render, string? css = null, float width = 800, float height = 600, float scale = 1, TextEngine? text = null,
+        bool appStyleSheets = false)
     {
         Pipeline = new RenderPipeline(text ?? new TestTextEngine());
+        // 只有需要组件库样式的验收（Shadcn）才接入程序集级样式表：它含 preflight，会改变其他用例依赖的默认盒模型
+        Pipeline.IncludeAppStyleSheets = appStyleSheets;
         if (css is not null) Pipeline.AddStyleSheet(css, "test.css");
         Pipeline.SetViewport(new Size(width, height), scale);
         Root = new UIRoot { Pipeline = Pipeline };
+        Root.Diagnostic += Diagnostics.Add;
         Root.Mount(new Host { Render = render });
         Frame();
     }
@@ -87,6 +93,56 @@ sealed class UIHarness
 
     public void Click(string id) => Click(ById(id));
 
+    /// <summary>在窗口坐标处轻触（触摸指针按下 → 抬起），然后执行帧。</summary>
+    public void TapAt(Point p)
+    {
+        _time += TimeSpan.FromMilliseconds(16);
+        Root.Input.DispatchPointer(new RawPointerEvent(RawPointerEventType.Down, PointerType.Touch, 1, p, PointerButtons.Left, PointerButtons.Left, KeyModifiers.None, _time));
+        Root.Input.DispatchPointer(new RawPointerEvent(RawPointerEventType.Up, PointerType.Touch, 1, p, PointerButtons.Left, PointerButtons.None, KeyModifiers.None, _time));
+        Frame();
+    }
+
+    /// <summary>轻触元素的中心。</summary>
+    public void Tap(Element e) => TapAt(e.GetBoundingClientRect().Center);
+
+    /// <summary>在窗口坐标处右键点击（命中测试 → 按下 → 抬起），然后执行帧。</summary>
+    public void RightClickAt(Point p)
+    {
+        Root.Input.DispatchPointer(P(RawPointerEventType.Move, p, PointerButtons.None, PointerButtons.None));
+        Root.Input.DispatchPointer(P(RawPointerEventType.Down, p, PointerButtons.Right, PointerButtons.Right));
+        Root.Input.DispatchPointer(P(RawPointerEventType.Up, p, PointerButtons.Right, PointerButtons.None));
+        Frame();
+    }
+
+    public void RightClick(Element e) => RightClickAt(e.GetBoundingClientRect().Center);
+
+    public void PointerDown(Point p, PointerButtons button = PointerButtons.Left, KeyModifiers mods = KeyModifiers.None)
+    {
+        Root.Input.DispatchPointer(P(RawPointerEventType.Move, p, PointerButtons.None, PointerButtons.None, mods));
+        Root.Input.DispatchPointer(P(RawPointerEventType.Down, p, button, button, mods));
+        Frame();
+    }
+
+    public void PointerMove(Point p, PointerButtons buttons = PointerButtons.Left, KeyModifiers mods = KeyModifiers.None)
+    {
+        Root.Input.DispatchPointer(P(RawPointerEventType.Move, p, PointerButtons.None, buttons, mods));
+        Frame();
+    }
+
+    public void PointerUp(Point p, PointerButtons button = PointerButtons.Left, KeyModifiers mods = KeyModifiers.None)
+    {
+        Root.Input.DispatchPointer(P(RawPointerEventType.Up, p, button, PointerButtons.None, mods));
+        Frame();
+    }
+
+    /// <summary>把文本输入到当前聚焦的输入框。</summary>
+    public void TypeText(string text)
+    {
+        _time += TimeSpan.FromMilliseconds(16);
+        Root.Input.DispatchTextInput(text);
+        Frame();
+    }
+
     public void Key(PhysicalKey key, string? logical = null, KeyModifiers mods = KeyModifiers.None)
     {
         _time += TimeSpan.FromMilliseconds(16);
@@ -99,10 +155,15 @@ sealed class UIHarness
 
     public void Escape() => Key(PhysicalKey.Escape, "Escape");
 
-    public void Wheel(Point p, float deltaY)
+    public void Wheel(Point p, float deltaY) => Wheel(p, 0, deltaY);
+
+    /// <summary>横向滚轮（正值 = 向左滚动）。</summary>
+    public void WheelX(Point p, float deltaX) => Wheel(p, deltaX, 0);
+
+    void Wheel(Point p, float deltaX, float deltaY)
     {
         _time += TimeSpan.FromMilliseconds(16);
-        Root.Input.DispatchPointer(RawPointerEvent.CreateWheel(p, 0, deltaY, WheelDeltaMode.Pixel, true, ScrollPhase.None, ScrollPhase.None, PointerButtons.None, KeyModifiers.None, _time));
+        Root.Input.DispatchPointer(RawPointerEvent.CreateWheel(p, deltaX, deltaY, WheelDeltaMode.Pixel, true, ScrollPhase.None, ScrollPhase.None, PointerButtons.None, KeyModifiers.None, _time));
         Frame();
     }
 
