@@ -1,0 +1,165 @@
+name: Publish NuGet
+
+# 发布机制：NuGet.org Trusted Publishing（OIDC + 短期 API key），不保存任何长期 API key。
+#
+# 首次发布前需要：
+# 1. 在 nuget.org → 用户名 → Trusted Publishing 添加策略：
+#      Repository Owner: AwAUI
+#      Repository:       AwAUI
+#      Workflow File:    publish.yml   （只写文件名，不要带 .github/workflows/）
+#      Environment:      （留空）
+# 2. 在本仓库设置变量 NUGET_USER（nuget.org 的账号名，不是邮箱）：
+#      gh variable set NUGET_USER --repo AwAUI/AwAUI --body "<nuget-username>"
+#
+# 发布方式：
+# - 在 GitHub 创建 Release（tag 形如 v0.1.0 / v0.2.0-preview.1）并发布；
+# - 或在 Actions 里手动运行本工作流并填写 version。
+# 详见 .github/PUBLISHING.md。
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version, e.g. 0.1.0 or 0.2.0-preview.1"
+        required: true
+        type: string
+      dry_run:
+        description: "Only pack and upload the artifacts; do not push to nuget.org"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-publish
+  cancel-in-progress: false
+
+jobs:
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+            11.0.x
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "release" ]; then
+            version="$RELEASE_TAG"
+          else
+            version="$INPUT_VERSION"
+          fi
+          version="${version#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid package version '$version' (expected e.g. 0.1.0 or 0.2.0-preview.1)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Packing version $version"
+
+      # IsPackable=false 的项目（tests、samples、tools、AwAUI.Desktop、AwAUI.Markup.Compiler）
+      # 不会产生包；包写入 artifacts/packages。
+      - name: Pack
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          dotnet pack AwAUI.slnx \
+            -c Release \
+            -p:Version="$PACKAGE_VERSION" \
+            -p:ContinuousIntegrationBuild=true \
+            -p:RepositoryCommit="${{ github.sha }}"
+
+      - name: List packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          find artifacts/packages -maxdepth 1 -type f \( -name '*.nupkg' -o -name '*.snupkg' \) -printf '%f\n' | sort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish to nuget.org
+    needs: pack
+    if: ${{ github.event_name == 'release' || inputs.dry_run == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write   # GitHub OIDC token，供 NuGet/login 换取短期 API key
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/packages
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 11.0.x
+
+      - name: Require NUGET_USER
+        shell: bash
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if [ -z "$NUGET_USER" ]; then
+            echo "::error::Set the repository variable NUGET_USER to your nuget.org username."
+            exit 1
+          fi
+
+      # 用 OIDC token 换取 1 小时有效的临时 API key（不会保存到仓库）
+      - name: NuGet login (OIDC -> temporary API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push packages
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(artifacts/packages/*.nupkg)
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "::error::No .nupkg files found"
+            exit 1
+          fi
+          for package in "${packages[@]}"; do
+            echo "Pushing $(basename "$package")"
+            dotnet nuget push "$package" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --symbol-api-key "$NUGET_API_KEY" \
+              --symbol-source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done

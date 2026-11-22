@@ -1,0 +1,25 @@
+<Project>
+  <!--
+    所有 src 项目的 NuGet 公共元数据（design/15）。
+    版本号默认取 Directory.Build.props 的 Version；发布工作流会按 tag 覆盖成
+    -p:Version=<tag>，因此这里不重复定义版本。
+  -->
+  <PropertyGroup Condition="'$(IsSrcProject)' == 'true'">
+    <Company>AwAUI</Company>
+    <Product>AwAUI</Product>
+    <Copyright>Copyright © 2026 AwAUI</Copyright>
+    <PackageProjectUrl>https://github.com/AwAUI/AwAUI</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AwAUI/AwAUI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>awaui;ui;gui;cross-platform;css;desktop;mobile;webassembly</PackageTags>
+    <!-- 个别包在自己的 csproj 里覆盖成更精确的描述 -->
+    <Description Condition="'$(Description)' == ''">AwAUI: a pure C# cross-platform UI engine with declarative .awaui components, CSS, self-drawn rendering, and built-in DevTools.</Description>
+    <!-- 图标与 README 的实际打包项在 Directory.Build.targets 中按 IsPackable 补齐 -->
+    <PackageIcon>package-icon.png</PackageIcon>
+    <PackageReadmeFile Condition="'$(PackageReadmeFile)' == ''">README.md</PackageReadmeFile>
+    <PackageOutputPath>$(RepoRoot)artifacts/packages</PackageOutputPath>
+    <!-- 符号包：nuget.org 的 .snupkg 源与包一同推送 -->
+    <IncludeSymbols Condition="'$(IncludeSymbols)' == ''">true</IncludeSymbols>
+    <SymbolPackageFormat Condition="'$(SymbolPackageFormat)' == ''">snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+</Project>

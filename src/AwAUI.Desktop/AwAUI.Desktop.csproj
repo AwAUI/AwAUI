@@ -9,6 +9,11 @@
   <Import Project="buildTransitive/AwAUI.Desktop.props" />
   <PropertyGroup>
     <RootNamespace>AwAUI.Desktop</RootNamespace>
+    <!--
+      暂不发布：程序集在构建期按 AwAUIDesktopTargetOS 只链接一个平台后端，
+      打包会把打包机上的平台固化成依赖。等元包拆成按平台的包（或改为运行时后端选择）后再打开。
+    -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <PropertyGroup Condition="'$(AwAUIDesktopTargetOS)' == 'Windows'">
     <DefineConstants>$(DefineConstants);AWAUI_DESKTOP_WIN32</DefineConstants>

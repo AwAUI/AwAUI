@@ -5,4 +5,14 @@
     <!-- 例如 AwAUI.Render → AwAUI.RenderTests（渲染测试需要强制切换 SIMD 内核档位） -->
     <InternalsVisibleTo Include="$(AssemblyName)Tests" />
   </ItemGroup>
+
+  <!--
+    NuGet 包内容（build/Packaging.props 设置 PackageIcon / PackageReadmeFile 元数据）：
+    - 图标使用仓库根 favicon.png 的 128×128 版本，每个包只增加约 14 KB。
+    - 没有自己的 README.md 的项目使用仓库根 README.md；控件、Shadcn、主题、图标包已各自打包 README。
+  -->
+  <ItemGroup Condition="'$(IsSrcProject)' == 'true' and '$(IsPackable)' != 'false'">
+    <None Include="$(RepoRoot)build/package-icon.png" Pack="true" PackagePath="/" Visible="false" Condition="Exists('$(RepoRoot)build/package-icon.png')" />
+    <None Include="$(RepoRoot)README.md" Pack="true" PackagePath="/" Visible="false" Condition="'$(PackageReadmeFile)' == 'README.md' and !Exists('$(MSBuildProjectDirectory)/README.md')" />
+  </ItemGroup>
 </Project>

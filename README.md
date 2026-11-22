@@ -35,6 +35,11 @@ dotnet test AwAUI.slnx
 dotnet build AwAUI.slnx -p:IncludeNetFx=true
 ```
 
+## 发布 NuGet
+
+包通过 **NuGet.org Trusted Publishing**（GitHub OIDC）发布，不保存长期 API key。
+一次性配置、包清单与发布步骤见 [.github/PUBLISHING.md](.github/PUBLISHING.md)。
+
 ## 运行示例
 
 - [ControlCatalog](samples/ControlCatalog)：Fluent 标准控件，支持明、暗、高对比与紧凑密度。

@@ -14,4 +14,5 @@
     <IsSrcProject Condition="$(MSBuildProjectDirectory.Replace('\','/').Contains('/src/'))">true</IsSrcProject>
     <IsTestProject Condition="$(MSBuildProjectDirectory.Replace('\','/').Contains('/tests/'))">true</IsTestProject>
   </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)build/Packaging.props" />
 </Project>

@@ -14,6 +14,8 @@
     <PackageId>AwAUI.Markup</PackageId>
     <Description>AwAUI 的 .awaui 单文件组件编译器（Roslyn 源生成器 + MSBuild 集成）。</Description>
     <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- 分析器包没有 lib 产物，单独的 .snupkg 会被判为空包（NU5017） -->
+    <IncludeSymbols>false</IncludeSymbols>
     <DevelopmentDependency>true</DevelopmentDependency>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <NoWarn>$(NoWarn);NU5128</NoWarn>

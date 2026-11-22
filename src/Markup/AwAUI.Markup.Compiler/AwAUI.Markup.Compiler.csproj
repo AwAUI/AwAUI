@@ -4,6 +4,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>AwAUI.Markup.Compiler</RootNamespace>
+    <!-- 仅供源生成器以源码链接方式编入 AwAUI.Markup 包，不单独发布 -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <!-- 测试项目按 design 命名为 AwAUI.Markup.UnitTests，与程序集名不同，这里显式授予 -->
