@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Optional MVVM package (design/23): INotifyPropertyChanged helpers, reflection based property paths,
+    binding expressions, data context inheritance, validation and collection views that bridge to AwAUI.UI State<T>.
+  -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="$(RepoRoot)build/Polyfills.props" />
+  <PropertyGroup>
+    <Description>Optional MVVM helpers for AwAUI: observable objects, bindings and collection views.</Description>
+    <RootNamespace>AwAUI.Mvvm</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <!-- Props glue is generated at compile time only; no runtime dependency. -->
+    <ProjectReference Include="../tools/AwAUI.Generators/AwAUI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

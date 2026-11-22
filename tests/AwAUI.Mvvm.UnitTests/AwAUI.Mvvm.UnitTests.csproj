@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build/Tests.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../src/AwAUI.Mvvm/AwAUI.Mvvm.csproj" />
+    <ProjectReference Include="../../src/AwAUI.UI/AwAUI.UI.csproj" />
+  </ItemGroup>
+</Project>

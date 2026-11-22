@@ -1,0 +1,27 @@
+<Project>
+  <!--
+    桌面目标平台（design/01 规则 5、design/15 的 AwAUI.Desktop 元包）。
+
+    AwAUI.Desktop 只为「当前目标平台」引用一个平台程序集：
+      Windows → AwAUI.Win32，macOS → AwAUI.MacOS，Linux → AwAUI.X11。
+    这样 Windows 构建的依赖图里根本不会出现 macOS / X11 的程序集，
+    不需要等 NativeAOT 裁剪，普通 build 与 publish 都不会带上其他平台。
+
+    平台的判定顺序：
+      1. RuntimeIdentifier（dotnet publish/build -r win-x64 / osx-arm64 / linux-x64，含 -musl）
+      2. 没有 RID 时按构建宿主操作系统
+      3. 其他目标（browser / android / ios）保持为空：AwAUI.Desktop 不引用任何平台，UsePlatformDetect() 抛 PlatformNotSupportedException
+
+    宿主项目导入本文件后，AwAppBuilder 的 ProjectReference 通过 AdditionalProperties 把
+    AwAUIDesktopTargetOS 传给 AwAUI.Desktop（MSBuild 的 RuntimeIdentifier 不会自动传给
+    ProjectReference 的引用项目，必须显式传递）。
+  -->
+  <PropertyGroup>
+    <AwAUIDesktopTargetOS Condition="'$(AwAUIDesktopTargetOS)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win'))">Windows</AwAUIDesktopTargetOS>
+    <AwAUIDesktopTargetOS Condition="'$(AwAUIDesktopTargetOS)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx'))">macOS</AwAUIDesktopTargetOS>
+    <AwAUIDesktopTargetOS Condition="'$(AwAUIDesktopTargetOS)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux'))">Linux</AwAUIDesktopTargetOS>
+    <AwAUIDesktopTargetOS Condition="'$(AwAUIDesktopTargetOS)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">Windows</AwAUIDesktopTargetOS>
+    <AwAUIDesktopTargetOS Condition="'$(AwAUIDesktopTargetOS)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">macOS</AwAUIDesktopTargetOS>
+    <AwAUIDesktopTargetOS Condition="'$(AwAUIDesktopTargetOS)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">Linux</AwAUIDesktopTargetOS>
+  </PropertyGroup>
+</Project>

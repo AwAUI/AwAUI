@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    桌面应用组合根（design/01 规则 5 的目标形态、design/15 的 AwAUI.Desktop 元包）。
+
+    应用只引用本程序集，不直接引用任何平台后端；UsePlatformDetect() 在构建期选择目标平台，
+    依赖图里只有一个平台程序集。平台选择见 buildTransitive/AwAUI.Desktop.props。
+  -->
+  <Import Project="$(RepoRoot)build/TargetFrameworks.props" />
+  <Import Project="buildTransitive/AwAUI.Desktop.props" />
+  <PropertyGroup>
+    <RootNamespace>AwAUI.Desktop</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(AwAUIDesktopTargetOS)' == 'Windows'">
+    <DefineConstants>$(DefineConstants);AWAUI_DESKTOP_WIN32</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(AwAUIDesktopTargetOS)' == 'macOS'">
+    <DefineConstants>$(DefineConstants);AWAUI_DESKTOP_MACOS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(AwAUIDesktopTargetOS)' == 'Linux'">
+    <DefineConstants>$(DefineConstants);AWAUI_DESKTOP_X11</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 平台无关的运行时 -->
+    <ProjectReference Include="../AwAUI.Foundation/AwAUI.Foundation.csproj" />
+    <ProjectReference Include="../AwAUI.Platform/AwAUI.Platform.csproj" />
+    <ProjectReference Include="../AwAUI.Css/AwAUI.Css.csproj" />
+    <ProjectReference Include="../AwAUI.Text/AwAUI.Text.csproj" />
+    <ProjectReference Include="../AwAUI.Render/AwAUI.Render.csproj" />
+    <ProjectReference Include="../AwAUI.UI/AwAUI.UI.csproj" />
+    <!-- 只引用目标平台的窗口后端 -->
+    <ProjectReference Condition="'$(AwAUIDesktopTargetOS)' == 'Windows'" Include="../Windows/AwAUI.Win32/AwAUI.Win32.csproj" />
+    <ProjectReference Condition="'$(AwAUIDesktopTargetOS)' == 'macOS'" Include="../MacOS/AwAUI.MacOS/AwAUI.MacOS.csproj" />
+    <ProjectReference Condition="'$(AwAUIDesktopTargetOS)' == 'Linux'" Include="../Linux/AwAUI.X11/AwAUI.X11.csproj" />
+  </ItemGroup>
+</Project>
