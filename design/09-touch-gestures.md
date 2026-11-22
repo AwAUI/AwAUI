@@ -29,7 +29,7 @@
 3. 只剩一个识别器，或有识别器胜出时裁决；胜者独占后续事件，其余收到取消。
 4. 裁决前不触发有副作用的回调，但允许即时的视觉反馈（按下态）。
 
-内建识别器：Tap、DoubleTap、LongPress、Pan（含方向锁定）、Scroll、Pinch（缩放）、Rotate、Swipe（带速度阈值）、EdgeSwipe。可自定义识别器。
+内建识别器：Tap、DoubleTap、LongPress、Pan（含方向锁定）、Scroll、Pinch（缩放）、Rotate、Swipe（带速度阈值）、EdgeSwipe（系统边缘返回）。可自定义识别器。
 
 组件上的用法是声明式的：
 
@@ -59,9 +59,11 @@ new Div { OnTap = ..., OnLongPress = ..., OnPan = e => offset.Value += e.Delta }
 - **滚动锚定**、滚动条（触摸下为自动隐藏的指示条）、点击状态栏回到顶部（iOS）。
 - 常见复合模式作为标准组件提供：下拉刷新、侧滑操作、底部抽屉（Sheet）、可拖拽排序。
 
-**现状（第八批）**：
-- 已有：`VelocityTracker`（约 100 ms 的加权最小二乘）；触摸移动超过 8 px 容差后成为滚动拖动并锁定主轴，被按下的元素收到 `pointercancel`、不触发 click；松手后按物理惯性；`BouncingPhysics`（iOS 风格，橡皮筋与弹簧回弹）、`ClampingPhysics`（Android 风格样条减速）、`DesktopPhysics` 三种内建物理，桌面默认 `DesktopPhysics`，触摸可经 `RenderPipeline.TouchScrollPhysics` 换掉；按 `OverscrollBehavior` 把滚动交给外层容器；触摸下滚动条总是覆盖式指示条。接口见 [21](21-gesture-scroll-api.md)。
-- 还没有：手势竞技场（滚动拖动内建在滚动管理器里，不与其他识别器竞争）、重采样与预测、`touch-action`、`overscroll-behavior` 等 CSS 属性（只能经 `ScrollController` 设置）、按平台取物理默认值、拉伸 / 光晕越界效果（画成钳制）、滚动吸附与锚定、合成器线程滚动（物理在 UI 线程上推进）。Win32 的触摸以模拟鼠标到达，触摸拖动在那里不适用。没有在真实触摸设备上验证过手感。
+**现状（第十一批）**：
+- 已有：`VelocityTracker`（约 100 ms 的加权最小二乘）；触摸移动超过 8 px 容差后成为滚动拖动并锁定主轴，被按下的元素收到 `pointercancel`、不触发 click；松手后按物理惯性；`BouncingPhysics`（iOS 风格，橡皮筋与弹簧回弹）、`ClampingPhysics`（Android 风格样条减速）、`DesktopPhysics` 三种内建物理，桌面默认 `DesktopPhysics`，触摸可经 `RenderPipeline.TouchScrollPhysics` 换掉；按 `OverscrollBehavior` 把滚动交给外层容器；触摸下滚动条总是覆盖式指示条。`scroll-snap-type / align / stop` 已接入滚动管理器（用户输入结束后吸附到最近点，`always` 的吸附点截住惯性；内容 / 视口变化后的重新吸附推迟到下一次用户滚动）。`NestedScrollConnection` 的 pre / post 钩子覆盖滚轮与触控板、触摸拖动与惯性、键盘、滚动条翻页（程序滚动与拖动滑块不调用）。接口见 [21](21-gesture-scroll-api.md)。
+- 手势：竞技场与内建 Tap / DoubleTap / LongPress / Pan / Swipe / Pinch / Rotate / EdgeSwipe 全部实现；`touch-action` 控制 Pan / Pinch / Rotate 入场；Pinch / Rotate 通过多指针转发同时观察两个接触点，第二根手指不会打断同一元素上的 Tap / Pan。`EdgeSwipeGestureRecognizer` 按视口坐标判定边缘带（默认 20 px，可限定单边），向内移动超过容差后胜出、抬起时派发 `EdgeSwipeEvent`；`touch-action: none` 不阻止它入场。手势参数可按子树覆盖：命中元素所属组件用 `Context.Provide` 提供 `GestureSettings` 后，竞技场在按下时取最近的设置写入本次序列的全部识别器；没有提供时用 `GestureSettings.Default`。`@ontap` / `@onlongpress` / `@onedgeswipe` 等标记属性已映射到处理器（见 [21](21-gesture-scroll-api.md)）。
+- 滚动锚定：每个可纵向滚动的容器默认开启（`ScrollController.ScrollAnchoring`）。采样视口内文档序第一个可见常规流元素，内容在锚点上方变化而偏移未被用户输入 / 程序滚动改变时，调整偏移使锚点停在视口内同一位置；只做纵向，横向未实现。拖动、惯性 / 平滑动画、滚动条拖动与当帧 `ScrollTo` / `JumpTo` 期间不校正，只重设基准。锚点选择沿「第一个可见子元素」路径下探（跳过绝对 / 固定 / sticky、`visibility: hidden`、嵌套滚动容器），深度上限 64；无 `Key` 的列表在顶部插入时按序号复用元素，锚点身份可能与新内容对应，依赖 `Key` 的稳定列表最准确。
+- 还没有：重采样与预测、按平台取手势 / 物理默认值、拉伸 / 光晕越界效果（画成钳制）、横向滚动锚定、合成器线程滚动（物理在 UI 线程上推进）。滚动相关 CSS 已接入：`overscroll-behavior`、`scrollbar-width / color`、`scroll-behavior`、`scroll-margin / padding`、`scrollbar-gutter`，经典滚动条按 `overflow` / `scrollbar-gutter` 在布局中预留宽度。触摸拖动滚动仍内建在滚动管理器里，不经竞技场，滚动接管时取消该指针的竞技场；多指识别器不参与单指针竞技场的冲突裁决，只按 `touch-action` 与命中路径过滤，只跟踪前两个指针。滚动吸附不处理 writing-mode（`block` 恒为纵向、`inline` 恒为横向），吸附区域按最近的可滚动祖先归属。Win32 的触摸以模拟鼠标到达，触摸拖动在那里不适用。触摸下的文本选择（长按放大镜 / 选择手柄、软键盘联动）尚未实现。没有在真实触摸设备上验证过手感。
 
 ## 触摸下的文本交互
 
@@ -91,7 +93,7 @@ new Div { OnTap = ..., OnLongPress = ..., OnPan = e => offset.Value += e.Delta }
 
 ## 调试支持（与 06 联动）
 
-- 触摸点与轨迹可视化叠加层。
+- 触摸点可视化叠加层（第十一批：DevTools 叠加层绘制活动触摸 / 笔指针的圆与十字准星；轨迹仍待做）。
 - 手势竞技场日志：每次触摸有哪些识别器参赛、谁在何时胜出或退出及原因。
 - 桌面上用鼠标模拟触摸（含 Alt 拖动模拟双指捏合）。
 - 录制并重放触摸序列，用于复现问题与自动化测试。

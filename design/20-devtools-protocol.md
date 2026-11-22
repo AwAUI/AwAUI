@@ -138,7 +138,7 @@ M1 实现说明：
 - 按帧合并：attributesChanged（`attributes` 只含本帧变化的属性，null 表示移除；class 变化带完整 `classes`，id 变化带 `elementId`）、textChanged、pseudoStateChanged、childCountUpdated。立即发送：childrenChanged、childMoved、documentUpdated。
 - `getOuterText` 格式：每行一个节点，每级缩进两个空格，不写结束标签；元素写作 `<tag id=".." class=".." attr=".." style="..">`，文本节点为带引号的转义字符串；`includeStyles: "key"` 输出固定的一组计算属性，`"all"` 输出全部。
 - `setAttribute`：id、class、style 与自定义属性可编辑（name 为 `id` / `class` 时修改元素 id / class，style 见下文 Css）；映射到内建属性的 role、aria-label、tabindex、src、alt、type、value、placeholder、disabled、readonly 返回 -32004。
-- 尚未实现：`Tree.search`、`Tree.scrollIntoView`、`Tree.focus`（接缝上也还没有对应方法）。
+- `Tree.search({ query })` 按标签名、id、class、元素的直接文本内容与 CSS 选择器匹配元素；`match` 为 `"tag" | "id" | "class" | "text" | "selector"`。按文档顺序、去重；无法解析的选择器不是错误（只是没有选择器匹配）。结果数受 `MaxTreeNodesPerResponse` 限制，超出时带 `truncated: true`。`scrollIntoView` / `focus` 通过接缝实现（最近的滚动容器 / 程序聚焦，`preventScroll`），三个方法都不需要 enable。尚未实现：按文本内容匹配祖先（只报告直接含文本的元素）与大小写不敏感的其它模糊匹配。
 
 `Tree.getOuterText` 把子树输出为缩进的标记文本，是给日志、Bug 报告和 AI 使用的紧凑形式。
 
@@ -189,7 +189,7 @@ M1 实现说明：
 - `forcePseudoState` 需要 enable，只接受 hover、active、focus、focus-visible、focus-within、disabled、checked、placeholder-shown。
 - 声明状态按源声明聚合 `StyleMatchRecord`：任一展开后的长属性胜出即 active，否则为 overridden / invalid / unsupported。继承的规则与计算值来源最多向上查 64 个祖先。
 - `Css.computedStyleInvalidated` 按帧合并，只列出 Tree 域已发送给该会话的节点；styleSheet* 事件立即发送。`Css.enable` 不会把已有样式表重放为 styleSheetAdded，前端应调用 `getStyleSheets`。
-- 尚未实现：`Css.getVariables`。
+- `Css.getVariables` 从节点的计算样式取全部生效的 `--*`（含从祖先继承的值），按名称排序；`definedOn` 是定义该值的节点 id（继承时为最近的、含胜出声明的祖先），`ruleId` 是胜出声明所在的规则（内联样式没有）。读取不需要 enable。
 
 ## Components
 
@@ -232,6 +232,7 @@ Overlay.setInspectMode(params: { mode: "none" | "pick" | "measure" })
 Overlay.setShowOptions(params: { layoutGrids?: NodeId[], rulers?: boolean, hitTargets?: boolean, touches?: boolean })
 
 // 事件
+Layout.layoutPass { frameId, durationMs, layoutRan, nodeCount }   // 启用 Layout 后，每帧真正运行布局引擎时推送
 Overlay.nodePicked { nodeId } / Overlay.inspectModeCanceled {}
 
 type HighlightConfig = { showInfo?, showRulers?, showExtensionLines?,
@@ -240,8 +241,14 @@ type HighlightConfig = { showInfo?, showRulers?, showExtensionLines?,
 
 M1 实现说明：
 
-- `Layout.getBoxModel` 的四边形为 8 个数（从左上角起顺时针，窗口坐标），`width / height` 是边框盒尺寸；没有布局盒的节点（`Text` 内的 `Span`、文本节点）返回 -32602，非有限坐标写成 0。`Layout.getLayoutInfo` 与 `layoutPass` 事件尚未实现。
-- Overlay 的方法都需要 enable；颜色格式错误返回 -32602。覆盖层由一个窗口的所有会话共享，后设置者生效；设置高亮或拾取模式的会话停用 Overlay 或断开时，高亮被隐藏、模式回到 none（所以「高亮后立即断开」的脚本看不到高亮）。`nodePicked` 发给所有启用了 Overlay 的会话；经协议进入的拾取模式不会因一次拾取而退出。`Overlay.setShowOptions` 尚未实现。
+- `Layout.getBoxModel` 的四边形为 8 个数（从左上角起顺时针，窗口坐标），`width / height` 是边框盒尺寸；没有布局盒的节点（`Text` 内的 `Span`、文本节点）返回 -32602，非有限坐标写成 0。
+- `Layout.getLayoutInfo` 已实现：`display` 来自计算样式；`constraints` 是计算样式中的固定像素 min / max 值（`auto`、`none`、百分比、`min-content` 等无法表示为固定像素的约束写成 `null`）；`lastLayoutFrame` 是快照生成时帧管线的帧版本（`RenderPipeline.FrameVersion`），不是逐节点的「最后一次布局帧」。
+  - `isLayoutBoundary` 对根、绝对 / 固定定位元素与滚动容器报告 true；flex / grid 容器保持 false（计算样式阶段行内级容器会被块级化，无法可靠区分独立格式化上下文与随内容取尺寸的容器）。
+  - flex / grid 轨道（第十批）：完整布局时布局引擎在 `LayoutNode` 上记录最近一次使用的轨道尺寸与起点；`getLayoutInfo` 对 flex 容器输出 `flex: { tracks: { x: number[], y: number[] } }`（row 容器在 x，column 容器在 y；尺寸不含 gap），对 grid 容器输出 `grid: { columns: number[], rows: number[] }`（两轴都含，RTL 时列起点按物理位置镜像）。不是对应容器或尚未完成完整布局时省略该字段。
+  - `invalidatedBy`（第十一批）：元素经 `MarkDirty` 标脏时记录最近的来源元素与属性名（`id` / `class` / `style` / 自定义属性名 / 属性名 / `scope`），并沿祖先更新，协议层输出 `{ nodeId, property }`；样式与布局阶段都处理掉该失效后清除。这是 UI 侧的近似：只跟踪经 `MarkDirty` 传播的最近来源，不是布局引擎内部的失效原因。
+  - `layoutPass` 事件（第十一批）：启用 Layout 的会话在每帧真正运行布局引擎后收到 `{ frameId, durationMs, layoutRan, nodeCount }`，`frameId` 是 UI 根单调帧号，`durationMs` 是布局阶段墙钟耗时，`nodeCount` 是布局节点数（含生成内容）。计数是惰性的，只有 DevTools 读取时才遍历，未启用时没有额外开销；缓存的帧不推送。
+- Overlay 的方法都需要 enable；颜色格式错误返回 -32602。覆盖层由一个窗口的所有会话共享，后设置者生效；设置高亮、拾取模式或显示选项的会话停用 Overlay 或断开时，高亮被隐藏、模式回到 none、显示选项恢复为全部关闭（所以「高亮后立即断开」的脚本看不到高亮）。`nodePicked` 发给所有启用了 Overlay 的会话；经协议进入的拾取模式不会因一次拾取而退出。
+- `Overlay.setShowOptions` 已实现：选项按目标保存，由设置它的会话拥有并在其停用 / 断开时清除。UI 叠加层按选项绘制视口标尺、当前高亮元素的命中矩形、`layoutGrids` 指定的 flex / grid 轨道带与活动触摸 / 笔指针（圆 + 十字准星，鼠标不绘制；拾取模式自己截获的指针不可见），选项变化会重新合成。见 06「覆盖层」。
 
 ## Render / Perf
 

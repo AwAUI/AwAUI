@@ -59,7 +59,7 @@ JSON-RPC 2.0 风格：请求/响应 + 事件推送，按 Domain 划分，借鉴 
 |---|---|---|
 | `Tree` | `getDocument` `requestChildren` `pushNodePath` `describeNode` `querySelector(All)` `getNodeAt` `setAttribute` `removeAttribute` `setClasses` `getOuterText` `search` | `childrenChanged` `childMoved` `attributesChanged` `textChanged` `pseudoStateChanged` |
 | `Components` | `getTree` `getProps` `getState` `setState` `getElementsOf` | `componentRebuilt`（含原因） |
-| `Css` | `getMatchedRules` `getComputedStyle` `getInlineStyle` `setStyleText` `addRule` `getStyleSheets` `getStyleSheetText` `setStyleSheetText` `forcePseudoState` `clearOverrides` | `styleSheetChanged` `styleSheetAdded` `computedStyleInvalidated` |
+| `Css` | `getMatchedRules` `getComputedStyle` `getInlineStyle` `getVariables` `setStyleText` `addRule` `getStyleSheets` `getStyleSheetText` `setStyleSheetText` `forcePseudoState` `clearOverrides` | `styleSheetChanged` `styleSheetAdded` `computedStyleInvalidated` |
 | `Layout` | `getBoxModel` `getLayoutInfo` `explainLayout` | `layoutPass` |
 | `Overlay` | `highlightNode` `hideHighlight` `setInspectMode` `setShowOptions` | `nodePicked` `inspectModeCanceled` |
 | `Render` | `getDisplayList` `getLayerTree` `setDebugOption`(重绘闪烁/层边框/过度绘制/批次着色) `captureScreenshot` `captureNode` | `framePresented` |
@@ -72,7 +72,7 @@ JSON-RPC 2.0 风格：请求/响应 + 事件推送，按 Domain 划分，借鉴 
 | `Console` | `getLogs` `listCommands` `invokeCommand` | `logEntry` |
 | `App` | `getInfo`（平台、后端、能力、版本）`setTheme` `setScale` `simulate`(慢动画/安全区/字体缩放/RTL/减少动效) `reload` | |
 
-表中是示例，准确的签名以 [20](20-devtools-protocol.md) 为准（属性编辑归入 `Tree` 域，不单设 `Attrs` 域）。M1 已实现 `App`、`Console`、`Tree`、`Css`、`Layout`（只有 `getBoxModel`）、`Overlay` 六个域，未实现的方法见 20。
+表中是示例，准确的签名以 [20](20-devtools-protocol.md) 为准（属性编辑归入 `Tree` 域，不单设 `Attrs` 域）。M1 已实现 `App`、`Console`、`Tree`、`Css`、`Layout`（`getBoxModel` 与 `getLayoutInfo`）、`Overlay` 六个域；后续补充了 `Tree.search` / `scrollIntoView` / `focus`、`Css.getVariables`、`Overlay.setShowOptions`、`Layout.getLayoutInfo` 的 flex / grid 轨道，面板前端另有样式表编辑与组件页；未实现的方法与限制见 20。
 
 关于 Console：AOT 平台不能运行时 `eval` C#。以**命令注册表**替代 —— 框架与应用可注册具名的调试命令（带类型化参数），DevTools 列出并调用。在支持 JIT 的桌面 Debug 构建上，可选接入 Roslyn 脚本作为增强（独立包）。
 
@@ -163,7 +163,9 @@ DevTools 不是最后做的东西 —— 越早有它，框架自身开发越快
 
 **F12 拾取**：F12（`UIDevToolsOptions.ToggleInspectKey`）切换拾取模式，Esc 取消；拾取期间宿主捕获指针输入，输入不会到达应用，命中测试忽略 `pointer-events`。本地用 F12 发起的拾取在选中一次后退出并保留高亮（同浏览器）；前端经协议 `Overlay.setInspectMode` 发起的拾取保持开启，直到前端关闭（见 20）。
 
-**覆盖层**：高亮按浏览器配色画 margin / border / padding / content 与尺寸标签，是一个单独的 DisplayList，由 `UIHost` 在呈现时叠加在应用帧之上；它不进入应用的 `Pipeline.Frame`，也不参与命中测试。覆盖层版本变化时即使应用帧没变也重新呈现，并且每次合成都重新读取布局，因此跟随布局变化。
+**运行时 Tailwind**：`UIDevToolsOptions.ClassCandidates` 接到 `TailwindRuntime.TryAddCandidates`、`ClassCandidatesRemoved` 接到 `RemoveCandidates` 后，DevTools 会在帧末比较整棵元素树上的类名集合：本帧新出现的类名交给新增回调，不再出现的交给移除回调（初始树、新插入的子树、协议或本地修改 `class` 都覆盖；应用自定义的非 Tailwind 类被静默忽略，不会进入无效类列表）。稳定之后的帧不调用回调；同一个类名消失后再出现会重新报告，因此移除的规则可以撤回、回来时原位恢复。配合 `TailwindRuntime.BindIncremental(styleSheet.Update)`，在 DevTools 里改类名后下一帧即可看到新生成或撤回的样式；绑定同时给出第一个变化的顶层偏移，`AppStyleSheet` 复用已解析的前缀规则，只重新解析变化后的尾部。DevTools 自己的样式编辑同样增量解析：改一条规则的声明块时从它所在的最外层规则起点（`StyleSheet.ParseIncremental`）重新解析，末尾追加新规则时从原文本末尾开始，前缀规则对象与源码区间保持不变。观察者只读遍历，回调在帧末、协调之外执行。集成测试（`ClassCandidateTests`）经进程内协议改 `class`，验证初始树、新子树与协议修改都在下一帧末报告。
+
+**覆盖层**：高亮按浏览器配色画 margin / border / padding / content 与尺寸标签，是一个单独的 DisplayList，由 `UIHost` 在呈现时叠加在应用帧之上；它不进入应用的 `Pipeline.Frame`，也不参与命中测试。覆盖层版本变化时即使应用帧没变也重新呈现，并且每次合成都重新读取布局，因此跟随布局变化。`Overlay.setShowOptions` 的选项按目标保存，并在绘制中生效（第十批、第十一批）：标尺画在视口顶边与左边（50 px 刻度、主刻度带坐标），命中目标给当前高亮 / 拾取悬停元素描边（没有全局命中表，因此不列出全部可点击目标），布局网格按 `LayoutGrids` 指定的节点读取布局引擎最近一次完整布局记录的列 / 行轨道带；触摸点叠加绘制活动触摸 / 笔指针（半透明圆 + 十字准星，鼠标只记录不绘制），位置来自 `InputManager` 的活动指针表，按下 / 移动 / 抬起 / 取消时更新并在选项开启时触发重新合成；拾取模式自己截获的指针不进入应用的输入管理器，因此不显示。选项变化会触发重新合成。叠加层整体裁剪到视口。
 
 **前端**：M1 时尚未实现，示例把 `UIDevTools.DescribeElement(picked)`（选中元素的匹配规则）打印到控制台，完整的检查与编辑经协议进行。第七批完成了独立窗口形态，见下文。
 
@@ -191,13 +193,20 @@ DevTools 不是最后做的东西 —— 越早有它，框架自身开发越快
 **功能**：
 
 - **元素树**：按节点 id 增量镜像（`TreeMirror`，由 Tree 域事件维护）；遍历全是迭代的，节点数有上限，重复或成环的 id 被忽略。初次用 `getDocument` depth -1（Agent 每次最多返回 1 万个节点），展开时 `requestChildren` depth 2。只有一个短文本子节点的元素画成一行（同浏览器），组件的第一个元素旁标出组件名。树视图虚拟化：行高固定 20px，只为视口内的行（再多一行）建元素，行的 Key 是节点 id；滚动条可拖动（`SetPointerCapture`）；展开 / 折叠、方向键与 PageUp/PageDown 导航。结构事件只标记「需要夹紧滚动」，在下一次 `TreeView` 重建时执行，所以一批事件的代价是 O(事件数 × 子节点数) 加一次 O(行数)。
+- **搜索**：元素面板顶部的搜索框经 `Tree.search` 查询（输入去抖、回车立即执行），结果显示命中原因（tag / id / class / text / selector）与短标签；选中结果经 `pushNodePath` 展开祖先、选中节点，并调用 `Tree.scrollIntoView` 滚动应用。空查询清空结果；无结果、截断与错误都显示在结果列表里。
 - **选中与拾取**：悬停某行时应用里高亮该元素，离开后回到选中元素的高亮；应用里按 F12 打开面板并进入拾取；面板工具栏的 Select、面板窗口里的 F12 或 Ctrl/Cmd+Shift+C 走协议拾取，选中一次后退出；Esc 取消。
-- **Styles 页**：element.style、匹配的规则（来源文件:行号）与继承的规则（只显示可继承属性）；被覆盖的声明有删除线，无效或不支持的声明标出原因，颜色值旁有色块。
+- **Styles 页**：element.style、匹配的规则（来源文件:行号）与继承的规则（只显示可继承属性）；被覆盖的声明有删除线，无效或不支持的声明标出原因，颜色值旁有色块。顶部有 `StyleInspector.ForceablePseudoStates` 里每个状态的开关，经 `Css.forcePseudoState` 强制（全部取消时发空数组）；选中变化、`Css.clearOverrides` 或会话断开时开关复位。
+- **Attributes 页**：id、class 与其它属性逐行显示，点值即编辑、`+ add attribute` 新增，用 `Tree.setAttribute` / `Tree.removeAttribute` / `Tree.setClasses` 写回；成功后用 `Tree.describeNode` 刷新该行。只读属性（`role` 等）的 -32004 直接显示为错误。
 - **编辑**：点值即编辑（编辑框初始文本含 `!important`，与显示一致），回车提交、Esc 取消、失焦提交；可以新增 `name: value`；勾选框注释掉或恢复一条声明；Reset edits 调用 `Css.clearOverrides`。全部用已有的 `Css.setStyleText` 替换整个声明块，协议没有新增方法；块文本由已解析的声明重建（注释掉的写成 `/* */`），所以原来的注释与格式不保留；默认样式表不可编辑。原样提交不发请求；编辑期间推迟的刷新在提交后补做。
 - **Computed 页**（默认隐藏初始值）、**Events 页**（最近 300 条协议事件）、底部盒模型图（`Layout.getBoxModel`）、状态栏的祖先路径与节点数。
 - **状态**：集中在 `InspectorModel`，树、样式、外框、日志四个 `State<int>` 版本号分别驱动对应组件重建；样式刷新按令牌丢弃过期响应，同一轮调度里的多个事件只刷新一次。
 
 **滚轮与按键**（第八批）：滚动系统落地后（[21](21-gesture-scroll-api.md)）删除了包装 `IWindowEvents` 的 `PanelWindowEvents`。树视口与右侧样式区用元素的 `OnWheel`：虚拟化的树只描述可见的行，由模型自己滚动，所以处理器调用 `PreventDefault` 阻止滚动系统的默认滚动（样式区同样由模型滚动，只有滚轮、没有滚动条）。快捷键挂在面板根元素的 `OnKeyDown` 上，根元素 `TabIndex = -1`（可程序聚焦、不在 Tab 顺序中），点击面板任何位置焦点都落在面板内，按键冒泡到根。测试 `PanelScrollTests`。
+
+**样式表与组件页**（第十批）：侧栏新增 `Stylesheets` 与 `Components` 两个标签，与已有的 `Styles` / `Computed` / `Attributes` / `Events` 并列。
+- `Stylesheets` 页调用 `Css.getStyleSheets` 列出全部样式表（来源 / 标题、origin、disabled、editable），选中时用 `Css.getStyleSheetText` 取文本，在等宽 `TextArea` 中编辑，Apply 调用 `Css.setStyleSheetText` 并显示返回的诊断（severity / message / code / 行 / 列）；只读样式表不可编辑，有错误时保留用户文本。`styleSheetChanged` / `styleSheetAdded` / `styleSheetRemoved` 事件会刷新列表与文本，但外部修改不会覆盖尚未保存的草稿，自身 Apply 引起的刷新也不覆盖编辑框。
+- `Components` 页从元素镜像的 `ComponentName` 构建组件实例树（按最近的组件祖先建立父子关系），显示实例总数与截断标记（上限 1000），点击实例在 Elements 树中选中对应节点。该页是前端本地视图，不依赖尚未实现的 `Components` 协议域；协议侧仍只有 `Tree` / `Css` / `Layout` / `Overlay` 等域。
+- 新增视图的样式集中在 `PanelStyles`，标签栏压缩了内边距以容纳六个标签；`DevTools.Tests` 的 `StylesheetEditorTests` 与 `ComponentsPageTests` 覆盖请求、Apply、诊断、外部刷新、选择与空状态。
 
 **示例**：Counter 的 `--devtools-panel`：窗口模式启动时打开面板；`--headless` 时另写一张「应用 | 面板」并排的 `<输出>-devtools.png`，面板中选中 `--highlight` 指定的元素（默认 `count`）。
 
@@ -206,7 +215,7 @@ DevTools 不是最后做的东西 —— 越早有它，框架自身开发越快
 **验证范围与已知缺口**：
 
 - 真实 macOS 窗口里只跑过 `Counter --devtools-panel --exit-after-ms`（应用与面板两个 Metal 窗口共用一个后端，面板渲染了 10 帧，没有崩溃）；没有截过真实窗口的图，也无法向真实窗口注入 F12 或点击，像素层面只经无头测试与 PNG 验证。Windows、Linux 与 net48 运行时都没有跑过。
-- 没做：搜索（依赖协议里尚未实现的 `Tree.search`）、强制伪状态与属性 / class 编辑的界面（协议的 `Css.forcePseudoState`、`Tree.setAttribute` 已有）、样式表编辑、源码跳转、组件页。
+- 没做：源码跳转、内嵌停靠形态与远程独立应用。样式表编辑与组件页已在第十批补上（见下文）。
 - 面板模型收到 `Disconnected` 后只显示「Disconnected」，不会重连后重新 hello 与加载（客户端层支持重连，目前没有自动重连的传输）。
 - 任何 `childrenChanged`、`childMoved`、`textChanged` 都会刷新选中元素的样式（3 个请求，按调度轮合并），应用每帧改文本时面板每帧发 3 个请求。
 - 事件日志先把完整参数序列化再截成 160 个字符，大的 `inserted` 子树是 O(参数大小)。

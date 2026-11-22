@@ -66,6 +66,7 @@ AwAUI 是一个用 C# 实现的跨平台自绘 UI 引擎：**声明式组件（`
 | [21-gesture-scroll-api.md](21-gesture-scroll-api.md) | 手势识别器、竞技场、滚动控制与滚动物理的接口 |
 | [22-controls.md](22-controls.md) | 标准控件库：通用约定、设计令牌、基础设施（控件清单的早期草案） |
 | [23-component-library.md](23-component-library.md) | 组件库总体设计：行为原语、Avalonia 风格基础控件与 Fluent 主题、Tailwind 兼容工具类、shadcn 组件库、注册表与扩展 |
+| [24-mobile-wayland-backends.md](24-mobile-wayland-backends.md) | Android、iOS、Linux Wayland 后端的接口级实施方案：TFM、宿主、表面、输入/IME、服务、无障碍、打包与 CI |
 
 ## 决策记录
 
@@ -98,9 +99,9 @@ AwAUI 是一个用 C# 实现的跨平台自绘 UI 引擎：**声明式组件（`
 | D23 | 扩展点形态 | 抽象基类 + 可选能力接口（因 netstandard2.0 无接口默认实现） | ✅ |
 | D24 | 布局引擎归属 | 独立程序集 `AwAUI.Layout`，只依赖 Foundation，输入为自有的 `LayoutStyle`，UI 层负责从 `ComputedStyle` 映射（[08](08-css.md)） | ✅ |
 | D25 | 运行时命名空间 | 组件运行时类型在 `AwAUI.UI`，避免 `Text` 元素与 `AwAUI.Text` 命名空间冲突；字体抽象在 `AwAUI.Graphics.Text`（[12](12-component-api.md)、[19](19-text-api.md)） | ✅ |
-| D26 | 组合根 | 应用自己创建平台、渲染后端、文本引擎并交给 `AwApp.Run / CreateHost`（`UIHost`），UI 不引用 Render；DevTools 按窗口 `EnableDevTools` 开启。构建器式 `AwApp.Create()...` 仍是目标形态（[01](01-architecture.md)） | ✅ |
+| D26 | 组合根与窗口托管 | `AwAUI.Desktop` 的 `AwAppBuilder.Create()` 提供托管组合根（`UsePlatformDetect` / `UseRenderer` / `UseDefaultTextEngine` / `UseStyleSheet` / `UseShutdownMode` / `Run<TApp>`）；平台在构建期按 RID 或宿主 OS 选定，应用不引用平台程序集。应用对象 `Application` 只持有全局样式与 `ApplicationLifetime`；`DesktopApplicationLifetime` 管理 `Windows / MainWindow / ShutdownMode`，`Window` 在 `Show` 时登记并支持自绘边框（`WindowDecorations.None` + `IWindowChrome`）。底层 API 仍是 `AwApp.Run / CreateHost`（`UIHost`），UI 不引用 Render；DevTools 按窗口 `EnableDevTools` 开启。GPU 自动选择仍是后续项（[01](01-architecture.md)、[04](04-platform.md)、[15](15-repo-structure.md)） | ✅ |
 | D27 | DevTools 接缝 | `AwAUI.Diagnostics` 定义抽象类 `InspectableTree / StyleInspector / OverlayHost`，由 `AwAUI.UI` 实现；Diagnostics 只依赖 Foundation（[06](06-devtools.md)） | ✅ |
-| D28 | `.awaui` 胶水与样式 | `.awaui` 类的 Props 胶水只由标记生成器产出，C# 胶水生成器跳过 `*.awaui.cs`；作用域样式由编译器改写选择器、运行时在组件类型首次挂载时注册（[14](14-awaui-format.md)、[17](17-awaui-grammar.md)、[12](12-component-api.md)） | ✅ |
+| D28 | `.awaui` 胶水与样式 | `.awaui` 类的 Props 胶水只由标记生成器产出，C# 胶水生成器跳过 `*.awaui.cs`；样式支持内联 `<style>`、`X.awaui.css`（唯一/作用域，含 `::deep`）、`X.awaui.global.css`，项目级共享样式由 `<AwAUIGlobalStylesheet>` 合并为 `AwAUIGlobalStyles` 并在模块初始化时登记；选择器由编译器改写、运行时在组件类型首次挂载时注册（[14](14-awaui-format.md)、[17](17-awaui-grammar.md)、[12](12-component-api.md)） | ✅ |
 | D29 | RHI 形态 | 不提供 `CreatePipeline / CreateBuffer`：管线为枚举 + 混合状态，实例数据布局（`GpuQuadInstance` 等）作为契约定义在 RHI 中，缓冲只来自每帧的上传环；RHI 与 GPU 后端归入 `AwAUI.Render`，各图形 API 实现为独立程序集（[03](03-renderer.md)） | ✅ |
 | D30 | Web 平台 TFM | `AwAUI.Browser` 只编译 `net10.0-browser`；其测试项目直接编译库的 `Translation/` 源码（[11](11-compatibility.md)） | ✅ |
 | D31 | SVG 解析 | `AwAUI.Svg` 自写 XML 子集解析器而不用 System.Xml（不展开实体，避免 XXE / 实体膨胀，减小 AOT/WASM 体积）；只依赖 Foundation、Graphics（[07](07-roadmap.md)） | ✅ |
@@ -124,6 +125,8 @@ AwAUI 是一个用 C# 实现的跨平台自绘 UI 引擎：**声明式组件（`
 | D49 | 逻辑属性 | 在解析时作为别名映射到左到右横排下的物理属性（与该情形下的级联完全一致）；代价是逻辑属性名按简写序列化（计算值文本为空），rtl 与竖排要等 `direction` / `writing-mode`（[16](16-css-properties.md)） | ✅ |
 | D50 | 原语的纯逻辑与 UI 接入分离 | `AwAUI.Controls.Primitives` 的定位、选择、导航、关闭层栈、焦点作用域、Presence、虚拟化先实现为不访问元素树的纯计算：元素是泛型参数（UI 接入时为 `Element`），几何与时间由宿主测量或传入；Popper 以 Floating UI 1.7 为语义基准并做差分测试；浮层 CSS 变量用 `--aw-popper-*`；Virtualizer 的偏移用 double（[23](23-component-library.md)） | ✅ |
 | D51 | Tailwind 的基准与依赖 | `AwAUI.Tailwind` 以 Tailwind v4.3.5 逐函数移植、输出逐字节一致，不依赖任何 AwAUI 程序集（只输出 CSS 文本，源生成器以源码链接方式编入）；运行时补全基于逐条规则与排序下标，不直接改写构建期合并后的样式表（[23](23-component-library.md)） | ✅ |
+| D52 | 竖排与图标镜像 | 1.0 不做 `writing-mode` 竖排：逻辑属性的映射、行内轴换算与滚动方向一律按 `horizontal-tb`。图标镜像保持显式（组件选择镜像后的 SVG 或换图）：CSS transform 是几何变换，引擎目前也不实现 transform，因此没有自动镜像规则；竖排进入范围时再把使用的书写模式接入逻辑映射（[16](16-css-properties.md)、[21](21-gesture-scroll-api.md)、[23](23-component-library.md)） | ✅ |
+| D53 | 移动端与 Wayland 后端 | Android 用 `net10.0-android36.0` + SurfaceView/EGL，iOS 用 `net10.0-ios18.0` + UIView/CAMetalLayer，Wayland 用 `libwayland-client` + 协议生成器 + wl_shm/EGL；桌面 Linux 运行时在 Wayland 与 X11 间回退。三者都只追加虚成员与可选接口（`WindowImpl.Accessibility`、`WindowOptions.AppId`、`RawPointerEvent.IsPredicted`、`IAndroidWindowSurface`、`IWlEglSurface`），不破坏现有后端（[24](24-mobile-wayland-backends.md)） | ✅ |
 
 ## 当前状态
 

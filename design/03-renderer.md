@@ -340,4 +340,7 @@ Font（字体）         表解析 · cmap · 轮廓(glyf / CFF / CFF2) · 可�
 | 典型应用界面一帧（GPU） | CPU 侧 < 4 ms（桌面），draw call < 50 |
 | 滚动长列表 | 仅新露出内容光栅化，其余层复用 |
 | 空闲 | 0 帧、0 分配 |
+| 启动到首帧的托管分配（HelloAot） | < 6 MB（已提交堆实测约 5 MB；其中盒阴影蒙版 2.4 MB，留在缓存里供重绘复用） |
+| 几何不变的盒阴影重绘 | 不重新光栅化、不分配（`ShadowRasterizer` 的蒙版缓存，上限约 4 MB） |
+| 进程内存（HelloAot，软件渲染） | macOS < 40 MB，Windows 私有内存 < 20 MB；规则见 [01](01-architecture.md)「内存规则」 |
 | WASM 首屏（软件 / WebGL2） | AOT 后包体与启动时间单独设预算，待原型实测后定 |

@@ -4,7 +4,7 @@
 
 > 实现现状（M1 第四批）：运行时在 `src/AwAUI.UI`，源生成器在 `src/tools/AwAUI.Generators`（netstandard2.0，Roslyn 4.14），胶水的发射逻辑在 `src/Shared/CodeGen/ComponentGlue.cs`（不含 Roslyn 类型，输出可按 C# 7.3 解析，供 `.awaui` 编译器共用）。
 > - **所有运行时类型都在命名空间 `AwAUI.UI`**，而不是 `AwAUI`：`AwAUI.Text` 已是文本栈的命名空间，`Text` 元素只能是 `AwAUI.UI.Text`。应用代码（`namespace MyApp; using AwAUI.UI;`）不受影响；但位于其他 `AwAUI.*` 命名空间的代码里简单名 `Text` 会解析成命名空间，须写 `UI.Text` 或用别名。
-> - 尚未实现：`Canvas / Path` 元素，`PinchEvent / DragEvent / CompositionEvent` 与对应的 `OnDoubleClick / OnContextMenu` 等处理器属性（`WheelEvent / ScrollEvent` 与 `OnWheel / OnScroll / ScrollController` 第八批已实现，见 [21](21-gesture-scroll-api.md)），`Resource<T>`，退出动画，组件 Ref，DevTools 组件元数据与源映射表，分析器 AW1002–AW1004。`OnTap / OnPan` 已声明但还没有手势识别器触发它们。样式、布局、绘制、命中测试与窗口宿主已在 M1 接入（`RenderPipeline`、`UIHost`，见 [05](05-ui-core.md)「M1 帧管线」）；第六批加入 `Svg` 元素、`Icon` 组件、图片来源与缓存、增量绘制（见下文「图片、SVG 与增量绘制」）；第七批 `Image` 画出位图像素，`Input` 有了光标、选区、输入法与剪贴板（见下文「文本输入」）。9c 增加 `AwAUI.UI.TextArea` 与 `.awaui` 的 `<textarea>` 映射。
+> - 尚未实现：`Canvas / Path` 元素，`PinchEvent / DragEvent / CompositionEvent` 与对应的 `OnDoubleClick / OnContextMenu` 等处理器属性（`WheelEvent / ScrollEvent` 与 `OnWheel / OnScroll / ScrollController` 第八批已实现，见 [21](21-gesture-scroll-api.md)），`Resource<T>`，协调器级的退出动画（`TransitioningContentControl` 与 `PresenceGate` 各自实现延迟卸载），组件 Ref，DevTools 组件元数据与源映射表，分析器 AW1002–AW1004。`OnTap / OnPan` 已声明但还没有手势识别器触发它们。样式、布局、绘制、命中测试与窗口宿主已在 M1 接入（`RenderPipeline`、`UIHost`，见 [05](05-ui-core.md)「M1 帧管线」）；第六批加入 `Svg` 元素、`Icon` 组件、图片来源与缓存、增量绘制（见下文「图片、SVG 与增量绘制」）；第七批 `Image` 画出位图像素，`Input` 有了光标、选区、输入法与剪贴板（见下文「文本输入」）。9c 增加 `AwAUI.UI.TextArea` 与 `.awaui` 的 `<textarea>` 映射。
 
 ## 一个完整的例子
 
@@ -194,7 +194,7 @@ public static class Reactive
    - 元素节点 → 逐类型的 `Diff`（目前内建元素手写）把变化的属性、class、内联样式、事件处理器写到存活的 `Element` 上，只有真正变化的才打脏标记；
    - 组件节点 → `PropsEqual` 为真且自身无脏依赖则整棵子树跳过，否则 `AdoptProps` 后重建（`CanAdoptProps` 为假时重新挂载）；
    - `Build()` 返回同一个 Node 对象时整棵子树跳过。
-3. 退出动画（延迟移除直到动画结束）尚未实现，目前移除是立即的。
+3. 协调器级的退出动画（在移除元素前给出退出阶段）尚未实现，普通元素移除仍是立即的；需要延迟卸载的组件自行保留退出层（`TransitioningContentControl` 按 `TransitionDuration`，`PresenceGate` 按 CSS 有限动画）。
 4. 同步到元素树时只移动最长递增子序列之外的元素，带 Key 的重排移动次数最少；大列表改用哈希匹配。
 5. 组件自己不产生元素：组件与 Fragment 的元素按顺序放进最近的祖先元素。`Element.Owner` 是渲染它的组件（包括插槽内容）。
 6. 观察者只收到插入或移除子树的顶层元素通知；插入的子树打全部脏标记，父元素打 Style | Layout | Paint。
@@ -231,11 +231,11 @@ box.Current?.Animate(keyframes, options);       // 命令式动画，返回可�
 
 ## 作用域样式
 
-`X.cs` 旁的 `X.css` 由生成器关联到组件 `X`：其中的规则只匹配该组件 `Build()` 直接产出的元素（实现上给这些元素加一个作用域标记，并在选择器末段附加对应的属性选择器）。需要影响子组件内部时使用其暴露的 `::part()` 或 CSS 变量。
+`X.awaui` 旁的 `X.awaui.css`（以及内联 `<style>`）由生成器关联到组件 `X`：其中的规则只匹配该组件 `Build()` 直接产出的元素（实现上给这些元素加一个作用域标记，并在选择器末段附加对应的属性选择器）。`::deep`（Blazor 的穿透选择器）把作用域放在它前面的复合选择器上，后面的部分可以匹配子组件内部；不写 `::deep` 时，需要影响子组件内部应使用其暴露的 `::part()` 或 CSS 变量。`X.awaui.global.css` / `<style global>` 不限定作用域，随组件类型首次挂载注册。项目级共享样式用 `<AwAUIGlobalStylesheet Include="..." />`，生成 `AwAUIGlobalStyles`（合并全部文件）并在模块初始化时登记到 `AppStyleSheets`；`<AwAUIGlobalStylesRegister>false</AwAUIGlobalStylesRegister>` 可改为由应用手动调用 `AwAUIGlobalStyles.Register()`。
 
-M1 实现（只针对 `.awaui` 的 `<style>`；纯 C# 组件旁的 `X.css` 关联尚未实现）：
+M1 实现（`.awaui` 的内联 `<style>` 与外部 `X.awaui.css` / `X.awaui.global.css`；纯 C# 组件旁的 `X.css` 关联尚未实现）：
 
-- **编译期**：`.awaui` 编译器改写选择器 —— 作用域属性加在每个选择器最后一个复合选择器上、第一个伪元素之前（含 `:before / :after` 旧写法与 `::part`），`:is / :where / :not / :has` 内部不展开；嵌套规则与条件组规则（`@media`、`@supports`、`@layer`、`@container` 等）递归改写，`@keyframes`、`@font-face` 原样保留。单遍、显式栈、只插入文本。作用域 id = `"aw-"` + FNV-1a-32(`命名空间.类名`) 的 8 位十六进制（全小写）。该组件 `Build()` 创建的每个元素（含插槽内容与元素类型的标签，不含子组件的元素）设置 `ElementNode.__Scope`，`GetAttribute(scope)` 返回 `""`，所以 `.a[aw-xxxxxxxx]` 能匹配。样式文本以常量 `StyleSheetSource`（作用域）/ `GlobalStyleSheetSource`（`<style global>`）生成在类里。
+- **编译期**：`.awaui` 编译器改写选择器 —— 作用域属性加在每个选择器最后一个复合选择器上、第一个伪元素之前（含 `:before / :after` 旧写法与 `::part`），`:is / :where / :not / :has` 内部不展开；`::deep` 把作用域提前到它前面的复合选择器并删除该记号；嵌套规则与条件组规则（`@media`、`@supports`、`@layer`、`@container` 等）递归改写，`@keyframes`、`@font-face` 原样保留。单遍、显式栈、只插入文本（`::deep` 记号除外）。同名的外部样式文件由生成器读取并追加在内联样式之后。作用域 id = `"aw-"` + FNV-1a-32(`命名空间.类名`) 的 8 位十六进制（全小写）。该组件 `Build()` 创建的每个元素（含插槽内容与元素类型的标签，不含子组件的元素）设置 `ElementNode.__Scope`，`GetAttribute(scope)` 返回 `""`，所以 `.a[aw-xxxxxxxx]` 能匹配。样式文本以常量 `StyleSheetSource`（作用域）/ `GlobalStyleSheetSource`（`<style global>`）生成在类里。
 - **运行时**：`Component` 有可重写的 `ScopedStyleSheet` / `GlobalStyleSheet`（默认 null），生成的类重写为上述常量。组件类型第一次挂载到某个 `UIRoot` 时（`Reconciler.Mount` 中、首次 `Build` 之前），其样式表作为 Author 来源加入管线：按首次挂载的顺序、同一类型先全局后作用域，按类型与文本去重，在根的生命周期内保留；`UIRoot.ComponentStyleSheets` 列出它们，解析诊断经 `UIRoot.Diagnostic` 报告。之后才接上的管线会补收已注册的样式表。DevTools 中这些样式表的 `sourceUrl` 是组件类型全名（全局的加 ` (global)`）。
 
 ## 元素与事件（M1 实现）
@@ -303,7 +303,7 @@ public abstract class ImageSource : IEquatable<ImageSource>   // 相等 = 类型
 | AW1008 | 同级出现重复的 `Key`，后出现的节点被重新挂载（运行时，警告） |
 | AW1009 | 组件是 `file` 局部类型，无法生成 Props 胶水（生成器，警告） |
 | AW1010 | 图片加载或解码失败：格式无法识别、数据损坏、超过 `ImageCache.MaxEncodedBytes`、文件或资源不存在等（运行时，警告；元素什么都不显示）。不用 AW2001 是因为它已被 CSS 诊断占用 |
-| AW2001 | 使用了任何样式表中都未定义的 class |
+| AW2001 | 使用了任何样式表中都未定义的 class；运行时 Tailwind 补全无法生成的类名也用它（应用经 `UIRoot.ReportDiagnostic` 发布，每个类名一次） |
 | AW2002 | CSS 属性不被支持（警告；消息给出计划支持的期、替代写法或按编辑距离的名称建议） |
 | AW2003 | CSS 值无效（错误；范围覆盖该值） |
 | AW2004 | 不支持或未知的选择器特性，该规则被丢弃 |

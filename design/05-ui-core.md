@@ -117,6 +117,26 @@ public partial class Counter : Component
 
 控件清单与约定见 [22-controls.md](22-controls.md)。**标准控件库**（Button、Checkbox、Switch、Slider、Select、Tabs、Dialog、Menu、Tooltip……）全部是用上述元素写成的普通组件，外观由一份默认样式表定义，可通过 class、CSS 变量和 `::part()` 定制。
 
+## 应用与窗口宿主
+
+托管层有四个角色，窗口内容与帧管线仍是同一个 `UIRoot`：
+
+| 类型 | 职责 | 不负责 |
+|---|---|---|
+| `Application` | 应用级样式（`Styles`）、初始化钩子、`OnExit`；持有 `Lifetime` | 窗口集合、消息循环 |
+| `ApplicationLifetime`（抽象类） | 启动 / 退出事件、`Start()`、`Shutdown()`；桌面实现是 `DesktopApplicationLifetime` | 创建窗口内容 |
+| `DesktopApplicationLifetime` | `Windows`、`MainWindow`、`ShutdownMode`、`ShutdownRequested`；调用 `PlatformBackend.Run / Exit` | 渲染与输入 |
+| `Window` | 一次 `Show` 的顶层宿主：`Options`、`Content`、`Styles`、`Closing / Opened / Closed`；`Show` 时登记到生命周期 | 平台选择、渲染后端 |
+
+`UIHost` 仍然只负责一个窗口的输入、帧调度与绘制；`Window` 在 `Show` 时创建它、加入应用样式与窗口样式、
+挂载内容并显示。`Application.Styles` → `Window.Styles` → 组件样式（`<style>` / `<style global>`）的顺序进入级联。
+关闭路径统一为：平台关闭按钮或 `Window.Close()` → `Window.Closing`（可取消）→ `UIHost` 销毁 →
+从 `Windows` 移除 → 按 `ShutdownMode` 决定是否 `Shutdown()`（先触发可取消的 `ShutdownRequested`，
+再关闭其余窗口，最后 `PlatformBackend.Exit()`）。
+
+自绘标题栏（`WindowDecorations.None`）把拖动、最小化和最大化经 `IWindowChrome` 交给平台；
+组件用 `Component.HostWindow` 拿到承载它的 `Window`。见 [04](04-platform.md) 的窗口装饰一节。
+
 ## 帧内流程（UI 线程部分）
 
 ```
@@ -143,7 +163,7 @@ public partial class Counter : Component
 - **绘制是增量的**（第六批，细节见下文「增量绘制」）：只重录变化的元素，每帧报告一个损伤矩形；没有变化时复用上一帧，宿主跳过光栅。录制前自下而上算出每棵子树的可见范围（墨迹：含阴影、轮廓、溢出的文字），整棵在视口外的子树跳过 —— 1000 行列表的悬停帧因此从 7001 条命令降到 103 条（M1），增量后只剩 4 条顶层命令。
 - **层叠顺序**（CSS 层叠顺序的简化版）：层叠上下文来自根、z-index 不为 auto 的定位元素与 flex / grid 项、opacity < 1（画进离屏图层），以及**总是建立层叠上下文的 `position: fixed / sticky`**；z-index 对定位元素和 flex、grid 项生效。层叠上下文内部按树序画「元素背景，再内容」，没有区分块级 / 行内 / 浮动层。
 - **裁剪**：不按树序绘制的元素沿包含块链重新应用祖先的 overflow 裁剪 —— absolute 元素忽略包含块之外的裁剪，fixed 元素忽略全部祖先裁剪。**裁剪逃逸**（第六批修复 M1 终审的已知偏差：opacity 层叠上下文里的 absolute 元素被位于它与包含块之间的 overflow:hidden 祖先裁掉）：层叠结构变化时，每个 absolute / fixed 元素向上走到包含块（fixed 为根），路径上「自身与包含块之间有溢出裁剪」的层叠上下文标为 `ClipEscape`；这种上下文不整体应用外层裁剪链，而是背景、内容、轮廓与分层子元素各自应用自己的链。`ApplyClipChain` 止于当前裁剪作用域（正在录制的上下文），顺带去掉了嵌套上下文中圆角祖先裁剪的重复应用。扫描上限 4M 步，超出后所有上下文都走逐块路径。命中测试遵守同一规则。根元素的背景色铺满整个窗口（同浏览器的画布背景）。
-- **盒绘制**：边框宽度向下对齐到设备像素（非零时至少 1 设备像素）；同色边框画成一个圆环，分边颜色画成梯形（圆角时裁剪），统一的 dashed / dotted 用描边；double、groove、ridge、inset、outset 画成实线。渐变色标按 CSS 规则补齐位置、保证不递减，色标提示近似为 50/50 色标；重复渐变以首尾色标的区间为周期。
+- **盒绘制**：边框宽度向下对齐到设备像素（非零时至少 1 设备像素）；同色边框画成一个圆环，分边颜色画成梯形（圆角时裁剪，梯形的角顶点取经过圆角弧心的对角线，不取内边距盒的直角角点 —— 否则圆角外侧的楔形会漏出背景；相邻梯形在角上沿各自方向外扩一个设备像素以消除抗锯齿接缝），统一的 dashed / dotted 用描边；double、groove、ridge、inset、outset 画成实线。渐变色标按 CSS 规则补齐位置、保证不递减，色标提示近似为 50/50 色标；重复渐变以首尾色标的区间为周期。
 - **命中测试**：按绘制顺序倒序重放，遵守 z-index、裁剪、`pointer-events: none` 与 `visibility`；只有最内层的圆角裁剪精确判断，外层圆角裁剪按矩形处理；`Text` 里的 `Span` 命中为所在的 `Text`。布局变化后重新评估悬停；CSS `cursor` 转发给窗口（`auto` 在输入框上显示文本光标）。命中测试表仍在每次重绘时遍历可见树重建（复用的子树不重录，但仍被遍历）。
 
 ### 增量绘制（第六批）
@@ -200,17 +220,28 @@ public partial class Counter : Component
 - **编辑键**：退格 / 删除 / 方向键按字素簇；按词操作（macOS 用 Option，其他平台用 Ctrl）；macOS 的 Cmd+方向键到行首 / 行尾；Home / End；Shift 扩展选区。小键盘在 NumLock 关闭时按逻辑键（Home、ArrowLeft、Delete……）处理（`InputManager.EditingKey`）。编辑命令可能在两帧之间连续到达，所以字素簇与词边界不依赖段落布局：`TextEditing` 实现扩展字素簇规则的常用子集（组合记号、ZWJ、变体选择符、肤色修饰、标签、区域指示符对、CRLF），向后回溯至多 64 个码点（病态输入上一次退格是常数时间）；词边界按字符类别划分，汉字和假名一字一词，没有词典切分。命中测试与候选窗矩形只在绘制时记录的显示文本与当前内容一致时才用布局，否则退回最近一次绘制的光标位置。
 - **剪贴板**：Mod+A / C / X / V 按逻辑键匹配；平台 `HandlesClipboardShortcuts` 为 true（Browser）时由平台经浏览器事件处理。粘贴支持异步剪贴板，结果回到 UI 线程；单行输入框按 HTML 的值清洗规则去掉换行（多行文本合并成一行）；值的长度受 16M 码元上限约束。密码框不能复制，也不接受预编辑。剪切在已知写入失败时不删除选区（见 [04](04-platform.md)）。
 - **指针**：点击定位光标、拖动选择（捕获指针）、双击选词、三击全选（只按真实时间戳判断）。
-- **绘制**（`Input/RenderPipeline.Input.cs`）：预编辑文本加下划线，转换中的文节加粗；选区高亮；文本超宽时水平滚动并裁剪。`PaintParagraph` 里有一处转交给输入框绘制的钩子，旧的文末光标代码已删除。
+- **绘制**（`Input/RenderPipeline.Input.cs`）：预编辑文本加下划线，转换中的文节加粗；选区高亮；文本超宽时水平滚动并裁剪。`PaintParagraph` 里有一处转交给输入框绘制的钩子，旧的文末光标代码已删除。插入点按 `RenderPipeline.CaretBlinkInterval` 闪烁（无时钟时不闪烁）；`Input.CaretBlinkInterval` 可按控件覆盖，`TimeSpan.Zero` 或负值让插入点常亮。
 - **测试**：无头端到端（`TextInputTests` 与评审补的 `TextInputReviewTests`）：中文组合 / 提交 / 取消、组合替换选区、失焦提交、受控值变化放弃组合、自动更正式的 `ReplaceRange`、粘贴 / 复制 / 剪切（Ctrl 与 Cmd 两种约定、剪贴板拒绝写入、抛异常）、德语 AltGr 输入 @ € { |、逻辑键快捷键、小键盘、编辑键、光标矩形、滚动、指针。
 - **多行（9c）**：`TextArea` 复用编辑器与输入法客户端，支持换行、自动折行、选区、剪贴板和保持光标可见的垂直滚动。`Enter` 插入换行；单行 `Input` 仍用 `Enter` 提交。
-- **未做**：撤销 / 重做；光标闪烁；双向文本的视觉光标移动（左右键按逻辑顺序移动）；输入法重新转换；失焦时的非活动选区显示；没有调度器且剪贴板任务没有同步完成时这次粘贴被丢弃；`GetText` 的范围切开代理对时返回的字符串比请求的长 1。
+- **未做**：跨元素的撤销 / 重做历史；双向文本的视觉光标移动（左右键按逻辑顺序移动）；输入法重新转换；失焦时的非活动选区显示；没有调度器且剪贴板任务没有同步完成时这次粘贴被丢弃；`GetText` 的范围切开代理对时返回的字符串比请求的长 1。
+
+### 文本选择（只读，已实现）
+
+非编辑文本（`Text`、`Span` 与容器里的裸文本节点）可以用鼠标选择并复制；输入框仍使用自己的选区、剪贴板与输入法路径。实现在 `UIRoot.Selection`（`TextSelection`）：
+
+- **模型**：选区由「段落元素 + 字符偏移」的锚点与焦点表示，可以跨段落。每个可见段落（`RenderBox.Paragraph` 的 `TextLayout.Text`）是一个片段；行内 run 已并入所在段落的文本，同一视觉行上的相邻片段直接相连，换了行则插入 `\n`。`SelectedText` 按当前布局重新取文本，内容变化后不会返回过期的片段。
+- **API**：`HasSelection`、`SelectedText`、`Clear()`、`SelectAll()`。键盘默认动作（在焦点不是输入框时）：主修饰键 + C 复制、+ A 全选、Esc 清除。
+- **命中**：起点用管线的命中测试与 `user-select` 的实际值（`GetUsedUserSelect`）：`none` 不开始选择，`all` 按下即选中整段；`auto` 沿用祖先的实际值。拖动时取离指针最近的段落并夹到该段落的文本范围，所以可以拖过内边距、行号与空行。
+- **指针**：按下定位、拖动扩展、Shift + 点击扩展、双击选词（`TextEditing.WordAt`）、三击选段；拖动期间捕获指针。触摸的长按选择与选择手柄尚未实现（见 [09](09-touch-gestures.md)）。
+- **绘制与失效**：选区在段落录制时画在字形之下（与输入框相同的 `SelectionColor`），选择变化只把旧、新选区覆盖的段落标为绘制脏；滚动与元素移动不重录。
+- **未做**：拖动到视口边缘时自动滚动、跨窗口的连续性、`::selection` 样式、无障碍的选中文本上报（语义树尚未实现）。
 
 ## 动画
 
 - **CSS transition / animation / @keyframes** 覆盖绝大多数需求，纯声明。
 - **命令式动画 API**（弹簧、手势跟随、可中断）：通过 `Ref` 或 `AnimatedValue` 直接驱动样式值，不经过组件重建。
 - 仅涉及 `transform / opacity / 滚动` 的动画提交合成器，在渲染线程推进。
-- 进出场动画：协调器在移除元素前给出退出阶段（否则声明式下元素会直接消失）。尚未实现，目前移除是立即的。
+- 进出场动画：协调器在移除元素前给出退出阶段（否则声明式下元素会直接消失）。协调器本身仍是立即移除；`PresenceGate` 通过 CSS 有限动画延迟卸载，`TransitioningContentControl` 在键变化后把旧内容保留为退出层（`data-exiting`、`aria-hidden`、`pointer-events: none`）直到 `TransitionDuration`，同时让新内容进入。
 - 尊重 `prefers-reduced-motion`。
 
 ## 绘制与层
@@ -223,5 +254,8 @@ public partial class Counter : Component
 
 - `State<T>`、`Computed<T>`、`Effect`：响应式原语，组件内外通用，可作为跨组件的 Store。
 - 变更在帧的 Build 阶段批量生效，同一帧多次修改只重建一次。
-- 异步：`Resource<T>`（加载中/成功/失败三态）配合 `Build()` 中的模式匹配渲染（尚未实现）。
+- 异步：`Resource<T>`（`Reactive/Resource.cs`）把一次异步加载建模为不可变快照 `ResourceSnapshot<T>`：`Status`（`Loading` / `Success` / `Failure`）、`Value`、`Error`、`IsReloading`。读取 `Snapshot`（或 `Status`、`Value`、`Error`、`IsLoading` 等便捷属性）会登记依赖，在 `Build()` 中按 `Status` 模式匹配渲染加载中 / 成功 / 失败三个分支。
+  - `Load(Func<CancellationToken, Task<T>>)` 开始或重新开始加载；`Reload()` / `Refresh()` 复用上一次的加载器；`Cancel()` / `Dispose()` 停止进行中的工作。返回的 Task 表示本次尝试落定，加载失败写入快照而不会让任务出错。
+  - 后一次加载会取消前一次并丢弃其结果（即使加载器不理会令牌）；取消不写入 `Failure`。已有成功或失败结果时，重新加载期间保留旧结果并令 `IsReloading` 为 true；首次加载期间 `Status` 保持 `Loading`。
+  - 有调度器（构造参数、`Reactive.CurrentThreadDispatcher` 或 `Reactive.DefaultDispatcher`）时完成封送回 UI 线程，没有调度器（无头）时在完成的线程上直接写入。`Load` / `Reload` / `Cancel` / `Dispose` 应在 UI 线程调用，且不能在 `Build()` 中调用（AW1005）；加载通常放在 `OnMount`、事件处理器或副作用中。
 - 不需要绑定表达式、`INotifyPropertyChanged`、值转换器这一整套机制。

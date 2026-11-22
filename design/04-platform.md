@@ -10,7 +10,7 @@ public abstract class PlatformBackend
     public abstract IDispatcher MainDispatcher { get; }       // 主线程消息循环 / 投递
     public abstract WindowingSystem Windowing { get; }        // 桌面：多窗口；移动/Web：单一视图
     public virtual Clipboard? Clipboard => GetService<Clipboard>();   // 第七批：虚成员，不支持时为 null
-    public abstract SystemFontProvider Fonts { get; }
+    public abstract SystemFontProvider Fonts { get; }        // 注：架构规则禁止 AwAUI.Platform 引用 AwAUI.Text；实现位于文本层的 SystemFonts.Default（见 19）
     public abstract PlatformSettings Settings { get; }        // 深色模式、强调色、动画偏好、双击间隔...
     public abstract Screens Screens { get; }
     public virtual T? GetService<T>() where T : class => null; // 可选能力：文件对话框、拖放、托盘、触觉反馈...
@@ -58,6 +58,37 @@ public interface IWindowEvents                   // 只由框架实现，平台�
 - **核心接口最小化 + 特性查询**：只有所有平台都有的东西进 `WindowImpl`；桌面窗口装饰、移动端状态栏等通过 `GetFeature<T>()`，避免接口上出现大量「此平台不支持」。
 - **帧节拍来自平台**：`RequestFrame()` → `OnFrame()`。各平台分别对接 DWM / CVDisplayLink / CADisplayLink / Choreographer / requestAnimationFrame / Wayland frame callback。
 - **键盘**：同时提供物理键（scancode → 统一 `PhysicalKey`）与逻辑键（按当前布局）；文本输入一律走 `OnTextInput` 或 IME，不从按键推断字符。
+
+### 窗口装饰与自绘标题栏（已实现）
+
+`WindowOptions.Decorations` 选择系统边框（`System`，默认）或无边框（`None`）。`None` 时客户区覆盖整个窗口，
+应用自绘标题栏；平台仍保留阴影、圆角与键盘焦点等系统行为。各后端在创建窗口时落实：
+
+| 平台 | `None` 的实现 |
+|---|---|
+| macOS | `NSWindowStyleMask` 去掉 Titled / Closable，保留 Miniaturizable 与 Resizable；无边框窗口用 `AwAUIWindow` 子类把 `canBecomeKeyWindow` / `canBecomeMainWindow` 改为 YES |
+| Win32 | `WS_POPUP` + `WS_EX_APPWINDOW`（任务栏可见）；没有非客户区，客户区铺满窗口 |
+| X11 | 映射前设置 `_MOTIF_WM_HINTS` 的 decorations = 0；窗口管理器不画标题栏与边框（不识别 Motif 提示的 WM 除外） |
+| Headless / 移动 / Web | 记录选项（Headless 供测试断言），不影响呈现 |
+
+自绘标题栏需要的窗口动作经 `WindowImpl.GetFeature<IWindowChrome>()` 查询，不进入核心接口：
+
+```csharp
+public interface IWindowChrome   // 桌面后端实现；移动 / Web 为 null
+{
+    void BeginDragMove();        // 只在指针按下的事件处理中有效
+    void Minimize();
+    void ToggleMaximize();
+    bool IsMaximized { get; }
+}
+```
+
+拖动由平台自己的移动循环完成：macOS 用 `performWindowDragWithEvent:`（返回后补发一次 Pointer Cancel，
+因为 AppKit 吞掉了 mouseUp），Win32 用 `ReleaseCapture` + `WM_NCLBUTTONDOWN/HTCAPTION`（`WM_CAPTURECHANGED`
+让框架清除按下状态），X11 发送 `_NET_WM_MOVERESIZE`。最小化 / 最大化分别是 macOS 的 `miniaturize:` /
+`zoom:`、Win32 的 `ShowWindow(SW_MINIMIZE / SW_MAXIMIZE / SW_RESTORE)` 与 X11 的 `WM_CHANGE_STATE` /
+`_NET_WM_STATE_MAXIMIZED_*`。自定义缩放手柄尚未提供：`None` 下用户缩放由平台是否保留边框决定
+（macOS 保留 Resizable 边缘，Win32 的 `WS_POPUP` 没有边缘）。
 
 ### 键盘（第七批实现）
 
@@ -171,6 +202,16 @@ public abstract class Clipboard                  // 全异步
 
 运行时选择：`UsePlatformDetect()` 在桌面 TFM 下根据 OS 选择 Win32 / MacOS / Wayland→X11 回退；移动端与 Web 由各自的宿主项目头显式引用。
 
+### Windows 桌面应用的子系统（`WinExe`）
+
+`<OutputType>Exe</OutputType>` 在 Windows 上生成**控制台子系统**的 PE：从资源管理器、开始菜单或快捷方式启动时，系统会分配一个控制台窗口（标题是 exe 的完整路径），即使程序本身只开窗口。桌面应用应写 `<OutputType>WinExe</OutputType>`：
+
+- 非 Windows 上 `WinExe` 等同 `Exe`，不需要按平台条件区分，一份 csproj 同时用于 macOS / Linux。
+- 生成的是同一个托管入口点，只改 PE 头的 SubSystem 字段（3 → 2）；NativeAOT 单文件发布同样适用，不影响体积优化开关。
+- 从终端启动时仍可写 stdout/stderr（只是不新分配控制台），无窗口的渲染与基准工具（`RenderDemo`、`TailwindDemo`、`GpuDemo` 的 `bench`）保留 `Exe`，方便在终端里看输出。
+
+示例见 `samples/HelloAot`、`samples/CustomChrome`。
+
 ### D13：Apple 平台互操作（已定）
 
 - macOS 桌面：`net10.0-macos` workload 带来完整绑定，但绑定体积大、构建链重。裸 `objc_msgSend` 方案只需要我们实际用到的几十个选择子，产物是普通的通用 TFM 程序集，在现代 .NET 上可 NativeAOT 单文件发布。桌面走裸互操作，与「尽可能纯 C#、少依赖」一致。
@@ -232,6 +273,8 @@ public abstract class Clipboard                  // 全异步
 - **安全区与软键盘**：`SafeAreaInsets` 变化触发根布局；软键盘弹出时提供「调整布局 / 平移视图」两种策略。
 - **手势与系统手势冲突**：边缘返回手势区域需让给系统。
 - **触摸滚动**：惯性、回弹等物理参数按平台取默认值（`PlatformSettings`），保证手感接近原生。
+
+Android / iOS / Wayland 后端的接口级实施方案（TFM、宿主、表面与渲染、输入 / IME、系统服务、无障碍、打包与 CI）见 [24-mobile-wayland-backends.md](24-mobile-wayland-backends.md)。
 
 ## 无障碍桥
 

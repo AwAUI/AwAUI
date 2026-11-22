@@ -30,7 +30,7 @@
 | `planned` | 尚未支持但已排期的属性及其期，AW2002 据此提示「计划在第 N 期支持」 |
 | `unsupported` | 不打算支持的属性及中文替代建议：`float`、`clear`、`columns`、`column-count`、`column-width`、`table-layout`、`border-collapse`、`border-spacing`、`vertical-align` |
 
-M1 清单：9 个组、20 个关键字枚举、74 个第 1 期长属性、20 个简写（`margin` `padding` `inset` `border` `border-top/right/bottom/left` `border-width/style/color` `border-radius` `outline` `flex` `flex-flow` `gap` `overflow` `background` `font` `all`）。M1 整合时把 `outline-width / -style / -color / -offset` 与 `outline` 简写从第 2 期提前到第 1 期（属于 Effects 组），供焦点轮廓使用。`CssPropertyGen`（`src/tools/CssPropertyGen`，net10.0）把它生成为 `src/AwAUI.Css/Generated/*.g.cs` 五个入库文件：属性 ID 枚举、元数据表、关键字枚举与表、解析分派、`ComputedStyle` 的组类与逐属性访问器、写时复制的构建器、差异比较与计算值序列化。生成逻辑同时编译进测试项目，单元测试在内存中重新生成并在入库文件过期时失败；命令行 `--check` 做同样的检查。第七批把 `aspect-ratio`（Box 组）、`object-fit` 与 `object-position`（Effects 组，只影响绘制）、`image-rendering`（继承，放在 Text 组，避免新增组或改动 `RenderPipeline.InheritedChanged`）从计划移入第 1 期，清单现为 22 个关键字枚举、78 个第 1 期长属性、20 个简写。第八批把 `order`（`Integer`）、`justify-items`（初值 `legacy`）、`justify-self`、`grid-template-columns / rows / areas`、`grid-auto-columns / rows / flow`、`grid-row / column-start / end` 移入第 1 期（都在 Flex 组，组说明改为「Flexbox 与 Grid 布局」），简写加 `grid-row`、`grid-column`、`grid-area`、`grid-template`、`grid`、`place-items / self / content` 与 42 个逻辑属性，清单现为 24 个关键字枚举、91 个第 1 期长属性、70 个简写。新的计算值类型：`CssGridTrackList`（含 `CssGridTrackSize`、`CssGridRepeat` 等）、`CssGridTemplateAreas`、`CssGridLine`、`CssGridAutoFlow`、`CssJustifyItems`、`CssJustifySelf`，`order` 为 `int`。
+M1 清单：9 个组、20 个关键字枚举、74 个第 1 期长属性、20 个简写（`margin` `padding` `inset` `border` `border-top/right/bottom/left` `border-width/style/color` `border-radius` `outline` `flex` `flex-flow` `gap` `overflow` `background` `font` `all`）。M1 整合时把 `outline-width / -style / -color / -offset` 与 `outline` 简写从第 2 期提前到第 1 期（属于 Effects 组），供焦点轮廓使用。`CssPropertyGen`（`src/tools/CssPropertyGen`，net10.0）把它生成为 `src/AwAUI.Css/Generated/*.g.cs` 五个入库文件：属性 ID 枚举、元数据表、关键字枚举与表、解析分派、`ComputedStyle` 的组类与逐属性访问器、写时复制的构建器、差异比较与计算值序列化。生成逻辑同时编译进测试项目，单元测试在内存中重新生成并在入库文件过期时失败；命令行 `--check` 做同样的检查。第七批把 `aspect-ratio`（Box 组）、`object-fit` 与 `object-position`（Effects 组，只影响绘制）、`image-rendering`（继承，放在 Text 组，避免新增组或改动 `RenderPipeline.InheritedChanged`）从计划移入第 1 期，清单现为 22 个关键字枚举、78 个第 1 期长属性、20 个简写。第八批把 `order`（`Integer`）、`justify-items`（初值 `legacy`）、`justify-self`、`grid-template-columns / rows / areas`、`grid-auto-columns / rows / flow`、`grid-row / column-start / end` 移入第 1 期（都在 Flex 组，组说明改为「Flexbox 与 Grid 布局」），简写加 `grid-row`、`grid-column`、`grid-area`、`grid-template`、`grid`、`place-items / self / content` 与 42 个逻辑属性。9c 把行内逻辑属性从简写改为仅参与级联的长属性（`computed: false`），清单现为 70 个关键字枚举、221 个长属性（其中 20 个仅参与级联）、91 个简写。新的计算值类型：`CssGridTrackList`（含 `CssGridTrackSize`、`CssGridRepeat` 等）、`CssGridTemplateAreas`、`CssGridLine`、`CssGridAutoFlow`、`CssJustifyItems`、`CssJustifySelf`，`order` 为 `int`。
 
 ## 影响阶段
 
@@ -91,7 +91,7 @@ M1 的实际实现（`AwAUI.Css.ComputedStyle`，不可变 `sealed class`）：
 | `overflow-x` `overflow-y` | 枚举 | 否 | 否 | S | 1（hidden），2（scroll/auto） |
 | `visibility` | 枚举 | 是 | 离散 | P | 1 |
 
-逻辑属性（`margin-inline-start`、`padding-block`、`inset-inline` 等）在级联时按 `direction` 映射到物理属性，第 3 期。第八批的实现（决策 D49）：42 个逻辑属性 —— `margin / padding / inset` 的 `-inline / -block` 及其 `-start / -end`，`border-inline / block-start / end` 及其 `-width / -style / -color`，`border-inline`、`border-block` —— 是第 1 期的**解析期别名**（简写，解析器为 `Alias`、`Pair`、`BorderSide`、`BorderSidePair`），按左到右横排映射到物理长属性，在这种情形下与级联完全一致；不支持 `direction` / `writing-mode`，逻辑属性名的计算值文本为空（它是简写）。
+逻辑属性（`margin-inline-start`、`padding-block`、`inset-inline` 等）在级联时按 `direction` 映射到物理属性，第 3 期。第八批的实现（决策 D49）：42 个逻辑属性 —— `margin / padding / inset` 的 `-inline / -block` 及其 `-start / -end`，`border-inline / block-start / end` 及其 `-width / -style / -color`，`border-inline`、`border-block`。9c 起行内轴的 20 个长属性（`padding-inline-start/end`、`margin-inline-start/end`、`inset-inline-start/end`、`border-inline-start/end-width/style/color`、`scroll-margin-inline-start/end`、`scroll-padding-inline-start/end`、`border-start-start/end-radius`、`border-end-start/end-radius`）是仅参与级联的长属性：清单里标 `"computed": false` 并给出 `"logical": { "ltr": ..., "rtl": ... }` 的物理映射；引擎先只用 `direction` 声明 / `dir` 提示求出方向，再在真正的级联中逐条翻译成物理长属性，所以物理与逻辑声明之间的先后、`!important`、`revert` 与 `var()` 替换都按普通级联规则处理。它们不进入 `ComputedStyle` 的分组存储，但按逻辑名访问 / 序列化计算值时按方向读取对应的物理属性。行内简写（`padding-inline`、`scroll-padding-inline` 等）展开为这些逻辑长属性。逻辑圆角按横排的块轴（上 / 下）+ 行内起止映射到四个物理角。块轴属性与 `overscroll-behavior-inline` 仍是解析期别名（横排下与物理等价，且 `overscroll-behavior-inline` 的「行内」就是 x 轴、不随方向变化）；`writing-mode` 未做（决策 D52：1.0 不做竖排，逻辑映射一律按 `horizontal-tb`）。
 
 ### 定位与层叠
 
@@ -174,7 +174,8 @@ Grid 值的解析（第八批，`src/AwAUI.Css/Values/GridParsers.cs`）：轨�
 | `text-transform` | 枚举 | 是 | 否 | L | 2 |
 | `text-shadow` | 阴影列表 | 是 | 是 | P | 2 |
 | `font-feature-settings` `font-variation-settings` `font-kerning` | 列表 | 是 | 部分 | L | 4 |
-| `direction` `unicode-bidi` | 枚举 | 是 / 否 | 否 | L | 4 |
+| `direction` | 枚举 | 是 | 离散 | L | 1（9c 已实现，进入布局与文本方向） |
+| `unicode-bidi` | 枚举 | 否 | 否 | L | 4 |
 | `writing-mode` `text-orientation` | 枚举 | 是 | 否 | S | 4 |
 | `tab-size` `text-indent` `hyphens` | 数值/长度/枚举 | 是 | 部分 | L | 4 |
 

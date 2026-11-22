@@ -78,10 +78,11 @@ Counter.awaui ──(AwAUI.Markup 编译器，构建期)──► Counter.awaui.
 
 | 部分 | 说明 |
 |---|---|
-| 指令 | 文件顶部：`@using`、`@namespace`、`@inherits`、`@implements`、`@attribute`、`@typeparam`（泛型组件） |
+| 指令 | 文件顶部：`@using`、`@namespace`、`@inherits`、`@implements`、`@attribute`、`@typeparam`（泛型组件）；同目录及祖先目录的 `_Imports.awaui` 可提供全局 `@using`，项目的 C# 全局 using（`<Using Include="..." />`）与 MSBuild 属性 `AwAUIMarkupNamespaces` 同样参与解析（见 [17](17-awaui-grammar.md)） |
 | 标记 | 组件的界面，编译为 `Build()` 的返回值；允许多个根节点（编译为片段） |
-| `@code { }` | 类成员：Props、State、方法、生命周期重写。可有多个，也可改用同名的 `X.awaui.cs` 代码后置文件（`partial class`） |
-| `<style>` | 作用域样式，等价于同名的 `X.css`（见 [08](08-css.md)）；`<style global>` 为全局样式 |
+| `@code { }` | 类成员：Props、State、方法、生命周期重写。可有多个，也可改用同名的 `X.awaui.cs` 代码后置文件（`partial class`，与 Blazor 的 `X.razor.cs` 对应） |
+| `<style>` | 作用域样式，等价于同名的 `X.awaui.css`（见 [08](08-css.md)）；`<style global>` 为全局样式，等价于 `X.awaui.global.css` |
+| 样式文件 | `X.awaui.css` 由 MSBuild 自动纳入 `AdditionalFiles`，生成器按文件名关联到 `X`：选择器附加作用域属性（唯一），`::deep` 之后的部分穿透到子组件内部；`X.awaui.global.css` 不限定作用域、随组件注册。项目级共享样式用 `<AwAUIGlobalStylesheet Include="..." />`，生成 `AwAUIGlobalStyles` 并在模块初始化时登记到 `AppStyleSheets` |
 
 类名取自文件名，命名空间取自项目根命名空间 + 目录（可用 `@namespace` 覆盖）。
 
@@ -90,7 +91,7 @@ Counter.awaui ──(AwAUI.Markup 编译器，构建期)──► Counter.awaui.
 | 写法 | 含义 |
 |---|---|
 | 小写标签 `<div>` `<span>` `<text>` `<img>` `<input>` `<textarea>` `<canvas>` `<svg>` | 内建元素（固定的一张表，未知的小写标签是编译错误） |
-| 大写开头 `<Button>` `<TodoRow>` | 组件，按 C# 的命名空间与 `@using` 解析 |
+| 大写开头 `<Button>` `<TodoRow>` | 组件，按 C# 的命名空间、`@using` 与框架内置命名空间解析；标准控件只需写类名 |
 | `<Ns.Component>` | 带限定名的组件 |
 | `<Component T="int">` | 泛型组件，类型参数可推断时可省略 |
 
@@ -199,7 +200,7 @@ M1 现状：
 
 | 改动 | 生效方式 |
 |---|---|
-| `<style>` 内容 | 开发服务器把新的样式文本经 DevTools 通道推给运行中的应用，走运行时 CSS 路径即时生效，不需要重新编译；新文本要先经 `AwAUI.Markup.Compiler.Styles.ScopedCss.Rewrite` 用同一个作用域改写（尚未实现） |
+| `<style>` 内容或 `X.awaui.css` | 开发服务器把新的样式文本经 DevTools 通道推给运行中的应用，走运行时 CSS 路径即时生效，不需要重新编译；新文本在应用侧用同一个 `ScopedCss.Rewrite` 与作用域改写（DevTools 推送本身尚未接入） |
 | 标记或 `@code` | 重新生成 C# → .NET 热重载应用增量（现代 .NET）；.NET Framework 上需重新启动 |
 
 ## 工具支持

@@ -18,9 +18,10 @@ AwAUI/
 │  ├─ AwAUI.Css/                    CSS 解析、选择器、级联、计算值、动画
 │  ├─ AwAUI.Layout/                 布局算法（Flex / Block / 定位），输入为 LayoutStyle
 │  ├─ AwAUI.Scene/                  层树、帧调度、脏区、合成器
-│  ├─ AwAUI.UI/                     组件、State、协调器、元素树、事件、手势、语义树
+│  ├─ AwAUI.UI/                     组件、State、协调器、元素树、事件、手势、语义树；Hosting/ 含 UIHost、Application、应用生命周期与顶层 Window
 │  ├─ AwAUI.Controls/               Avalonia 风格基础控件（Button、TextBox、ComboBox、ListBox、TreeView ...），含 Primitives/ 行为原语（见 23；第九批已有原语的纯逻辑）
 │  ├─ AwAUI.Controls.DataGrid/      DataGrid（与 Avalonia 相同，独立包）
+│  ├─ AwAUI.Mvvm/                   可选的 MVVM 适配层：INotifyPropertyChanged 绑定、DataContext、值转换器、校验、CollectionView（见 24 与 23）
 │  ├─ AwAUI.Themes.Fluent/          基础控件的 Fluent 主题（纯 CSS 与令牌）
 │  ├─ AwAUI.Tailwind/               Tailwind v4 兼容工具类引擎（构建期与运行时共用）、Cn、Cva（第九批：Internal/ Ast/ Theme/ Candidates/ Utilities/ Variants/ Compilation/ Resources/ Scanning/ Merge/，按 v4.3.5 的模块对应）
 │  ├─ AwAUI.Shadcn/                 shadcn/ui 组件（.awaui + Tailwind 类），含官方注册表 registry/
@@ -59,7 +60,7 @@ AwAUI/
 │  │   ├─ AwAUI.Markup.Generator/   接入构建的源生成器
 │  │   └─ AwAUI.Markup/             NuGet 打包项目（props/targets）
 │  ├─ AwAUI/                        元包：核心 + 默认渲染器 + 文本 + 控件 + Fluent 主题（Shadcn 单独引用）
-│  ├─ AwAUI.Desktop/                元包：Win32 + MacOS + X11 + Wayland + 三个 RHI，提供 UsePlatformDetect()
+│  ├─ AwAUI.Desktop/                已实现：组合根 AwAppBuilder（UsePlatformDetect / Run&lt;TApp&gt; / UseShutdownMode）；按目标平台只引用 Win32/MacOS/X11（Wayland 与 RHI 待补）
 │  ├─ Shared/                       以链接方式共享的源码
 │  │   ├─ Polyfills/                netstandard2.0 所需的特性类型与 API 补丁
 │  │   ├─ Interop/                  NativeCallback、库加载、blittable 辅助
@@ -90,6 +91,8 @@ AwAUI/
 │  ├─ AwAUI.Layout.UnitTests/
 │  ├─ AwAUI.UI.UnitTests/
 │  ├─ AwAUI.Controls.UnitTests/
+│  ├─ AwAUI.Controls.DataGrid.UnitTests/
+│  ├─ AwAUI.Mvvm.UnitTests/
 │  ├─ AwAUI.Tailwind.UnitTests/     含与 Tailwind v4 官方输出的快照比对
 │  ├─ AwAUI.Shadcn.UnitTests/
 │  ├─ AwAUI.Markup.UnitTests/       .awaui → C# 的快照测试

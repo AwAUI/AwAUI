@@ -13,10 +13,11 @@
 
 | 来源 | 写法 | 说明 |
 |---|---|---|
-| 全局样式表 | `app.css`、主题文件 | 作为构建输入，源生成器在编译期解析、校验、预编译为二进制规则表并嵌入 |
-| 组件作用域样式 | `Counter.cs` 旁放 `Counter.css` | 自动限定作用域（类似 CSS Modules），不会泄漏到其他组件 |
+| 全局共享样式 | `<AwAUIGlobalStylesheet Include="Styles/app.css" />`、主题文件 | 项目级样式合并为生成的 `AwAUIGlobalStyles`，模块初始化时登记到 `AppStyleSheets`，所有组件共用（Blazor `wwwroot/app.css` 的对应物） |
+| 组件作用域样式 | `Counter.awaui` 旁放 `Counter.awaui.css`（或内联 `<style>`） | 生成器把选择器改写为带唯一作用域属性的形式，只匹配本组件产出的元素（类似 CSS Modules），不会泄漏到其他组件；`::deep` 可穿透到子组件内部 |
+| 组件全局样式 | `Counter.awaui` 旁放 `Counter.awaui.global.css`（或内联 `<style global>`） | 随组件类型首次挂载注册，不限定作用域 |
 | 内联样式 | `Style = "padding: 8px"` 或强类型 `Style = new() { Padding = 8 }` | 字符串常量在编译期由生成器解析校验 |
-| 运行时样式表 | `StyleSheet.Parse(text)` | 动态主题、DevTools 实时编辑、热重载都走这条路径 |
+| 运行时样式表 | `StyleSheet.Parse(text)` / `ParseIncremental(text, previous, changedAt)` | 动态主题、DevTools 实时编辑、热重载都走这条路径；后者复用变化点之前的前缀规则与诊断，只解析尾部 |
 | 默认样式表 | 框架内置 | 相当于浏览器 UA 样式表，定义内建元素与标准控件的默认外观 |
 
 运行时解析器始终存在（DevTools 与热重载需要），但发布构建可通过特性开关裁剪掉，只保留预编译规则。
@@ -92,7 +93,7 @@ M1 已实现：全部绝对单位（px、cm、mm、q、in、pt、pc）、em/rem/
 | `display: grid / inline-grid` | 第八批实现：轨道、`fr`、`repeat()`、`minmax()`、`fit-content()`、`auto-fill/auto-fit`、线名与区域命名、自动放置（含 dense）、`gap`、对齐；`subgrid`、masonry、基线对齐未做 |
 | `display: block` | **简化版**：块级子元素纵向堆叠、宽度撑满；不做外边距折叠与浮动 |
 | `display: none / contents` | 支持 |
-| 逻辑属性（`margin-inline`、`padding-block-start`、`inset-inline`、`border-block` 等 42 个） | 第八批：解析时映射为左到右横排下的物理属性（决策 D49）；不支持 `direction` / `writing-mode`，所以 rtl 与竖排下的映射不对 |
+| 逻辑属性（`margin-inline`、`padding-block-start`、`inset-inline`、`border-block` 等 42 个） | 第八批按左到右横排把逻辑属性解析为物理属性（决策 D49）。9c 起行内轴的 `padding-inline-*` / `margin-inline-*` / `inset-inline-*` / `border-inline-*` / `scroll-margin-inline-*` / `scroll-padding-inline-*` / `border-start-start-radius` 一族改为仅参与级联的逻辑长属性（`computed: false`）：级联时先求元素的 `direction`，再逐条翻译成物理长属性，因此与物理声明的先后 / `!important` 比较、`revert`、`var()` 替换都遵守普通级联规则，rtl 下无需再写显式交换；块轴属性仍等价于物理属性（横排下不随方向变化）。`overscroll-behavior-inline` 仍是解析期别名，但行内轴在横排下恒为 x，不随方向变化；`writing-mode` 竖排未做 |
 | 行内排版 | 仅在 `Text` 元素内部（`Span` 嵌套、行内图片） |
 | `position: relative / absolute / fixed / sticky`、`inset`、`z-index` 与层叠上下文 | 支持 |
 | 盒模型：`width/height/min-*/max-*`、`margin`、`padding`、`border`、`aspect-ratio`、`box-sizing` | 支持 |
@@ -110,23 +111,24 @@ M1 已实现：全部绝对单位（px、cm、mm、q、in、pt、pc）、em/rem/
 - **`order`**（第八批，第 1 期）：flex 与 grid 项目按（order，文档顺序）稳定排序后布局；绘制顺序同样按 order 修正后的文档顺序（CSS Display 3，`LayoutMapper.PaintOrder`，z-index 相同的层叠项也按它排序），命中测试按绘制的逆序，随之一致。
 - **Block**（简化）：子元素纵向堆叠，auto 宽度填满包含块减外边距，水平 auto 外边距居中，rtl 靠右；不做外边距折叠与浮动。
 - **定位**：relative 在放置时偏移；absolute 相对最近定位祖先的内边距盒（没有则为视口），fixed 总是相对视口；支持所有 inset 组合、auto 外边距居中、收缩适应、过约束（ltr 忽略 right，rtl 忽略 left）与静态位置（flex 父元素下按「唯一 flex 项」计算）。左右 inset 都为 auto 时在「静态位置到包含块远端」的范围内收缩适应（css-position-3 §4.1）。
+- **`position: sticky`**（UI 层在绝对几何阶段施加，`RenderPipeline.Sticky.cs`）：布局引擎把它当作常规流（占据静态空间、不影响兄弟，`Position.Sticky`），视觉偏移按最近的滚动容器**当前**偏移逐帧计算，因此滚动只改变几何、不重排也不重算样式。每轴把外边距盒夹进「粘性视图矩形」（滚动容器内边距盒按 top/right/bottom/left 内缩；两端都给出且盒更大时起始 inset 优先），再夹进包含块：元素随包含块末端边缘一起移出。支持纵 / 横两个轴与多个 inset 同时生效。边框盒、内容原点、命中测试、裁剪、DevTools 盒模型与无障碍包围盒都使用视觉位置；滚动容器照常按内边距盒裁剪。纯滚动像素搬移对含 sticky 的子树保守禁用（`RenderPipeline.Scroll` 的子树检查）。**限制**：inset 是物理方向（RTL 下 `inset-inline-*` 已解析为物理值，但未按书写方向镜像）；sticky 针对最近的单个滚动容器解析（嵌套滚动容器时内层负责，见测试）；包含块按最近的块容器内容盒近似（flex / grid 容器同理），根元素滚动时取滚动内容范围；不处理 `position: sticky` 与 `contain: paint` / 固定表头语义的差异。
 - **固有尺寸**：block、行/列 flex 容器的 min-content / max-content / fit-content 贡献；关键字可用于 width / min-width / max-width（用在高度上按 auto / none 处理）。行 flex 容器的固有尺寸按 Chromium 而非 §9.9.1 的 flex 分数算法：max-content = 各项 max-content 贡献之和加 gap；min-content = 各项 min-content 贡献之和（nowrap）或最大值（wrap）；此时忽略 flex-basis。收缩适应的行 flex 容器在求固有尺寸时把项目的百分比视为不确定，最终布局再按容器最终内宽解析（与浏览器一致）。
 - `display: none` 整棵子树为零盒；`display: contents` 把子节点提升到父节点，自身为 (0,0) 处的零盒；`aspect-ratio`、`box-sizing` 已支持（第七批起 CSS `aspect-ratio` 是第 1 期属性，`LayoutMapper` 对所有元素映射；替换元素与自然比例的合并见 [05](05-ui-core.md)）。第八批：宽高都为 auto 时，`ComputeLeaf` 用自身 min/max-width 与经比例传来的 min/max-height 的交集钳制宽度，再由宽度推出高度；替换元素（`LayoutStyle.IsReplaced`，UI 经 `LayoutMapper.ForReplaced` 设置）按测量尺寸的比值作用于内容盒、不加自动最小高度，块布局与 left + right 的绝对定位都不拉伸其 auto 宽度；非替换元素（block / flex / grid 容器与文本叶子）按样式比值与 box-sizing，由比例推出的高度不小于内容高度（CSS Sizing 4，再受 max-height 约束；flex 与 grid 容器把它变成「带内容高度的 min-height」，代价是子元素的百分比高度变为不确定，block 容器保持比例高度确定）；`inline-flex` 在 block 中像 block 一样堆叠但宽度为 fit-content（没有行内格式化上下文）。
 - `RoundToPixels` 对齐的是盒的边而不是尺寸，相邻盒之间不留缝。
 - 实测（10 101 个节点，50 段 × 4 行 × 49 个文本叶子，net10.0，机器同时有其他负载，故为上界）：视口宽度变化后全量重排约 10 ms（约 6 667 次算法运行、每次约 13 字节分配）；视口不变的干净重排 0.001–0.004 ms；一个叶子变脏 0.15–0.3 ms。尚未用 BenchmarkDotNet 在空闲机器上复测。
-- 尚未实现：`sticky`、宽度上的 `fit-content(<length>)` 函数（网格轨道中的已支持）、竖排、rtl 下的逻辑属性、flex 自动最小尺寸中的 transferred size、last-baseline；列容器与 wrap-reverse 的基线对齐回退为 flex-start；网格的基线对齐、subgrid、masonry 与 §11.1 第 3、4 步；`safe / unsafe` 对齐关键字与 `legacy left / right`；没有布局边界。
-- **UI 映射时的回退**（`AwAUI.UI` 把 `ComputedStyle` 映射为 `LayoutStyle` 时；M1 没有行内格式化上下文）：`display: inline` 与 `inline-block` 都按收缩适应（shrink-to-fit）的盒子布局，`inline-block` 像 block 一样纵向堆叠子元素；`grid` / `inline-grid` 第八批起映射为网格（轨道等计算值按实例缓存转换、按值比较，相同的样式不触发重排）；`position: sticky` 按 relative 布局（但总是建立层叠上下文）；`order` 同时作用于布局与绘制顺序。负的百分比 padding 在映射 / 布局时截断为 0。
+- 尚未实现：宽度上的 `fit-content(<length>)` 函数（网格轨道中的已支持）、竖排、flex 自动最小尺寸中的 transferred size、last-baseline；列容器与 wrap-reverse 的基线对齐回退为 flex-start；网格的基线对齐、subgrid、masonry 与 §11.1 第 3、4 步；`safe / unsafe` 对齐关键字与 `legacy left / right`；没有布局边界。
+- **UI 映射时的回退**（`AwAUI.UI` 把 `ComputedStyle` 映射为 `LayoutStyle` 时；M1 没有行内格式化上下文）：`display: inline` 与 `inline-block` 都按收缩适应（shrink-to-fit）的盒子布局，`inline-block` 像 block 一样纵向堆叠子元素；`grid` / `inline-grid` 第八批起映射为网格（轨道等计算值按实例缓存转换、按值比较，相同的样式不触发重排）；`position: sticky` 布局时等同 static（占据静态空间），滚动偏移产生的视觉偏移在 UI 层的绝对几何阶段按最近的滚动容器视口与包含块计算（见上「定位」，不触发重排）；`order` 同时作用于布局与绘制顺序。负的百分比 padding 在映射 / 布局时截断为 0。
 - 已知差异：交叉轴上的百分比 gap 在容器交叉尺寸不确定时按 0 处理且之后不重新解析（flex 下与 Chromium 一致）；auto 宽度、收缩适应语境中的列向换行 flex 容器取最宽项的宽度而不是各列之和（Chromium 同样如此）；space-around / space-evenly 在负剩余空间时回退为 center（Flexbox L1），未采用 Box Alignment 3 的 safe center。
 
 ### 视觉
 
 `background`（颜色、多重、渐变、图片、`size/position/repeat/clip`）、`border`（各边宽度/颜色/样式）、`border-radius`、`box-shadow`（含内阴影）、`outline`、`opacity`、`transform`（2D；3D 后置）、`transform-origin`、`filter`、`backdrop-filter`、`clip-path`（基本形状）、`mask`（后置）、`mix-blend-mode`、`visibility`、`cursor`、`will-change`。
 
-M1 已绘制：背景色、线性 / 径向 / 重复渐变、边框（分边颜色、圆角；统一的 dashed / dotted；double、groove、ridge、inset、outset 画成实线；相邻且颜色不同的圆角边在角上可能有一条淡线）、内外 `box-shadow`、`outline`（第 1 期，见 [16](16-css-properties.md)）、`opacity`（离屏图层）、overflow 裁剪、`visibility`、`cursor`。第一个色标不在 0 的 `repeating-radial-gradient` 未做相位补偿（近似）。背景图片、`transform`、`filter`、`clip-path`、`mix-blend-mode` 尚未接入。`::before / ::after` 会计算样式但不渲染。
+M1 已绘制：背景色、线性 / 径向 / 重复渐变、边框（分边颜色、圆角；统一的 dashed / dotted；double、groove、ridge、inset、outset 画成实线）、内外 `box-shadow`、`outline`（第 1 期，见 [16](16-css-properties.md)）、`opacity`（离屏图层）、overflow 裁剪、`visibility`、`cursor`。第一个色标不在 0 的 `repeating-radial-gradient` 未做相位补偿（近似）。背景图片、`transform`、`filter`、`clip-path`、`mix-blend-mode` 尚未接入。`::before / ::after` 会计算样式但不渲染。
 
 ### 文本
 
-`font-family / size / weight / style / stretch`、`font-feature-settings`、`font-variation-settings`、`line-height`、`letter-spacing`、`word-spacing`、`text-align`、`text-decoration`、`text-transform`、`text-overflow`、`white-space`、`word-break`、`overflow-wrap`、`line-clamp`、`text-shadow`、`direction`、`unicode-bidi`；`writing-mode`（竖排）后置。
+`font-family / size / weight / style / stretch`、`font-feature-settings`、`font-variation-settings`、`line-height`、`letter-spacing`、`word-spacing`、`text-align`、`text-decoration`、`text-transform`、`text-overflow`、`white-space`、`word-break`、`overflow-wrap`、`line-clamp`、`text-shadow`、`direction`、`unicode-bidi`；`writing-mode`（竖排）后置。`direction` 是第 1 期继承属性（`ltr` / `rtl`，初始 `ltr`），元素上的 HTML `dir` 属性作为作者来源、特异性 0 的表现提示；使用值进入 `LayoutStyle.Direction`（块级对齐、flex 主轴、grid 放置）与段落的 `ParagraphDirection`（双向算法基准方向、`start` / `end` 对齐）。行内起止方向的逻辑属性（`padding-inline-*`、`margin-inline-*`、`inset-inline-*`、`border-inline-*`、`scroll-margin-inline-*`、`scroll-padding-inline-*`、逻辑圆角）在级联中按这个使用方向映射到物理长属性；`getComputedStyle` 用逻辑名查询时也按同一方向读取物理值。`unicode-bidi` 仍是第 4 期占位。
 
 ### 动效与交互
 

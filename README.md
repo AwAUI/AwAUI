@@ -39,6 +39,9 @@ dotnet build AwAUI.slnx -p:IncludeNetFx=true
 
 - [ControlCatalog](samples/ControlCatalog)：Fluent 标准控件，支持明、暗、高对比与紧凑密度。
 - [ShadcnGallery](samples/ShadcnGallery)：Shadcn 组件与浮层示例，并提供软件渲染和 Metal 的同场景测量。
+- [DeclarativeDemo](samples/DeclarativeDemo)：Blazor 风格的 `.awaui` 声明式示例（代码隐藏、作用域 / 全局 / 共享 CSS）。
+- [HelloAot](samples/HelloAot)：最小 `AwAppBuilder` 桌面程序与 NativeAOT 发布示例。
+- [TailwindDemo](samples/TailwindDemo)：构建期与运行时 Tailwind 的逐字节对照。
 
 ```sh
 dotnet run --project samples/RenderDemo                       # macOS：打开窗口

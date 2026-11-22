@@ -70,9 +70,11 @@ public sealed class GlyphRun
 
 `GlyphRun.Bounds` 依赖字体声明的 'head' 包围盒；墨迹超出声明框的字体会被低估，缓存路径的像素对齐还可能再超出至多 0.5 设备像素（见 [03](03-renderer.md)）。
 
-- 系统字体由平台层的 `SystemFontProvider` 枚举（返回文件路径或数据），`FontManager` 按需解析，只读取用到的表。
-- 回退链：元素指定的族名列表 → 按文字与语言环境选择的系统默认字体 → 全量扫描。结果按（码点区块、语言环境）缓存。
-- Web 平台没有系统字体：回退链完全由应用注册的字体构成，缺字时触发 `FontManager.MissingGlyphs` 事件供应用按需下载。
+- 系统字体由 `AwAUI.Graphics.Text.SystemFontProvider` 枚举（返回字体文件路径），`FontCollection.SystemFonts` 按需解析，只读取用到的表。实现有两个：`DirectorySystemFontProvider` 扫描各系统的字体目录（macOS `/System/Library/Fonts`、Windows `%WINDIR%\Fonts`、Linux `/usr/share/fonts` 等，`SystemFonts.Default`）；没有系统字体的平台使用 `SystemFontProvider.Empty` 或应用配置的清单。架构规则不允许 `AwAUI.Platform` 引用 `AwAUI.Text`，所以提供者位于文本层，而不是 `PlatformBackend` 的成员。
+- 回退链：元素指定的族名列表 → 已注册的其余字体（按注册顺序）→ 按文字与语言环境选择的系统字体（`GetFallbackFamilies` 给出简体 / 繁体 / 日文 / 韩文等具体族名，再退回平台默认族）→ 全量扫描系统字体的 cmap。结果按（码点、语言环境、字重、风格、字宽、族名列表）缓存；族名与文件名先按去空格 / 连字符归一化匹配，未命中再建全量索引（只做一次）。
+- 系统字体的内存：全量索引由 `OpenTypeNameIndex` 建立，每个面只读 sfnt 头、表目录和 `name` 表，记录「族名 →（文件，面序号）」，不加载字型；命中族名后才加载该族所在的文件。字体文件（系统字体与 `FontSource.FromFile`）经 `FontFileData` 以只读内存映射打开（小于 64 KB 或不支持映射的平台退回整文件读取），只有用到的表和字形所在的页驻留。全量 cmap 扫描逐个文件进行，未命中的文件立即解除映射，命中后按族名再解析一次以取到风格最接近的字型（同族的其他字重可能在别的文件里）。被字型引用的映射与进程同寿命；文件以 `FileShare.ReadWrite | Delete` 打开，不妨碍系统更新或卸载字体。
+- 语言环境来自 `CultureInfo.CurrentUICulture`（与 Avalonia 的默认一致），写入 `TextStyle.Locale` 并参与整形（OpenType 的 `locl` 与汉字变体）与回退缓存键；元素的 `lang` 属性目前只参与 `:lang()` 选择器。
+- Web 平台没有系统字体：回退链完全由应用注册的字体构成，缺字时触发 `FontManager.MissingGlyphs` 事件供应用按需下载并注册（注册后回退缓存自动失效）。
 
 ## 整形
 
@@ -222,6 +224,8 @@ public sealed class TextLayout
 断行的严格度映射到 `AwAUI.Unicode.LineBreakStrictness`（Strict = CSS `strict` 与 UAX #14 默认；Normal = CSS `normal`/`loose`，CJ 类按 ID 处理），由 `TextSegmenter.EnumerateLineBreaks` 使用。泰文、老挝文、高棉文、缅甸文的词典断词尚未实现。
 
 `ParagraphStyle`：默认文本样式（strut）、对齐（Start/End/Left/Right/Center/Justify）、方向、最大行数、省略号文本、行高（Normal / 倍数 / 像素）、断行严格度、`WhiteSpace`、`WordBreak`、`OverflowWrap`。它们与 CSS 文本属性一一对应（[16](16-css-properties.md)）；连字符尚未实现。
+
+`ParagraphStyle.Direction` 的类型是 `AwAUI.Text.ParagraphDirection`（`Auto` / `LeftToRight` / `RightToLeft`，初始 `Auto`）。`Auto` 对应 CSS `unicode-bidi: plaintext`（按第一个强字符决定段落级别，没有强字符时从左到右），`LeftToRight` / `RightToLeft` 对应 CSS `direction: ltr` / `rtl`。`TextLayout` 把段落方向作为基准级别交给 `AwAUI.Unicode.BidiAlgorithm.ResolveLevels`，并用它决定 `Start` / `End` 对齐落在哪一侧；UI 层由计算样式的 `direction` 映射而来。`AwAUI.Text` 可以引用 `AwAUI.Unicode`，而 `AwAUI.UI` 不能（架构测试），所以公共 API 不暴露 Unicode 层的 `BidiDirection`。
 
 ### 内部管线
 

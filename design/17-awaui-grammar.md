@@ -119,6 +119,55 @@ public enum PropKind { String, Bool, Slot /* NodeList */, Template /* Func<T, No
 
 命令行工具等没有 Roslyn 的场景使用一个纯语法的目录实现（只认识本项目的 `.awaui` 文件与随包分发的控件清单）。
 
+### 默认导入、目录级 `_Imports.awaui` 与框架内置命名空间
+
+标签名按以下顺序解析，取第一个存在的类型（只接受派生自 `AwAUI.UI.Node` 的类型）：
+
+1. 当前文件的命名空间（`@namespace` 或按目录推出的命名空间）；
+2. 文件自身的 `@using`；
+3. 同目录及祖先目录的 `_Imports.awaui` 提供的 `@using`（由内向外）；
+4. 项目的全局 using（`<Using Include="..." />` 或任意 C# 文件中的 `global using`，见下）；
+5. 项目配置的额外命名空间（MSBuild 属性 `AwAUIMarkupNamespaces`，分号或逗号分隔，见下）；
+6. 框架内置命名空间（MSBuild 属性 `AwAUIMarkupBuiltInNamespaces`，默认 `AwAUI.Controls`、`AwAUI.Controls.Primitives`）；
+7. 默认导入（`System`、`System.Collections.Generic`、`System.Linq`、`AwAUI.UI`）；
+8. 外层命名空间与全局命名空间。
+
+因此标准控件只写类名即可：`<Button>`、`<HeaderedContentControl>`、`<GridSplitter>` 分别解析到 `AwAUI.Controls` 中的类型；显式 `@using` 与带点的全名（`<AwAUI.UI.Button>`）优先。内置命名空间出现在默认导入之前，所以 `<Button>` 选的是 Controls 的按钮而不是 `AwAUI.UI.Button` 元素描述类型；编译中没有引用 `AwAUI.Controls` 时这两项候选自然落空，退回 `AwAUI.UI`。
+
+`_Imports.awaui`（相当于 Blazor 的 `_Imports.razor`）只包含指令，常用的写法是若干 `@using`：
+
+```razor
+@using MyApp.Models
+@using AwAUI.Shadcn
+```
+
+- 作用于同目录与全部子目录，由外向内累积；更近的文件排得更靠前。
+- 文件自身的 `@using` 排在导入之前，因此可以覆盖目录级导入。
+- 导入和显式 `@using` 一样写入生成的 C#，`@code` 中也能直接使用这些命名空间。
+- `_Imports.awaui` 本身不生成组件类；`@using static` 与别名不参与导入。
+
+项目级全局导入直接复用 C# 的 `global using`：SDK 隐式 using（`<Using Include="MyApp.Views" />`）或任意源文件中的 `global using MyApp.Views;` 都会加入标签解析的候选。它们排在 `_Imports.awaui` 之后、框架内置命名空间之前，因此目录级导入与文件自身的 `@using` 仍然更具体；生成的 C# 与项目在同一编译中，本来就已能看到这些 using，不需要额外写入。别名与 `using static` 不参与导入。需要按目录细分的场景用 `_Imports.awaui`，整个项目共享的命名空间用全局 using。
+
+如果不想在每个文件或 `_Imports.awaui` 中写 `@using`，可以在项目文件里配置额外的标签命名空间：
+
+```xml
+<PropertyGroup>
+  <AwAUIMarkupNamespaces>MyApp.Widgets;MyApp.Charting</AwAUIMarkupNamespaces>
+</PropertyGroup>
+```
+
+这些命名空间排在项目级全局 using 之后、框架内置命名空间之前；分号或逗号分隔，重复项与空白会被丢弃。它们只影响标签解析，不写入生成的 C#（与全局 using 一样）。
+
+框架内置的两项也可以用 MSBuild 属性替换；设为 `none` 时关闭内置查找（项目自己的命名空间仍可经 `AwAUIMarkupNamespaces`、全局 using 或 `_Imports.awaui` 提供）：
+
+```xml
+<PropertyGroup>
+  <AwAUIMarkupBuiltInNamespaces>MyApp.Controls;MyApp.Primitives</AwAUIMarkupBuiltInNamespaces>
+</PropertyGroup>
+```
+
+该属性替换（而不是追加）默认的两项，分隔符与 `AwAUIMarkupNamespaces` 相同。两个属性都通过生成器的 `buildTransitive` props 声明为 `CompilerVisibleProperty`，NuGet 包引用时无需额外配置。
+
 ## 插槽
 
 父标签是组件时，子标签名若与父组件的某个 `Slot` 或 `Template` 类别的属性同名，就是具名插槽，生成属性赋值；否则按普通子节点处理并归入默认插槽 `Children`。两者同名冲突时插槽优先，并给出警告，提示用限定名引用组件。
@@ -218,7 +267,7 @@ namespace MyApp
 - 泛型组件目前只支持显式的 `<Grid<int>>` 标签写法；`<Grid T="int">` 与类型实参推断、嵌套类型标签（`<Outer.Inner>`）尚未实现。
 - **`#line`**：每个源片段之前有 `#line`，前缀单独占一行隐藏行，代码用空格补齐到源列（补齐上限 240 列，保持线性）；其余全部在 `#line hidden` 下。文件名按原样写入，不做转义（C# 不处理 `#line` 文件名里的转义）；路径含 `"` 或换行类字符时不输出 `#line`，诊断落在生成文件上。`#line` 用 `.awaui` 的完整路径，`[ComponentSource]` 用项目相对路径，以保证确定性构建。`#line hidden` 区域（胶水、样式常量）里的诊断会报出不准确的 `.awaui` 行号（Razor 相同）。
 - `#nullable restore` 只在项目语言版本 ≥ 8 时输出，`@code` 因此遵循项目自己的可空设置；生成代码本身可按 C# 7.3 编译（有测试以 7.3 解析并完整编译运行）。
-- **样式**：`<style>` 内容不进入 C# 逻辑，由 `ScopedCss.Rewrite` 改写后生成常量 `__StyleScope`（`EditorBrowsable(Never)`）、`StyleSheetSource`、`GlobalStyleSheetSource`，以及 `protected override string ScopedStyleSheet => StyleSheetSource;` / `GlobalStyleSheet => GlobalStyleSheetSource;`（返回类型写 `string` 而不是 `string?`，以保持 C# 7.3 兼容，这是合法的可空协变重写）。这些成员包在 `#pragma warning disable 0108` 中：`@inherits` 链上的派生组件有意隐藏基类的同名常量，而编译器无法总是判断基类是否声明了它们（用 `new` 在无可隐藏时会报 CS0109）。运行时如何注册见 [12](12-component-api.md)「作用域样式」。
+- **样式**：`<style>` 内容不进入 C# 逻辑，与同名 `X.awaui.css`（作用域）/ `X.awaui.global.css`（全局）一起由 `ScopedCss.Rewrite` 改写后生成常量 `__StyleScope`（`EditorBrowsable(Never)`）、`StyleSheetSource`、`GlobalStyleSheetSource`，以及 `protected override string ScopedStyleSheet => StyleSheetSource;` / `GlobalStyleSheet => GlobalStyleSheetSource;`（返回类型写 `string` 而不是 `string?`，以保持 C# 7.3 兼容，这是合法的可空协变重写）。这些成员包在 `#pragma warning disable 0108` 中：`@inherits` 链上的派生组件有意隐藏基类的同名常量，而编译器无法总是判断基类是否声明了它们（用 `new` 在无可隐藏时会报 CS0109）。运行时如何注册见 [12](12-component-api.md)「作用域样式」。
 - 文件名不是合法类名（AW4011）时只报告诊断、不产生源码。
 - 规划中的**源映射表**（节点构建点 → 文件、行、列，Debug 构建下嵌入程序集，供 DevTools 跳转）尚未生成。
 
