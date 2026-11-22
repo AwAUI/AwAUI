@@ -6,3 +6,6 @@ artifacts/
 .idea/
 .DS_Store
 tests/TestFiles/Output/
+
+# 设计文档仅保留在本地，不提交
+/design/
