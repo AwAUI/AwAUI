@@ -3,7 +3,7 @@
 纯 C# 实现的跨平台自绘 UI 引擎：声明式组件（`.awaui`）+ 标准 CSS + 自研渲染器 + 内建 F12 调试。
 目标平台：Windows、macOS、Linux、Android、iOS、WebAssembly；运行时：.NET Framework 4.7.2+、.NET 8–11。
 
-设计文档在 [design/](design/README.md)。组件库正在推进首批标准控件和 Shadcn 组件，见 [路线图](design/07-roadmap.md)。
+组件库正在推进首批标准控件和 Shadcn 组件。
 
 ## 已经可以用的部分
 
