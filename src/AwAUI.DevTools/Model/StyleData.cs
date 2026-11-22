@@ -191,6 +191,51 @@ internal readonly struct ComputedEntry
     public readonly string Origin;
 }
 
+/// <summary>样式表列表里的一项（<c>Css.getStyleSheets</c> 的 <c>StyleSheetInfo</c>）。</summary>
+internal sealed class StyleSheetEntry
+{
+    public StyleSheetEntry(string sheetId)
+    {
+        SheetId = sheetId;
+    }
+
+    /// <summary>协议中的样式表 id（<c>Css.getStyleSheetText</c> / <c>setStyleSheetText</c> 使用）。</summary>
+    public readonly string SheetId;
+    public string Origin = "author";
+    public string? SourceUrl;
+    public string? Title;
+    public bool Disabled;
+    /// <summary>文本能否通过 <c>Css.setStyleSheetText</c> 替换；false 时编辑器只读。</summary>
+    public bool Editable;
+    /// <summary>拥有该样式表的节点（组件作用域样式）；没有为 0。</summary>
+    public long OwnerNodeId;
+
+    /// <summary>列表 / 编辑器标题里显示的名字（来源优先，其次标题，最后 id）。</summary>
+    public string DisplayName =>
+        SourceUrl is { Length: > 0 } url ? ShortName(url)
+        : Title is { Length: > 0 } title ? title
+        : SheetId;
+
+    static string ShortName(string path)
+    {
+        int i = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
+        return i >= 0 && i < path.Length - 1 ? path.Substring(i + 1) : path;
+    }
+}
+
+/// <summary><c>Css.setStyleSheetText</c> 返回的一条诊断。</summary>
+internal sealed class StyleSheetDiagnostic
+{
+    /// <summary><c>error</c> / <c>warning</c> / <c>info</c>。</summary>
+    public string Severity = "info";
+    public string Message = "";
+    public string? Code;
+    /// <summary>1 起的行号；0 表示未知。</summary>
+    public int Line;
+    /// <summary>1 起的列号；0 表示未知。</summary>
+    public int Column;
+}
+
 /// <summary><c>Layout.getBoxModel</c> 的结果，换算成四个盒的边距。</summary>
 internal sealed class BoxSnapshot
 {

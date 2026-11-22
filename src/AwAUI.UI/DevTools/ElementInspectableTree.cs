@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using AwAUI.Css;
 using AwAUI.Css.Selectors;
+using AwAUI.Css.Values;
 using AwAUI.Diagnostics;
 using AwAUI.Diagnostics.Inspection;
+using AwAUI.Layout;
 
 namespace AwAUI.UI;
 
@@ -270,6 +272,78 @@ internal sealed class ElementInspectableTree : InspectableTree
     public override long GetNodeAt(Point point, bool ignorePointerEvents) =>
         _pipeline.HitTest(point, ignorePointerEvents) is { } e && ReferenceEquals(e.Root, _root) ? e.UniqueId : 0;
 
+    // ------------------------------------------------------------ 滚动、焦点与布局
+
+    public override bool ScrollIntoView(long nodeId)
+    {
+        var e = Find(nodeId) ?? FindContentOwner(nodeId);
+        if (e is null) return false;
+        // 最近的滚动容器；根元素即视口。没有可滚动祖先时什么也不做，仍视为成功。
+        e.GetScrollContainer()?.ScrollIntoView(e);
+        return true;
+    }
+
+    public override bool Focus(long nodeId)
+    {
+        var e = Find(nodeId) ?? FindContentOwner(nodeId);
+        if (e is null) return false;
+        // 不可聚焦的元素被静默忽略（与 DOM 的 element.focus() 一致）；协议层面节点存在即成功。
+        e.Focus(new FocusOptions { Origin = FocusOrigin.Programmatic, PreventScroll = true });
+        return true;
+    }
+
+    public override LayoutInfo? GetLayoutInfo(long nodeId)
+    {
+        var e = Find(nodeId);
+        if (e is null || e.IsTextNode) return null;
+        // 与盒模型一致：display:none、尚未布局、段落内的 inline span 没有自己的布局盒
+        if (e.Render is not { HasBox: true, Style: { } style, Layout: { } node } box || box.Kind == BoxKind.Inline) return null;
+        string display = style.GetPropertyValueText(CssPropertyId.Display) ?? "block";
+        bool grid = node.Style.Display is Display.Grid or Display.InlineGrid;
+        bool flex = node.Style.Display is Display.Flex or Display.InlineFlex;
+        return new LayoutInfo
+        {
+            Display = display,
+            MinWidth = FixedPixels(style.MinWidth),
+            MaxWidth = FixedPixels(style.MaxWidth),
+            MinHeight = FixedPixels(style.MinHeight),
+            MaxHeight = FixedPixels(style.MaxHeight),
+            // 布局边界：独立于外部尺寸建立自身布局的盒（见 LayoutInfo.IsLayoutBoundary 的说明）。
+            IsLayoutBoundary = IsLayoutBoundary(node),
+            LastLayoutFrame = _pipeline.FrameVersion,
+            // UI 侧近似的最近一次标脏来源（自身或后代），由 Element.MarkDirty 传播记录；样式 / 布局阶段处理后清除。
+            InvalidatedByNodeId = e.InvalidatedBy?.UniqueId ?? 0,
+            InvalidatedByProperty = e.InvalidatedByProperty,
+            // 轨道尺寸来自最近一次完整布局（由 LayoutEngine 写入 LayoutNode）；没有对应容器时省略。
+            GridColumns = grid ? node.UsedTracksX ?? Array.Empty<float>() : null,
+            GridRows = grid ? node.UsedTracksY ?? Array.Empty<float>() : null,
+            FlexTracksX = flex ? node.UsedTracksX ?? Array.Empty<float>() : null,
+            FlexTracksY = flex ? node.UsedTracksY ?? Array.Empty<float>() : null,
+        };
+    }
+
+    /// <summary>
+    /// 是否是布局边界：根（初始包含块）、绝对 / 固定定位元素（建立包含块）以及滚动容器（任一轴 <c>overflow</c>
+    /// 不是 <c>visible</c>）。这些盒的尺寸由自身规则决定，不随外部内容流入而改变。
+    /// <para>
+    /// 不把 flex / grid 容器报告为边界：CSS 引擎在计算样式阶段会把行内级容器块级化（例如按钮在 flex 父容器中变成
+    /// <c>display: flex</c>），计算样式已无法区分「独立格式化上下文的块级容器」与「随内容取尺寸的行内级容器」，
+    /// 因此保持 false 而不是猜测。
+    /// </para>
+    /// </summary>
+    static bool IsLayoutBoundary(LayoutNode node)
+    {
+        if (node.Parent is null) return true;
+        var s = node.Style;
+        if (s.Position is Position.Absolute or Position.Fixed) return true;
+        if (s.OverflowX is not Overflow.Visible || s.OverflowY is not Overflow.Visible) return true;
+        return false;
+    }
+
+    /// <summary>固定像素的尺寸约束；auto / none / 百分比 / min-content 等返回 null。</summary>
+    static float? FixedPixels(SizeValue value) =>
+        value.Kind == SizeKind.LengthPercentage && value.Value.IsFixed ? value.Value.Length : (float?)null;
+
     // ------------------------------------------------------------ 编辑
 
     static readonly HashSet<string> s_readOnlyReflected = new(StringComparer.OrdinalIgnoreCase)
@@ -309,7 +383,7 @@ internal sealed class ElementInspectableTree : InspectableTree
         var box = RenderBox.Get(e);
         if (string.Equals(box.InlineOverride, text, StringComparison.Ordinal)) return;
         box.InlineOverride = text;
-        e.MarkDirty(ElementDirtyFlags.Style);
+        e.MarkDirty(ElementDirtyFlags.Style, "style");
         NotifyAttributeChanged(e.UniqueId, "style");
     }
 

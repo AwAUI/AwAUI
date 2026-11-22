@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AwAUI.Diagnostics.Inspection;
 using AwAUI.Diagnostics.Json;
@@ -14,16 +15,19 @@ namespace AwAUI.Diagnostics.Protocol;
 /// contentColor?, paddingColor?, borderColor?, marginColor? }</c>（CDP 式；颜色为 <c>"#rrggbbaa"</c>，也接受 #rgb / #rgba / #rrggbb；
 /// 省略的字段取 <see cref="HighlightConfig"/> 的默认值）。</item>
 /// <item><c>hideHighlight()</c>、<c>setInspectMode({ mode: "none" | "pick" | "measure" })</c>。</item>
+/// <item><c>setShowOptions({ layoutGrids?, rulers?, hitTargets?, touches? })</c>：持续显示的辅助内容；省略的字段取 false / 空数组。</item>
 /// </list>
 /// <para><b>事件</b>（发给所有启用了 Overlay 的会话，带 <c>target</c>）：<c>nodePicked { nodeId }</c>、<c>inspectModeCanceled {}</c>。
 /// 拾取到节点后不会自动退出拾取模式。</para>
-/// <para>叠加层在目标上是全局的；高亮或检查模式的设置者停用 Overlay（或断开）时，它设置的高亮被隐藏、检查模式回到 none。</para>
+/// <para>叠加层在目标上是全局的；高亮、检查模式或显示选项的设置者停用 Overlay（或断开）时，它设置的高亮被隐藏、
+/// 检查模式回到 none、显示选项恢复为全部关闭。后设置者生效。</para>
 /// </remarks>
 public sealed class OverlayDevToolsDomain : DevToolsDomain
 {
     readonly object _gate = new();
     readonly Dictionary<DevToolsTarget, DevToolsSession> _highlightOwner = new();
     readonly Dictionary<DevToolsTarget, DevToolsSession> _modeOwner = new();
+    readonly Dictionary<DevToolsTarget, (DevToolsSession Owner, OverlayShowOptions Options)> _showOptions = new();
 
     internal OverlayDevToolsDomain() : base("Overlay") { }
 
@@ -32,6 +36,7 @@ public sealed class OverlayDevToolsDomain : DevToolsDomain
         InspectionProtocol.Add(methods, "highlightNode", HighlightNode, requiresEnable: true);
         InspectionProtocol.Add(methods, "hideHighlight", HideHighlight, requiresEnable: true);
         InspectionProtocol.Add(methods, "setInspectMode", SetInspectMode, requiresEnable: true);
+        InspectionProtocol.Add(methods, "setShowOptions", SetShowOptions, requiresEnable: true);
     }
 
     JsonValue? HighlightNode(DevToolsCallContext ctx)
@@ -82,6 +87,65 @@ public sealed class OverlayDevToolsDomain : DevToolsDomain
             throw InspectionProtocol.DomainNotEnabled(this);
         }
         return null;
+    }
+
+    JsonValue? SetShowOptions(DevToolsCallContext ctx)
+    {
+        var overlay = InspectionProtocol.RequireOverlay(ctx);
+        var options = new OverlayShowOptions
+        {
+            LayoutGrids = ParseNodeIds(ctx, "layoutGrids"),
+            Rulers = ctx.GetBoolean("rulers", false),
+            HitTargets = ctx.GetBoolean("hitTargets", false),
+            Touches = ctx.GetBoolean("touches", false),
+        };
+        InspectionProtocol.RequireStillEnabled(ctx, this);
+        overlay.SetShowOptions(options);
+        bool recorded;
+        lock (_gate)
+        {
+            recorded = ctx.Session.IsDomainEnabled(this);
+            if (recorded) _showOptions[ctx.Target!] = (ctx.Session, options);
+        }
+        if (!recorded)
+        {
+            // 处理期间会话停用了 Overlay：停用时的撤销已经执行过，这里要自行恢复
+            ShowDefaults(overlay);
+            throw InspectionProtocol.DomainNotEnabled(this);
+        }
+        return null;
+    }
+
+    static IReadOnlyList<long> ParseNodeIds(DevToolsCallContext ctx, string name)
+    {
+        switch (ctx.Params[name])
+        {
+            case null:
+            case JsonNull:
+                return Array.Empty<long>();
+            case JsonArray a:
+            {
+                var list = new long[a.Count];
+                for (int i = 0; i < list.Length; i++)
+                {
+                    if (a[i] is not JsonNumber n || !n.TryGetInt64(out long id) || id <= 0 || id > InspectionProtocol.MaxSafeId)
+                        throw DevToolsProtocolException.InvalidParams(
+                            $"Parameter '{name}' must be an array of node ids.", new JsonObject { ["parameter"] = name });
+                    list[i] = id;
+                }
+                return list;
+            }
+            default:
+                throw DevToolsProtocolException.InvalidParams(
+                    $"Parameter '{name}' must be an array of node ids.", new JsonObject { ["parameter"] = name });
+        }
+    }
+
+    /// <summary>恢复显示选项为全部关闭。目标已脱离 Agent 或接缝不支持时静默跳过。</summary>
+    static void ShowDefaults(OverlayHost? overlay)
+    {
+        try { overlay?.SetShowOptions(new OverlayShowOptions()); }
+        catch (NotSupportedException) { /* 接缝不支持：没有可供撤销的状态 */ }
     }
 
     /// <summary>
@@ -135,15 +199,25 @@ public sealed class OverlayDevToolsDomain : DevToolsDomain
     {
         var hide = new List<DevToolsTarget>();
         var reset = new List<DevToolsTarget>();
+        var showDefaults = new List<DevToolsTarget>();
         lock (_gate)
         {
             Take(_highlightOwner, session, hide);
             Take(_modeOwner, session, reset);
+            foreach (var kv in _showOptions)
+                if (kv.Value.Owner == session) showDefaults.Add(kv.Key);
+            foreach (var t in showDefaults) _showOptions.Remove(t);
         }
         foreach (var t in hide)
             if (t.Agent == Agent) t.RunOnUIThread(() => t.Overlay?.HideHighlight());
         foreach (var t in reset)
             if (t.Agent == Agent) t.RunOnUIThread(() => t.Overlay?.SetInspectMode(InspectMode.None));
+        foreach (var t in showDefaults)
+        {
+            if (t.Agent != Agent) continue;
+            var overlay = t.Overlay;
+            t.RunOnUIThread(() => ShowDefaults(overlay));
+        }
     }
 
     static void Take(Dictionary<DevToolsTarget, DevToolsSession> owners, DevToolsSession session, List<DevToolsTarget> taken)
@@ -159,6 +233,7 @@ public sealed class OverlayDevToolsDomain : DevToolsDomain
         {
             _highlightOwner.Remove(target);
             _modeOwner.Remove(target);
+            _showOptions.Remove(target);
         }
     }
 

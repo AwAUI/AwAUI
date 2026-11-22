@@ -3,14 +3,62 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using AwAUI.Diagnostics.Client;
+using AwAUI.Diagnostics.Inspection;
 using AwAUI.Diagnostics.Json;
+using AwAUI.Diagnostics.Protocol;
 using AwAUI.Threading;
 using AwAUI.UI;
 
 namespace AwAUI.DevTools;
 
 /// <summary>右侧面板的页签。</summary>
-internal enum SideTab : byte { Styles, Computed, Events }
+internal enum SideTab : byte { Styles, Computed, Attributes, Events, Stylesheets, Components }
+
+/// <summary>属性查看器正在编辑的字段。</summary>
+internal enum AttributeEditKind : byte
+{
+    /// <summary><c>DomNode.Attributes</c> 里的自定义属性。</summary>
+    Attribute,
+    /// <summary>元素的 class 列表（用 <c>Tree.setClasses</c> 写回）。</summary>
+    Class,
+    /// <summary>元素的 id（用 <c>Tree.setAttribute</c> 写回）。</summary>
+    Id,
+    /// <summary>新增一条属性（输入 <c>name=value</c>）。</summary>
+    NewAttribute,
+}
+
+/// <summary>属性查看器里的一次编辑：哪一个字段（<see cref="Name"/> 只在自定义属性时有意义）。</summary>
+internal sealed class AttributeEditState
+{
+    public AttributeEditState(AttributeEditKind kind, string? name = null)
+    {
+        Kind = kind;
+        Name = name;
+    }
+
+    public readonly AttributeEditKind Kind;
+    public readonly string? Name;
+
+    public bool Matches(AttributeEditKind kind, string? name) =>
+        Kind == kind && (kind != AttributeEditKind.Attribute || string.Equals(Name, name, StringComparison.Ordinal));
+}
+
+/// <summary><c>Tree.search</c> 的一条结果：节点 id、命中原因与短标签。</summary>
+internal sealed class SearchResult
+{
+    public SearchResult(long nodeId, string match, string label)
+    {
+        NodeId = nodeId;
+        Match = match;
+        Label = label;
+    }
+
+    public readonly long NodeId;
+    /// <summary><c>tag</c> / <c>id</c> / <c>class</c> / <c>text</c> / <c>selector</c>。</summary>
+    public readonly string Match;
+    /// <summary>元素在面板里的短描述（例如 <c>div#app.count</c>）；不在镜像中时由命中原因与查询生成。</summary>
+    public readonly string Label;
+}
 
 /// <summary>事件日志的一条。</summary>
 internal sealed class LogEntry
@@ -55,14 +103,21 @@ internal sealed class InspectorModel : IDisposable
     /// <summary>事件日志保留的条数。</summary>
     public const int MaxLogEntries = 300;
 
+    /// <summary>搜索结果在面板里最多列出的条数（协议自身另有响应上限）。</summary>
+    public const int MaxSearchResults = 100;
+
     readonly DevToolsClient _client;
     readonly IDispatcher _dispatcher;
     readonly string? _pairingToken;
     readonly Dictionary<string, string> _sheetNames = new(StringComparer.Ordinal);
     readonly LinkedList<LogEntry> _log = new();
+    readonly HashSet<string> _forcedPseudoStates = new(StringComparer.Ordinal);
     long _logSeq;
     int _stylesToken;
     int _documentToken;
+    int _searchToken;
+    int _sheetTextToken;
+    bool _searchScheduled;
     bool _refreshQueued;
     bool _refreshAfterEdit;
     bool _disposed;
@@ -93,6 +148,12 @@ internal sealed class InspectorModel : IDisposable
     /// <summary>事件日志的版本。</summary>
     public readonly State<int> LogRevision = new(0);
 
+    /// <summary>搜索结果与结果列表的版本。</summary>
+    public readonly State<int> SearchRevision = new(0);
+
+    /// <summary>样式表列表与样式表编辑页的版本。</summary>
+    public readonly State<int> SheetsRevision = new(0);
+
     public string? TargetId { get; private set; }
     public string? AppName { get; private set; }
     public bool Connected { get; private set; }
@@ -105,10 +166,117 @@ internal sealed class InspectorModel : IDisposable
     public DomNode? Selected { get; private set; }
     public long HoveredId { get; private set; }
 
+    List<ComponentInstance>? _components;
+    int _componentsVersion = -1;
+    int _componentCount;
+    bool _componentsTruncated;
+
+    /// <summary>
+    /// 组件实例树：由镜像里已有的 <see cref="DomNode.ComponentName"/> 构建，父实例是最近的组件祖先。
+    /// 只在镜像结构变化后重建一次（不是每帧），最多列出 <see cref="ComponentTreeBuilder.MaxInstances"/> 个实例。
+    /// </summary>
+    public IReadOnlyList<ComponentInstance> Components
+    {
+        get
+        {
+            EnsureComponents();
+            return _components!;
+        }
+    }
+
+    /// <summary>构建出的组件实例总数（达到上限时是列出的数量）。</summary>
+    public int ComponentCount
+    {
+        get
+        {
+            EnsureComponents();
+            return _componentCount;
+        }
+    }
+
+    /// <summary>组件实例数超过上限，列表被截断。</summary>
+    public bool ComponentsTruncated
+    {
+        get
+        {
+            EnsureComponents();
+            return _componentsTruncated;
+        }
+    }
+
+    /// <summary>组件页里最近一次点击的实例对应的节点 id；0 表示没有。</summary>
+    public long SelectedComponentNodeId { get; private set; }
+
+    /// <summary>组件页里最近一次点击的实例名。</summary>
+    public string? SelectedComponentName { get; private set; }
+
     public StylesSnapshot? Styles { get; private set; }
     public List<ComputedEntry>? Computed { get; private set; }
     public BoxSnapshot? Box { get; private set; }
     public string? StylesError { get; private set; }
+
+    /// <summary><c>Css.getStyleSheets</c> 的结果；null 表示尚未加载。</summary>
+    public List<StyleSheetEntry>? StyleSheets { get; private set; }
+
+    /// <summary>样式表列表加载失败的原因（可见地显示在样式表页里）。</summary>
+    public string? StyleSheetsError { get; private set; }
+
+    /// <summary>当前在样式表页里选中的样式表 id；null 表示没有选中。</summary>
+    public string? SelectedSheetId { get; private set; }
+
+    /// <summary>选中样式表的服务端文本（最近一次加载 / 应用成功的版本）。</summary>
+    public string SheetText { get; private set; } = "";
+
+    /// <summary>编辑框的当前内容（受控输入的值；每次输入更新，不触发重建）。</summary>
+    public string SheetDraft { get; set; } = "";
+
+    /// <summary>编辑框内容与服务端文本不同。</summary>
+    public bool SheetDirty => !string.Equals(SheetDraft, SheetText, StringComparison.Ordinal);
+
+    /// <summary>样式表文本正在加载。</summary>
+    public bool SheetTextLoading { get; private set; }
+
+    /// <summary>样式表文本加载 / 应用失败的原因（协议错误、只读等）。</summary>
+    public string? SheetTextError { get; private set; }
+
+    /// <summary>应用（Apply）请求在途。</summary>
+    public bool SheetApplying { get; private set; }
+
+    /// <summary>最近一次 <c>Css.setStyleSheetText</c> 返回的诊断；null 表示还没有应用过。</summary>
+    public List<StyleSheetDiagnostic>? SheetDiagnostics { get; private set; }
+
+    /// <summary>外部修改了当前样式表，但本地有未保存的编辑（不覆盖编辑框）。</summary>
+    public bool SheetExternalChange { get; private set; }
+
+    /// <summary>被强制的伪状态（见 <see cref="ForceablePseudoStates"/>）。选中变化或会话断开时清空。</summary>
+    public IEnumerable<string> ForcedPseudoStates => _forcedPseudoStates;
+
+    /// <summary><c>Css.forcePseudoState</c> 的错误（例如域未启用）。</summary>
+    public string? PseudoError { get; private set; }
+
+    /// <summary>搜索框的当前文本（受控值）。</summary>
+    public string SearchQuery { get; private set; } = "";
+
+    /// <summary>最近一次 <c>Tree.search</c> 的结果；null 表示没有打开的搜索结果。</summary>
+    public List<SearchResult>? SearchResults { get; private set; }
+
+    /// <summary>搜索结果被协议层或面板截断。</summary>
+    public bool SearchTruncated { get; private set; }
+
+    /// <summary>搜索请求在途。</summary>
+    public bool Searching { get; private set; }
+
+    /// <summary>搜索失败的原因（可见地显示在结果列表里）。</summary>
+    public string? SearchError { get; private set; }
+
+    /// <summary>属性查看器里正在编辑的字段；null 表示没有编辑。</summary>
+    public AttributeEditState? AttributeEditing { get; private set; }
+
+    /// <summary>属性编辑框的当前内容（受控输入的值）。</summary>
+    public string AttributeDraft { get; set; } = "";
+
+    /// <summary>属性编辑失败的原因（只读属性、非法名字等）。</summary>
+    public string? AttributesError { get; private set; }
 
     public EditState? Editing { get; private set; }
     /// <summary>编辑框的当前内容（受控输入的值；每次输入更新，不触发重建）。</summary>
@@ -166,16 +334,211 @@ internal sealed class InspectorModel : IDisposable
         });
     }
 
+    /// <summary>
+    /// 加载样式表列表（<c>Css.getStyleSheets</c>），用于匹配规则的来源名与样式表编辑页。
+    /// 第一次得到列表时自动选中第一张样式表并加载它的文本；失败时保留旧列表并在样式表页里显示错误。
+    /// </summary>
     void LoadStyleSheets()
     {
         Call("Css.getStyleSheets", null, r =>
         {
-            if (r.IsError || r.ResultObject["sheets"] is not JsonArray sheets) return;
+            if (r.IsError)
+            {
+                StyleSheetsError = DescribeProtocolError("Loading style sheets", r);
+                BumpSheets();
+                return;
+            }
+            if (r.ResultObject["sheets"] is not JsonArray sheets)
+            {
+                StyleSheetsError = "Css.getStyleSheets returned no sheet list.";
+                BumpSheets();
+                return;
+            }
+            StyleSheetsError = null;
             _sheetNames.Clear();
+            var list = new List<StyleSheetEntry>(sheets.Count);
             foreach (var s in sheets)
-                if (s is JsonObject so && so.GetStringOrDefault("sheetId") is { } id)
-                    _sheetNames[id] = so.GetStringOrDefault("sourceUrl") ?? so.GetStringOrDefault("title") ?? id;
+            {
+                if (s is not JsonObject so || so.GetStringOrDefault("sheetId") is not { } id) continue;
+                var entry = new StyleSheetEntry(id)
+                {
+                    Origin = so.GetStringOrDefault("origin") ?? "author",
+                    SourceUrl = so.GetStringOrDefault("sourceUrl"),
+                    Title = so.GetStringOrDefault("title"),
+                    Disabled = so["disabled"] is JsonBoolean db && db.GetBoolean(),
+                    Editable = so["editable"] is not JsonBoolean eb || eb.GetBoolean(),
+                    OwnerNodeId = so["ownerNodeId"] is JsonNumber on && on.TryGetInt64(out long owner) ? owner : 0,
+                };
+                list.Add(entry);
+                _sheetNames[id] = entry.DisplayName;
+            }
+            StyleSheets = list;
+            if (SelectedSheetId is { } selected && list.Find(e => e.SheetId == selected) is null)
+            {
+                _sheetTextToken++;
+                SelectedSheetId = null;
+                SheetText = "";
+                SheetDraft = "";
+                SheetTextError = null;
+                SheetDiagnostics = null;
+                SheetTextLoading = false;
+                SheetExternalChange = false;
+            }
+            if (SelectedSheetId is null && list.Count > 0)
+            {
+                // 与浏览器一致：打开样式表页时显示第一张样式表，不必先点一项
+                SelectSheetCore(list[0].SheetId);
+            }
+            BumpSheets();
         });
+    }
+
+    /// <summary>重新请求样式表列表（样式表页的 Reload 按钮）。</summary>
+    public void ReloadStyleSheets()
+    {
+        StyleSheetsError = null;
+        LoadStyleSheets();
+    }
+
+    void BumpSheets() => SheetsRevision.Value++;
+
+    /// <summary>选中一张样式表并请求它的文本（<c>Css.getStyleSheetText</c>）。</summary>
+    public void SelectStyleSheet(string? sheetId)
+    {
+        if (string.IsNullOrEmpty(sheetId) || SelectedSheetId == sheetId) return;
+        SelectSheetCore(sheetId!);
+    }
+
+    void SelectSheetCore(string sheetId)
+    {
+        SelectedSheetId = sheetId;
+        SheetText = "";
+        SheetDraft = "";
+        SheetTextError = null;
+        SheetDiagnostics = null;
+        SheetExternalChange = false;
+        SheetTextLoading = true;
+        BumpSheets();
+        LoadStyleSheetText(sheetId, preserveDraft: false);
+    }
+
+    /// <summary>输入框内容变化（不改变控件里的文本，只更新草稿与“未保存”状态）。</summary>
+    public void SetSheetDraft(string? text)
+    {
+        SheetDraft = text ?? "";
+        BumpSheets();
+    }
+
+    void LoadStyleSheetText(string sheetId, bool preserveDraft)
+    {
+        int token = ++_sheetTextToken;
+        SheetTextLoading = true;
+        BumpSheets();
+        Call("Css.getStyleSheetText", new JsonObject { ["sheetId"] = sheetId }, r =>
+        {
+            if (token != _sheetTextToken) return;
+            SheetTextLoading = false;
+            if (r.IsError)
+            {
+                SheetTextError = DescribeProtocolError("Loading style sheet", r);
+                BumpSheets();
+                return;
+            }
+            string text = r.ResultObject.GetStringOrDefault("text") ?? "";
+            SheetText = text;
+            if (!preserveDraft) SheetDraft = text;
+            SheetTextError = null;
+            SheetExternalChange = false;
+            BumpSheets();
+        });
+    }
+
+    /// <summary>
+    /// 应用编辑框里的文本（<c>Css.setStyleSheetText</c>）。诊断（severity / message / 行列）保留并显示；
+    /// 协议错误时保留用户文本，不清空编辑框。
+    /// </summary>
+    public void ApplyStyleSheet()
+    {
+        if (SelectedSheetId is not { } sheetId) return;
+        var entry = StyleSheets?.Find(e => e.SheetId == sheetId);
+        if (entry is null)
+        {
+            SheetTextError = "The selected style sheet is no longer available.";
+            BumpSheets();
+            return;
+        }
+        if (!entry.Editable)
+        {
+            SheetTextError = "This style sheet is read-only.";
+            BumpSheets();
+            return;
+        }
+        string text = SheetDraft ?? "";
+        SheetApplying = true;
+        SheetTextError = null;
+        SheetDiagnostics = null;
+        BumpSheets();
+        Call("Css.setStyleSheetText", new JsonObject { ["sheetId"] = sheetId, ["text"] = text }, r =>
+        {
+            SheetApplying = false;
+            if (r.IsError)
+            {
+                SheetTextError = DescribeProtocolError("Saving style sheet", r);
+                BumpSheets();
+                return;
+            }
+            // 服务端已接受文本（即使有诊断）：保留用户文本，更新基线并显示诊断
+            SheetText = text;
+            SheetExternalChange = false;
+            SheetDiagnostics = ParseDiagnostics(r.ResultObject["diagnostics"]);
+            BumpSheets();
+            LoadStyleSheets();
+        });
+    }
+
+    static List<StyleSheetDiagnostic> ParseDiagnostics(JsonValue? value)
+    {
+        var list = new List<StyleSheetDiagnostic>();
+        if (value is not JsonArray arr) return list;
+        foreach (var item in arr)
+        {
+            if (item is not JsonObject o) continue;
+            list.Add(new StyleSheetDiagnostic
+            {
+                Severity = o.GetStringOrDefault("severity") ?? "info",
+                Message = o.GetStringOrDefault("message") ?? "",
+                Code = o.GetStringOrDefault("code"),
+                Line = o["line"] is JsonNumber ln && ln.TryGetInt64(out long line) ? (int)Math.Min(int.MaxValue, Math.Max(0, line)) : 0,
+                Column = o["column"] is JsonNumber cn && cn.TryGetInt64(out long column) ? (int)Math.Min(int.MaxValue, Math.Max(0, column)) : 0,
+            });
+        }
+        return list;
+    }
+
+    /// <summary>组件实例树被重新构建的次数（测试用：同一结构版本下不应每帧重建）。</summary>
+    internal int ComponentsBuildCount { get; private set; }
+
+    void EnsureComponents()
+    {
+        int version = Tree.StructureVersion;
+        if (_components is not null && _componentsVersion == version) return;
+        ComponentsBuildCount++;
+        _components = new List<ComponentInstance>();
+        _componentCount = ComponentTreeBuilder.Build(Tree, ComponentTreeBuilder.MaxInstances, _components, out _componentsTruncated);
+        _componentsVersion = version;
+    }
+
+    /// <summary>
+    /// 点击组件页的实例：在元素树里展开祖先并选中对应节点（复用 <see cref="RevealAndSelect"/>），
+    /// 同时记住实例名与节点 id 供组件页显示详情。
+    /// </summary>
+    public void SelectComponent(ComponentInstance? instance)
+    {
+        if (instance is null) return;
+        SelectedComponentNodeId = instance.Node.Id;
+        SelectedComponentName = instance.Name;
+        RevealAndSelect(instance.Node.Id);
+        BumpTree();
     }
 
     /// <summary>（重新）加载整棵树：保留之前的选中（若节点仍在）。</summary>
@@ -195,7 +558,10 @@ internal sealed class InspectorModel : IDisposable
             Tree.AutoExpand(maxRows: 160);
             Loaded = true;
             TreeScrollTop = 0;
+            ResetForcedPseudoStates(Selected is null ? 0 : StyledId(Selected), notify: true);
             Selected = null;
+            CancelAttributeEdit();
+            AttributesError = null;
             if (keep != 0 && Tree.Get(keep) is { } n) SelectNode(n, scroll: true, highlight: false);
             else ClearStyles();
             SetStatus(null);
@@ -225,6 +591,9 @@ internal sealed class InspectorModel : IDisposable
                 if (Selected is { } sel && Tree.Get(sel.Id) != sel)
                 {
                     Selected = null;
+                    CancelAttributeEdit();
+                    AttributesError = null;
+                    ResetForcedPseudoStates(StyledId(sel), notify: true);
                     ClearStyles();
                     SelectionChanged?.Invoke(null);
                 }
@@ -234,6 +603,7 @@ internal sealed class InspectorModel : IDisposable
                 BumpTree();
                 // 结构或文本变化可能改变选中元素的盒；属性 / 伪状态变化另由 computedStyleInvalidated 报告
                 if (name is "childrenChanged" or "childMoved" or "textChanged") ScheduleRefresh();
+                if (name is "attributesChanged" or "pseudoStateChanged") BumpStyles();
                 ChromeRevision.Value++;
                 return;
             case "Overlay":
@@ -265,6 +635,19 @@ internal sealed class InspectorModel : IDisposable
                 else if (name.StartsWith("styleSheet", StringComparison.Ordinal))
                 {
                     LoadStyleSheets();
+                    if (name == "styleSheetChanged" && e.Params.GetStringOrDefault("sheetId") is { } changed && changed == SelectedSheetId)
+                    {
+                        // 自己 Apply 引起的事件：响应会带回新文本与诊断，不能用它覆盖正在编辑的草稿
+                        if (!SheetApplying)
+                        {
+                            if (SheetDirty)
+                            {
+                                SheetExternalChange = true;
+                                BumpSheets();
+                            }
+                            else LoadStyleSheetText(changed, preserveDraft: false);
+                        }
+                    }
                     ScheduleRefresh();
                 }
                 return;
@@ -276,6 +659,11 @@ internal sealed class InspectorModel : IDisposable
         if (_disposed) return;
         Connected = false;
         Picking = false;
+        // 协议层在断开时已经撤销强制伪状态，面板只需复位开关
+        ResetForcedPseudoStates(0, notify: false);
+        SearchError = null;
+        Searching = false;
+        AttributeEditing = null;
         SetStatus("Disconnected");
     }
 
@@ -298,6 +686,391 @@ internal sealed class InspectorModel : IDisposable
 
     void BumpStyles() => StylesRevision.Value++;
 
+    void BumpSearch() => SearchRevision.Value++;
+
+    static string DescribeProtocolError(string action, DevToolsResponse r) =>
+        r.ErrorCode == DevToolsErrorCodes.NotSupported
+            ? action + " is read-only: " + r.ErrorMessage
+            : action + " failed (" + r.ErrorCode.ToString(CultureInfo.InvariantCulture) + "): " + r.ErrorMessage;
+
+    // ------------------------------------------------------------ 强制伪状态
+
+    public bool IsPseudoStateForced(string state) => _forcedPseudoStates.Contains(state);
+
+    /// <summary>
+    /// 切换一个强制伪状态并调用 <c>Css.forcePseudoState</c>（替换整个集合；全部取消时发空数组）。
+    /// 失败时恢复之前的集合并显示错误，而不是默默地什么也不做。
+    /// </summary>
+    public void TogglePseudoState(string state)
+    {
+        if (Selected is not { } node || string.IsNullOrEmpty(state)) return;
+        if (!IsForceable(state)) return;
+        CancelEdit();
+        CancelAttributeEdit();
+        var previous = new HashSet<string>(_forcedPseudoStates, StringComparer.Ordinal);
+        if (!_forcedPseudoStates.Remove(state)) _forcedPseudoStates.Add(state);
+        PseudoError = null;
+        BumpStyles();
+        SendForcedPseudoStates(StyledId(node), previous);
+    }
+
+    /// <summary>清空全部强制伪状态（<c>Css.forcePseudoState</c> 收到空数组）。</summary>
+    public void ClearPseudoStates()
+    {
+        if (Selected is null) return;
+        CancelEdit();
+        CancelAttributeEdit();
+        var previous = new HashSet<string>(_forcedPseudoStates, StringComparer.Ordinal);
+        if (_forcedPseudoStates.Count == 0) return;
+        PseudoError = null;
+        BumpStyles();
+        long id = StyledId(Selected);
+        _forcedPseudoStates.Clear();
+        SendForcedPseudoStates(id, previous);
+    }
+
+    static bool IsForceable(string state)
+    {
+        foreach (var s in ForceablePseudoStates)
+            if (string.Equals(s, state, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    void SendForcedPseudoStates(long nodeId, HashSet<string> previous)
+    {
+        var states = new JsonArray();
+        foreach (var state in ForceablePseudoStates)
+            if (_forcedPseudoStates.Contains(state)) states.Add(state);
+        Call("Css.forcePseudoState", new JsonObject { ["nodeId"] = nodeId, ["states"] = states }, r =>
+        {
+            if (!r.IsError) return;
+            _forcedPseudoStates.Clear();
+            foreach (var s in previous) _forcedPseudoStates.Add(s);
+            PseudoError = DescribeProtocolError("Forcing pseudo-states", r);
+            BumpStyles();
+        });
+    }
+
+    void ResetForcedPseudoStates(long nodeId, bool notify)
+    {
+        if (_forcedPseudoStates.Count == 0)
+        {
+            PseudoError = null;
+            return;
+        }
+        _forcedPseudoStates.Clear();
+        PseudoError = null;
+        if (notify && Connected && nodeId != 0)
+            Call("Css.forcePseudoState", new JsonObject { ["nodeId"] = nodeId, ["states"] = new JsonArray() }, null);
+    }
+
+    // ------------------------------------------------------------ 元素搜索
+
+    /// <summary>搜索框内容变化：空查询立即清空结果；非空查询合并到一次 <c>Tree.search</c>（去抖）。</summary>
+    public void SetSearchQuery(string? query)
+    {
+        query ??= "";
+        if (string.Equals(query, SearchQuery, StringComparison.Ordinal) && SearchResults is not null) return;
+        SearchQuery = query;
+        if (query.Trim().Length == 0)
+        {
+            _searchToken++;
+            SearchResults = null;
+            SearchError = null;
+            Searching = false;
+            SearchTruncated = false;
+            BumpSearch();
+            return;
+        }
+        ScheduleSearch();
+    }
+
+    /// <summary>回车：立即执行（不等待去抖）。</summary>
+    public void SubmitSearch(string? query)
+    {
+        if (query is not null && !string.Equals(query, SearchQuery, StringComparison.Ordinal)) SearchQuery = query;
+        RunSearch(SearchQuery);
+    }
+
+    void ScheduleSearch()
+    {
+        BumpSearch();
+        if (_searchScheduled) return;
+        _searchScheduled = true;
+        _dispatcher.Post(() =>
+        {
+            _searchScheduled = false;
+            if (!_disposed) RunSearch(SearchQuery);
+        });
+    }
+
+    /// <summary>执行 <c>Tree.search</c>；过期的响应按令牌丢弃。</summary>
+    public void RunSearch(string? query)
+    {
+        if (_disposed) return;
+        query = (query ?? "").Trim();
+        if (query.Length == 0)
+        {
+            _searchToken++;
+            SearchQuery = "";
+            SearchResults = null;
+            SearchError = null;
+            Searching = false;
+            SearchTruncated = false;
+            BumpSearch();
+            return;
+        }
+        int token = ++_searchToken;
+        Searching = true;
+        SearchError = null;
+        SearchResults = null;
+        SearchTruncated = false;
+        BumpSearch();
+        Call("Tree.search", new JsonObject { ["query"] = query }, r =>
+        {
+            if (token != _searchToken) return;
+            Searching = false;
+            if (r.IsError)
+            {
+                SearchError = "Search failed: " + r.ErrorMessage;
+                BumpSearch();
+                return;
+            }
+            var results = new List<SearchResult>();
+            bool truncated = r.ResultObject["truncated"] is JsonBoolean tb && tb.GetBoolean();
+            if (r.ResultObject["results"] is JsonArray arr)
+                foreach (var item in arr)
+                {
+                    if (results.Count >= MaxSearchResults)
+                    {
+                        truncated = true;
+                        break;
+                    }
+                    if (item is not JsonObject o || o["nodeId"] is not JsonNumber n || !n.TryGetInt64(out long id)) continue;
+                    string match = o.GetStringOrDefault("match") ?? "";
+                    results.Add(new SearchResult(id, match, SearchLabel(id, match, query)));
+                }
+            SearchResults = results;
+            SearchTruncated = truncated;
+            BumpSearch();
+        });
+    }
+
+    /// <summary>结果行的短标签：镜像里有该节点时用 <c>tag#id.class</c>，否则按命中原因与查询生成。</summary>
+    string SearchLabel(long id, string match, string query)
+    {
+        if (Tree.Get(id) is not null) return Describe(id);
+        return match switch
+        {
+            "id" => "#" + query,
+            "class" => "." + query,
+            "tag" => "<" + query + ">",
+            "text" => "\"" + query + "\"",
+            "selector" => query,
+            _ => "node " + id.ToString(CultureInfo.InvariantCulture),
+        };
+    }
+
+    /// <summary>选中搜索结果：收起列表，展开祖先、选中并滚动到应用里的元素（<c>Tree.scrollIntoView</c>）。</summary>
+    public void SelectSearchResult(SearchResult result)
+    {
+        if (result is null || _disposed) return;
+        SearchResults = null;
+        SearchTruncated = false;
+        SearchError = null;
+        BumpSearch();
+        RevealAndSelect(result.NodeId);
+        Call("Tree.scrollIntoView", new JsonObject { ["nodeId"] = result.NodeId }, null);
+    }
+
+    public void ClearSearch() => SetSearchQuery("");
+
+    // ------------------------------------------------------------ 属性与 class 编辑
+
+    public void BeginIdEdit()
+    {
+        if (Selected is not { } node || node.IsText) return;
+        BeginAttributeEditCore(new AttributeEditState(AttributeEditKind.Id, "id"), node.ElementId ?? "");
+    }
+
+    public void BeginClassEdit()
+    {
+        if (Selected is not { } node || node.IsText) return;
+        var classes = node.Classes;
+        BeginAttributeEditCore(new AttributeEditState(AttributeEditKind.Class, "class"), classes is { Length: > 0 } ? string.Join(" ", classes) : "");
+    }
+
+    public void BeginAttributeEdit(string name, string value)
+    {
+        if (Selected is not { } node || node.IsText) return;
+        BeginAttributeEditCore(new AttributeEditState(AttributeEditKind.Attribute, name), value ?? "");
+    }
+
+    public void BeginAddAttribute()
+    {
+        if (Selected is not { } node || node.IsText) return;
+        BeginAttributeEditCore(new AttributeEditState(AttributeEditKind.NewAttribute), "");
+    }
+
+    void BeginAttributeEditCore(AttributeEditState edit, string draft)
+    {
+        CancelEdit();
+        AttributeEditing = edit;
+        AttributeDraft = draft;
+        AttributesError = null;
+        BumpStyles();
+    }
+
+    public void CancelAttributeEdit()
+    {
+        if (AttributeEditing is null) return;
+        AttributeEditing = null;
+        BumpStyles();
+    }
+
+    /// <summary>
+    /// 提交属性编辑：空值删除该属性；class 用 <c>Tree.setClasses</c>，其余用 <c>Tree.setAttribute</c>。
+    /// 成功后从 <c>Tree.describeNode</c> 刷新该行；失败（含只读属性的 -32004）显示错误。
+    /// </summary>
+    public void CommitAttributeEdit(string? text)
+    {
+        if (AttributeEditing is not { } edit) return;
+        if (Selected is not { } node || node.IsText)
+        {
+            AttributeEditing = null;
+            BumpStyles();
+            return;
+        }
+        AttributeEditing = null;
+        AttributesError = null;
+        long id = node.Id;
+        string value = text ?? "";
+        switch (edit.Kind)
+        {
+            case AttributeEditKind.Id:
+            {
+                string trimmed = value.Trim();
+                if (trimmed.Length == 0) SendRemoveAttribute(id, "id");
+                else SendSetAttribute(id, "id", trimmed);
+                break;
+            }
+            case AttributeEditKind.Class:
+                SendSetClasses(id, ParseClasses(value));
+                break;
+            case AttributeEditKind.NewAttribute:
+            {
+                string t = value.Trim();
+                int sep = t.IndexOf('=');
+                if (sep < 0) sep = t.IndexOf(':');
+                if (sep <= 0)
+                {
+                    AttributesError = "Expected \"name=value\".";
+                    BumpStyles();
+                    return;
+                }
+                string name = t.Substring(0, sep).Trim();
+                string v = t.Substring(sep + 1).Trim();
+                if (name.Length == 0)
+                {
+                    AttributesError = "Attribute name must not be empty.";
+                    BumpStyles();
+                    return;
+                }
+                SendSetAttribute(id, name, v);
+                break;
+            }
+            default:
+            {
+                string name = edit.Name ?? "";
+                if (value.Length == 0) SendRemoveAttribute(id, name);
+                else SendSetAttribute(id, name, value);
+                break;
+            }
+        }
+        BumpStyles();
+    }
+
+    /// <summary>删除一个属性（class 转为空的 class 列表；id 通过 <c>Tree.removeAttribute</c>）。</summary>
+    public void RemoveAttribute(string name)
+    {
+        if (Selected is not { } node || node.IsText || string.IsNullOrEmpty(name)) return;
+        CancelEdit();
+        AttributeEditing = null;
+        AttributesError = null;
+        if (name == "class") SendSetClasses(node.Id, new List<string>());
+        else SendRemoveAttribute(node.Id, name);
+        BumpStyles();
+    }
+
+    static List<string> ParseClasses(string? text)
+    {
+        var list = new List<string>();
+        if (text is null) return list;
+        int start = -1;
+        for (int i = 0; i <= text.Length; i++)
+        {
+            bool space = i == text.Length || char.IsWhiteSpace(text[i]);
+            if (!space && start < 0) start = i;
+            else if (space && start >= 0)
+            {
+                string c = text.Substring(start, i - start);
+                if (!list.Contains(c)) list.Add(c);
+                start = -1;
+            }
+        }
+        return list;
+    }
+
+    void SendSetAttribute(long nodeId, string name, string value) =>
+        Call("Tree.setAttribute", new JsonObject { ["nodeId"] = nodeId, ["name"] = name, ["value"] = value },
+            r => AfterAttributeRequest(nodeId, r, "attribute"));
+
+    void SendRemoveAttribute(long nodeId, string name) =>
+        Call("Tree.removeAttribute", new JsonObject { ["nodeId"] = nodeId, ["name"] = name },
+            r => AfterAttributeRequest(nodeId, r, "attribute"));
+
+    void SendSetClasses(long nodeId, List<string> classes)
+    {
+        var array = new JsonArray();
+        foreach (var c in classes) array.Add(c);
+        Call("Tree.setClasses", new JsonObject { ["nodeId"] = nodeId, ["classes"] = array },
+            r => AfterAttributeRequest(nodeId, r, "class list"));
+    }
+
+    void AfterAttributeRequest(long nodeId, DevToolsResponse r, string what)
+    {
+        if (r.IsError)
+        {
+            AttributesError = DescribeProtocolError("Editing " + what, r);
+            BumpStyles();
+            return;
+        }
+        AttributesError = null;
+        RefreshNodeDescription(nodeId);
+    }
+
+    /// <summary>编辑成功后用 <c>Tree.describeNode</c> 刷新镜像里的这一行（不改变树结构）。</summary>
+    void RefreshNodeDescription(long nodeId)
+    {
+        Call("Tree.describeNode", new JsonObject { ["nodeId"] = nodeId }, r =>
+        {
+            if (r.IsError)
+            {
+                AttributesError = "Refresh failed: " + r.ErrorMessage;
+                BumpStyles();
+                return;
+            }
+            if (r.ResultObject["node"] is JsonObject node)
+            {
+                Tree.UpdateNode(node);
+                BumpTree();
+                ChromeRevision.Value++;
+            }
+            BumpStyles();
+            RefreshStyles();
+        });
+    }
+
     // ------------------------------------------------------------ 树：选中、展开、拾取
 
     /// <summary>描述一个节点（继承分区的标题）：<c>div#id.class</c>。</summary>
@@ -317,12 +1090,23 @@ internal sealed class InspectorModel : IDisposable
 
     public void Select(DomNode? node) => SelectNode(node, scroll: false, highlight: true);
 
+    /// <summary>协议允许强制的伪状态（与 <see cref="StyleInspector.ForceablePseudoStates"/> 一致）。</summary>
+    public static IReadOnlyList<string> ForceablePseudoStates => StyleInspector.ForceablePseudoStates;
+
     void SelectNode(DomNode? node, bool scroll, bool highlight)
     {
         if (node is not null && Tree.Get(node.Id) != node) node = null;
-        CancelEdit();
         bool changed = !ReferenceEquals(Selected, node);
+        // 选中变化：旧节点的强制伪状态在应用里撤销，本地开关也随之复位（同浏览器）
+        if (changed) ResetForcedPseudoStates(Selected is null ? 0 : StyledId(Selected), notify: true);
+        CancelEdit();
+        CancelAttributeEdit();
         Selected = node;
+        if (changed && SelectedComponentNodeId != 0 && (node is null || node.Id != SelectedComponentNodeId))
+        {
+            SelectedComponentNodeId = 0;
+            SelectedComponentName = null;
+        }
         if (node is not null)
         {
             Tree.Reveal(node);
@@ -335,6 +1119,7 @@ internal sealed class InspectorModel : IDisposable
         {
             SideScrollTop = 0;
             StylesError = null;
+            AttributesError = null;
             RefreshStyles();
             SelectionChanged?.Invoke(node);
         }
@@ -454,6 +1239,8 @@ internal sealed class InspectorModel : IDisposable
         SideScrollTop = 0;
         ChromeRevision.Value++;
         BumpStyles();
+        // 打开样式表页时刷新列表（选择项由列表回调按需加载文本）
+        if (tab == SideTab.Stylesheets) LoadStyleSheets();
     }
 
     public void ToggleShowAllComputed()
@@ -722,10 +1509,14 @@ internal sealed class InspectorModel : IDisposable
         BumpStyles();
     }
 
-    /// <summary>撤销本面板对应用样式的全部修改（<c>Css.clearOverrides</c>）。</summary>
+    /// <summary>撤销本面板对应用样式的全部修改（<c>Css.clearOverrides</c>），并复位伪状态开关。</summary>
     public void ClearOverrides()
     {
         CancelEdit();
+        CancelAttributeEdit();
+        _forcedPseudoStates.Clear();
+        PseudoError = null;
+        BumpStyles();
         Call("Css.clearOverrides", null, _ => RefreshStyles());
     }
 

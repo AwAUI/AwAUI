@@ -160,9 +160,20 @@ internal sealed class TreeMirror
         return node;
     }
 
-    static void Fill(DomNode node, JsonObject o)
+    /// <summary>
+    /// 用 <c>Tree.describeNode</c> 的单节点快照刷新镜像里的节点（属性、class、id、文本等），保留父子关系、已加载的子节点与展开状态。
+    /// 节点不在镜像中时返回 false。
+    /// </summary>
+    public bool UpdateNode(JsonObject o)
     {
-        node.IsText = o.GetStringOrDefault("kind") == "text";
+        if (o["id"] is not JsonNumber n || !n.TryGetInt64(out long id) || !_nodes.TryGetValue(id, out var node)) return false;
+        Fill(node, o);
+        Changed(structure: false);
+        return true;
+    }
+
+    static void Fill(DomNode node, JsonObject o)
+    {        node.IsText = o.GetStringOrDefault("kind") == "text";
         node.Tag = o.GetStringOrDefault("tag");
         node.ElementId = o.GetStringOrDefault("elementId");
         node.Classes = StringArray(o["classes"]);

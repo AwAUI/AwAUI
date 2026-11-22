@@ -40,10 +40,38 @@ internal static class PanelStyles
         .dt-main { flex: 1; display: flex; min-height: 0; }
 
         /* 元素树（虚拟化：只为可见行建元素） */
+        .dt-left { flex: 11; min-width: 0; display: flex; flex-direction: column; position: relative; border-right: 1px solid #d0d7de; }
         .dt-tree {
-          flex: 11; min-width: 0; position: relative; overflow: hidden;
-          border-right: 1px solid #d0d7de; background-color: #ffffff;
+          flex: 1; min-height: 0; position: relative; overflow: hidden;
+          background-color: #ffffff;
         }
+
+        /* 搜索框与结果列表 */
+        .dt-search {
+          position: relative; display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; flex-shrink: 0;
+          background-color: #f6f8fa; border-bottom: 1px solid #d0d7de;
+        }
+        .dt-search-input {
+          flex: 1; min-width: 0; height: 20px; padding: 0 5px; border-radius: 4px; font-size: 12px;
+          border: 1px solid #d0d7de; background-color: #ffffff; color: #1f2328;
+        }
+        .dt-search-clear {
+          width: 20px; height: 20px; padding: 0; font-size: 14px; line-height: 18px; border-radius: 4px;
+          border: 1px solid transparent; background-color: transparent; color: #57606a;
+        }
+        .dt-search-clear:hover { background-color: #eaeef2; }
+        .dt-search-results {
+          position: absolute; left: 6px; right: 6px; top: 28px; max-height: 280px; overflow: hidden; z-index: 20;
+          border: 1px solid #d0d7de; border-radius: 4px; background-color: #ffffff;
+        }
+        .dt-search-result {
+          display: flex; align-items: center; gap: 6px; width: 100%; height: 20px; padding: 0 6px; text-align: left;
+          border: none; border-radius: 0; background-color: transparent; font-size: 12px;
+        }
+        .dt-search-result:hover { background-color: #ddf4ff; }
+        .dt-search-match { width: 58px; flex-shrink: 0; color: #8250df; font-family: monospace; font-size: 11px; }
+        .dt-search-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; color: #1f2328; font-family: monospace; }
+        .dt-search-note { padding: 6px 8px; color: #8c959f; }
         .dt-rows { position: absolute; left: 0; right: 10px; }
         .dt-row {
           display: flex; align-items: center; height: 20px; padding-right: 8px;
@@ -80,8 +108,8 @@ internal static class PanelStyles
           border-bottom: 1px solid #d0d7de; background-color: #f6f8fa;
         }
         .dt-tab {
-          height: 27px; padding: 0 10px; display: flex; align-items: center; color: #57606a;
-          border-bottom: 2px solid transparent; cursor: default;
+          height: 27px; padding: 0 7px; display: flex; align-items: center; color: #57606a;
+          border-bottom: 2px solid transparent; cursor: default; font-size: 11px; white-space: nowrap;
         }
         .dt-tab:hover { color: #1f2328; background-color: #eaeef2; }
         .dt-tab.on { color: #1f2328; border-bottom-color: #0969da; }
@@ -129,6 +157,41 @@ internal static class PanelStyles
         .dt-add { height: 18px; padding-left: 30px; color: #8c959f; font-family: sans-serif; font-size: 11px; display: flex; align-items: center; }
         .dt-add:hover { color: #0969da; }
 
+        /* 强制伪状态 */
+        .dt-pseudo-bar {
+          display: flex; flex-direction: column; padding: 5px 10px; border-bottom: 1px solid #eaeef2; background-color: #fafbfc;
+        }
+        .dt-pseudo-head { display: flex; align-items: center; margin-bottom: 4px; }
+        .dt-pseudo-title { font-size: 11px; color: #57606a; }
+        .dt-pseudo-clear { font-size: 11px; color: #0969da; }
+        .dt-pseudo-clear:hover { text-decoration: underline; }
+        .dt-pseudo-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .dt-pseudo {
+          height: 18px; padding: 0 6px; border-radius: 3px; font-family: monospace; font-size: 11px;
+          border: 1px solid #d0d7de; background-color: #ffffff; color: #424a53;
+        }
+        .dt-pseudo:hover { background-color: #eaeef2; }
+        .dt-pseudo.on { background-color: #ddf4ff; border-color: #80ccff; color: #0969da; }
+
+        /* 属性编辑 */
+        .dt-attr-row { display: flex; align-items: center; height: 20px; padding: 0 10px; white-space: nowrap; font-family: monospace; }
+        .dt-attr-row:hover { background-color: #f6f8fa; }
+        .dt-attr-name { color: #994500; }
+        .dt-attr-eq { padding: 0 2px; color: #1f2328; }
+        .dt-attr-value { padding: 0 2px; border-radius: 2px; color: #1a1aa6; }
+        .dt-attr-value:hover { background-color: #ddf4ff; }
+        .dt-attr-remove {
+          width: 16px; height: 16px; margin-left: 6px; padding: 0; font-size: 12px; line-height: 14px;
+          border: none; border-radius: 3px; background-color: transparent; color: #8c959f;
+        }
+        .dt-attr-remove:hover { color: #cf222e; background-color: #ffebe9; }
+        .dt-attr-edit {
+          min-width: 80px; height: 18px; padding: 0 3px; border-radius: 2px; font-family: monospace; font-size: 12px;
+          border: 1px solid #0969da; background-color: #ffffff;
+        }
+        .dt-attr-add { display: flex; align-items: center; height: 18px; padding-left: 10px; font-size: 11px; color: #8c959f; }
+        .dt-attr-add:hover { color: #0969da; }
+
         /* 计算值 */
         .dt-computed-row { display: flex; height: 19px; align-items: center; padding: 0 10px; font-family: monospace; white-space: pre; }
         .dt-computed-row:hover { background-color: #f6f8fa; }
@@ -153,6 +216,59 @@ internal static class PanelStyles
         .dt-box-side { width: 22px; text-align: center; flex-shrink: 0; }
         .dt-box-label { position: absolute; left: 4px; top: 2px; font-size: 10px; color: #333333; }
         .dt-box-wrap { position: relative; }
+
+        /* 样式表编辑 */
+        .dt-sheet-list { border-bottom: 1px solid #eaeef2; }
+        .dt-sheet-row {
+          display: flex; align-items: center; gap: 6px; width: 100%; height: 20px; padding: 0 10px; text-align: left;
+          border: none; border-radius: 0; background-color: transparent; font-size: 12px;
+        }
+        .dt-sheet-row:hover { background-color: #f6f8fa; }
+        .dt-sheet-row.on { background-color: #ddf4ff; }
+        .dt-sheet-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; color: #1f2328; font-family: monospace; }
+        .dt-sheet-origin { color: #8250df; font-size: 10px; white-space: nowrap; }
+        .dt-sheet-badge {
+          padding: 0 4px; border-radius: 3px; color: #57606a; background-color: #eaeef2;
+          font-size: 10px; white-space: nowrap;
+        }
+        .dt-sheet-editor-pane { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; }
+        .dt-sheet-editor-title { color: #57606a; font-size: 11px; white-space: nowrap; overflow: hidden; }
+        .dt-sheet-editor {
+          align-self: stretch; width: auto; height: 240px; padding: 4px 6px; border-radius: 4px; resize: none;
+          border: 1px solid #d0d7de; background-color: #ffffff; color: #1f2328;
+          font-family: monospace; font-size: 12px; line-height: 16px;
+        }
+        .dt-sheet-editor:focus { border-color: #0969da; }
+        .dt-sheet-actions { display: flex; align-items: center; gap: 8px; }
+        .dt-sheet-apply {
+          height: 22px; padding: 0 10px; border-radius: 4px; font-size: 12px;
+          border: 1px solid #1f883d; background-color: #1f883d; color: #ffffff;
+        }
+        .dt-sheet-apply:hover { background-color: #1a7f37; }
+        .dt-sheet-apply:disabled { border-color: #d0d7de; background-color: #eaeef2; color: #8c959f; }
+        .dt-sheet-dirty { color: #bf8700; font-size: 11px; }
+        .dt-sheet-note { color: #8c959f; font-size: 11px; }
+        .dt-sheet-diagnostics { display: flex; flex-direction: column; gap: 2px; }
+        .dt-sheet-diag { display: flex; align-items: flex-start; gap: 6px; padding: 3px 6px; border-radius: 3px; font-size: 11px; white-space: pre-wrap; }
+        .dt-sheet-diag.error { color: #cf222e; background-color: #ffebe9; }
+        .dt-sheet-diag.warning { color: #9a6700; background-color: #fff8c5; }
+        .dt-sheet-diag.info { color: #0969da; background-color: #ddf4ff; }
+        .dt-sheet-diag-severity { font-weight: 600; text-transform: uppercase; font-size: 10px; flex-shrink: 0; }
+        .dt-sheet-diag-code { font-family: monospace; flex-shrink: 0; }
+        .dt-sheet-diag-pos { font-family: monospace; flex-shrink: 0; color: #57606a; }
+        .dt-sheet-diag-message { flex: 1; min-width: 0; }
+
+        /* 组件实例 */
+        .dt-component-list { padding: 2px 0; }
+        .dt-component-row {
+          display: flex; align-items: center; width: 100%; height: 20px; padding-right: 8px; text-align: left;
+          border: none; border-radius: 0; background-color: transparent; white-space: nowrap; overflow: hidden;
+        }
+        .dt-component-row:hover { background-color: #f0f6ff; }
+        .dt-component-row.on { background-color: #cfe5fc; }
+        .dt-component-name { color: #8250df; font-family: monospace; font-size: 12px; }
+        .dt-component-node { color: #57606a; font-family: monospace; font-size: 11px; overflow: hidden; }
+        .dt-components-detail { padding: 4px 10px; color: #1f2328; font-family: monospace; font-size: 11px; white-space: nowrap; overflow: hidden; }
 
         /* 状态栏 */
         .dt-status {

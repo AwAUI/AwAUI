@@ -74,6 +74,30 @@ public abstract class InspectableTree
     /// </summary>
     public virtual long GetNodeAt(Point point, bool ignorePointerEvents) => throw new NotSupportedException("Hit testing is not supported by this tree.");
 
+    /// <summary>
+    /// 把节点滚动到可见（通常通过最近的滚动容器）。节点不存在返回 false（协议层返回 -32001）；
+    /// 节点存在但没有可滚动的祖先时视为成功。默认不支持（-32004）。
+    /// </summary>
+    public virtual bool ScrollIntoView(long nodeId) => throw new NotSupportedException("Scrolling nodes into view is not supported by this tree.");
+
+    /// <summary>
+    /// 以程序方式把焦点移到节点。节点不存在返回 false（协议层返回 -32001）；节点存在但不可聚焦时也返回 true
+    /// （与 DOM 的 <c>element.focus()</c> 一样，不可聚焦的元素被静默忽略）。默认不支持（-32004）。
+    /// </summary>
+    public virtual bool Focus(long nodeId) => throw new NotSupportedException("Focusing nodes is not supported by this tree.");
+
+    /// <summary>
+    /// 节点的布局信息（design/20 <c>Layout.getLayoutInfo</c>）；节点存在但没有布局盒（<c>display: none</c>、尚未布局、文本节点等）时返回 null。
+    /// 协议层先用 <see cref="ContainsNode"/> 区分「节点不存在」，null 映射为 -32602（与 <see cref="GetBoxModel"/> 相同）。默认不支持（-32004）。
+    /// </summary>
+    /// <remarks>
+    /// 布局信息的详细程度取决于实现。UI 层提供计算样式中的 <c>display</c> 与固定像素的 <c>min-*</c> / <c>max-*</c> 约束、
+    /// 是否为布局边界、帧版本号，以及最近一次完整布局使用的 flex / grid 轨道尺寸（见 <see cref="LayoutInfo.FlexTracksX"/> 等）。
+    /// 「谁把节点标脏」（<c>invalidatedBy</c>）尚无可靠数据，保持为 0 / null。无法表示为固定像素的约束（<c>auto</c>、
+    /// <c>none</c>、百分比、<c>min-content</c> 等）以 null 报告。
+    /// </remarks>
+    public virtual LayoutInfo? GetLayoutInfo(long nodeId) => throw new NotSupportedException("Layout information is not supported by this tree.");
+
     // ------------------------------------------------------------ 编辑（可选）
 
     /// <summary>

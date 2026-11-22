@@ -24,6 +24,12 @@ namespace AwAUI.Diagnostics.Protocol;
 /// <c>removeAttribute({ nodeId, name })</c>、<c>setClasses({ nodeId, classes })</c>：接缝可选支持，否则 -32004。</item>
 /// <item><c>getOuterText({ nodeId, includeStyles?: "none" | "key" | "all" }) → { text }</c>：子树的缩进标记文本（每行一个节点，不写结束标签），
 /// 节点数与总长度有上限，超出时以 <c>… (truncated)</c> 结尾。</item>
+/// <item><c>search({ query }) → { results: { nodeId, match }[], truncated? }</c>：按标签名、id、class、元素的直接文本内容与
+/// CSS 选择器查找元素（<c>match</c> 为 <c>"tag" | "id" | "class" | "text" | "selector"</c>）。按文档顺序、去重；
+/// 无法解析的选择器不是错误（只是没有选择器匹配）。结果数受 <see cref="DevToolsAgentOptions.MaxTreeNodesPerResponse"/> 限制，
+/// 超出时带 <c>truncated: true</c>。不需要 enable。</item>
+/// <item><c>scrollIntoView({ nodeId })</c>、<c>focus({ nodeId })</c>：滚动到可见 / 程序聚焦；接缝不支持时 -32004，节点不存在时 -32001。
+/// 不需要 enable。</item>
 /// </list>
 /// <para><b>镜像</b>：协议层为每个会话、每个目标记住已发送给它的节点（CDP 式）。一个节点「已发送」指它是 getDocument 的根，或者作为某个
 /// 已展开节点的子节点被发送过；节点的 <c>children</c> 一旦发送，该节点即「已展开」，它的所有直接子节点都已发送。
@@ -153,6 +159,9 @@ public sealed class TreeDevToolsDomain : DevToolsDomain
         InspectionProtocol.Add(methods, "removeAttribute", RemoveAttribute);
         InspectionProtocol.Add(methods, "setClasses", SetClasses);
         InspectionProtocol.Add(methods, "getOuterText", GetOuterText);
+        InspectionProtocol.Add(methods, "search", Search);
+        InspectionProtocol.Add(methods, "scrollIntoView", ScrollIntoView);
+        InspectionProtocol.Add(methods, "focus", Focus);
     }
 
     // ================================================================ 方法
@@ -359,6 +368,119 @@ public sealed class TreeDevToolsDomain : DevToolsDomain
         long nodeId = ctx.GetInt64("nodeId");
         var classes = ctx.GetStringArray("classes");
         if (!tree.SetClasses(nodeId, classes)) throw InspectionProtocol.NodeNotFound(nodeId);
+        return null;
+    }
+
+    // ---- search / scrollIntoView / focus ----
+
+    /// <summary>
+    /// 先序遍历整棵树收集直接含匹配文本的父节点（文本节点本身不作为结果），再按文档顺序给出命中标签 / id / class /
+    /// 文本 / 选择器的元素。选择器无法解析时忽略选择器匹配。
+    /// </summary>
+    JsonValue? Search(DevToolsCallContext ctx)
+    {
+        var tree = InspectionProtocol.RequireTree(ctx);
+        string query = ctx.GetString("query");
+        long rootId = tree.RootId;
+        var results = new JsonArray();
+        if (rootId == 0 || query.Length == 0) return new JsonObject { ["results"] = results };
+
+        var selectorMatches = new HashSet<long>();
+        try
+        {
+            var ids = new List<long>();
+            tree.QuerySelectorAll(rootId, query, ids);
+            foreach (var id in ids) selectorMatches.Add(id);
+        }
+        catch (FormatException)
+        {
+            // 不是合法的选择器：只按标签 / id / class / 文本匹配
+        }
+
+        var textParents = new HashSet<long>();
+        CollectTextParents(tree, rootId, query, textParents);
+
+        int max = Math.Max(0, Options.MaxTreeNodesPerResponse);
+        bool truncated = false;
+        var visited = new HashSet<long>();
+        var stack = new Stack<long>();
+        stack.Push(rootId);
+        var children = new List<long>();
+        while (stack.Count > 0)
+        {
+            long id = stack.Pop();
+            if (!visited.Add(id)) continue;
+            var info = tree.DescribeNode(id);
+            if (info is null) continue;
+
+            string? match = MatchReason(info, query, selectorMatches, textParents);
+            if (match != null)
+            {
+                if (results.Count >= max)
+                {
+                    truncated = true;
+                    break;
+                }
+                InspectionProtocol.ValidateId(info.Id);
+                results.Add(new JsonObject { ["nodeId"] = info.Id, ["match"] = match });
+            }
+
+            children.Clear();
+            if (tree.GetChildren(id, children))
+                for (int i = children.Count - 1; i >= 0; i--) stack.Push(children[i]);
+        }
+        var o = new JsonObject { ["results"] = results };
+        if (truncated) o["truncated"] = true;
+        return o;
+    }
+
+    static string? MatchReason(InspectableNodeInfo info, string query, HashSet<long> selectorMatches, HashSet<long> textParents)
+    {
+        if (info.Kind == InspectableNodeKind.Text) return null;   // 文本内容归到父元素
+        if (info.Tag != null && string.Equals(info.Tag, query, StringComparison.OrdinalIgnoreCase)) return "tag";
+        if (info.ElementId != null && string.Equals(info.ElementId, query, StringComparison.Ordinal)) return "id";
+        if (info.Classes != null)
+            foreach (var c in info.Classes)
+                if (string.Equals(c, query, StringComparison.Ordinal)) return "class";
+        if (textParents.Contains(info.Id)) return "text";
+        if (selectorMatches.Contains(info.Id)) return "selector";
+        return null;
+    }
+
+    static void CollectTextParents(InspectableTree tree, long rootId, string query, HashSet<long> textParents)
+    {
+        var visited = new HashSet<long>();
+        var stack = new Stack<long>();
+        stack.Push(rootId);
+        var children = new List<long>();
+        while (stack.Count > 0)
+        {
+            long id = stack.Pop();
+            if (!visited.Add(id)) continue;
+            var info = tree.DescribeNode(id);
+            if (info is null) continue;
+            if (info.Kind == InspectableNodeKind.Text && info.ParentId != 0 && info.Text != null
+                && info.Text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                textParents.Add(info.ParentId);
+            children.Clear();
+            if (tree.GetChildren(id, children))
+                for (int i = children.Count - 1; i >= 0; i--) stack.Push(children[i]);
+        }
+    }
+
+    JsonValue? ScrollIntoView(DevToolsCallContext ctx)
+    {
+        var tree = InspectionProtocol.RequireTree(ctx);
+        long nodeId = ctx.GetInt64("nodeId");
+        if (!tree.ScrollIntoView(nodeId)) throw InspectionProtocol.NodeNotFound(nodeId);
+        return null;
+    }
+
+    JsonValue? Focus(DevToolsCallContext ctx)
+    {
+        var tree = InspectionProtocol.RequireTree(ctx);
+        long nodeId = ctx.GetInt64("nodeId");
+        if (!tree.Focus(nodeId)) throw InspectionProtocol.NodeNotFound(nodeId);
         return null;
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Threading;
@@ -38,6 +39,18 @@ public sealed class UIDevToolsOptions
     /// <summary>切换拾取模式的按键（浏览器的 F12 / 检查元素）；为 null 时不拦截按键。拾取模式下 Esc 取消。</summary>
     public PhysicalKey? ToggleInspectKey { get; set; } = PhysicalKey.F12;
 
+    /// <summary>
+    /// 运行时 Tailwind 补全的候选回调：帧末把该帧新出现（相对上一帧的整棵树）的类名一次性交给回调，可直接接到
+    /// <c>TailwindRuntime.AddCandidates</c>。没有变化时不调用。为 null 时不报告新增。
+    /// </summary>
+    public Action<IReadOnlyList<string>>? ClassCandidates { get; set; }
+
+    /// <summary>
+    /// 不再出现在元素树上的类名，帧末一次性交给回调，可直接接到 <c>TailwindRuntime.RemoveCandidates</c>
+    /// （撤回对应的运行时工具规则）。没有变化时不调用。为 null 时只在内部维护集合、不报告移除。
+    /// </summary>
+    public Action<IReadOnlyList<string>>? ClassCandidatesRemoved { get; set; }
+
     /// <summary>复用的 Agent（多个窗口共享一个 Agent，各自是一个目标）；为 null 时新建，随 <see cref="UIDevTools"/> 释放。</summary>
     public DevToolsAgent? Agent { get; set; }
 
@@ -67,6 +80,7 @@ public sealed class UIDevTools : IDisposable
     readonly ElementInspectableTree _tree;
     readonly ElementStyleInspector _styles;
     readonly ElementOverlayHost _overlay;
+    readonly ClassCandidateObserver? _classCandidates;
     readonly PhysicalKey? _toggleKey;
     WebSocketServerTransport? _webSocket;
     bool _localPick;
@@ -91,7 +105,10 @@ public sealed class UIDevTools : IDisposable
         Target = new DevToolsTarget(id, "AwAUI window", window.ClientSize, (float)window.RenderScale) { Dispatcher = dispatcher, Tag = host };
         _tree = new ElementInspectableTree(host.Root, host.Pipeline);
         _styles = new ElementStyleInspector(host.Root, host.Pipeline, _tree);
-        _overlay = new ElementOverlayHost(_tree, host.Pipeline, host.OnOverlayChanged);
+        _overlay = new ElementOverlayHost(_tree, host.Pipeline, host.Root.Input, host.OnOverlayChanged);
+        if (options.ClassCandidates is not null || options.ClassCandidatesRemoved is not null)
+            _classCandidates = new ClassCandidateObserver(host.Root, options.ClassCandidates, options.ClassCandidatesRemoved);
+        if (_classCandidates is not null) host.Root.AddObserver(_classCandidates);
         Target.Tree = _tree;
         Target.Styles = _styles;
         Target.Overlay = _overlay;
@@ -127,6 +144,9 @@ public sealed class UIDevTools : IDisposable
 
     /// <summary>当前高亮的元素（拾取中为悬停的元素）。</summary>
     public Element? HighlightedElement => _overlay.Highlighted;
+
+    /// <summary>当前的持续显示选项（<c>Overlay.setShowOptions</c>）：标尺、命中目标、触摸点与布局网格。</summary>
+    public OverlayShowOptions ShowOptions => _overlay.ShowOptions;
 
     /// <summary>拾取模式下用户选中了元素（本地 F12 拾取与前端发起的拾取都会触发）。</summary>
     public event Action<Element>? ElementPicked;
@@ -203,12 +223,17 @@ public sealed class UIDevTools : IDisposable
         return dc.Finish();
     }
 
-    /// <summary>每帧末尾（UI 线程）：同步目标尺寸并发出按帧合并的事件。</summary>
+    /// <summary>每帧末尾（UI 线程）：同步目标尺寸、推送布局帧事件并发出按帧合并的事件。</summary>
     internal void AfterFrame()
     {
         var w = _host.Window;
         Target.Size = w.ClientSize;
         Target.Scale = (float)w.RenderScale;
+        var timings = _host.Pipeline.LastTimings;
+        // 只在真的完成了一次布局计算时推送；缓存的帧没有 layoutPass。
+        if (timings.LayoutRan)
+            Agent.Layout.NotifyLayoutPass(Target, _host.Root.FrameNumber, timings.LayoutMs, layoutRan: true, _host.Pipeline.LastLayoutNodeCount);
+        _classCandidates?.Flush();
         Agent.FlushFrame();
     }
 
@@ -292,8 +317,10 @@ public sealed class UIDevTools : IDisposable
         Target.Tree = null;
         Target.Styles = null;
         Target.Overlay = null;
+        _overlay.Dispose();
         _styles.Dispose();
         _tree.Dispose();
+        if (_classCandidates is not null) _host.Root.RemoveObserver(_classCandidates);
         if (_webSocket is { } ws)
         {
             _webSocket = null;

@@ -18,6 +18,8 @@ namespace AwAUI.Diagnostics.Protocol;
 /// 增删改与切换（注释掉）声明都通过它完成。无法解析的文本返回 -32005；规则不存在返回 -32602。</item>
 /// <item><c>addRule({ selector, text? }) → { rule }</c>、<c>getStyleSheets() → { sheets }</c>、<c>getStyleSheetText({ sheetId }) → { text }</c>、
 /// <c>setStyleSheetText({ sheetId, text }) → { diagnostics }</c>、<c>clearOverrides({ nodeId? })</c>；样式表不存在返回 -32602。</item>
+/// <item><c>getVariables({ nodeId }) → { variables: { name, value, definedOn, ruleId? }[] }</c>：节点上生效的自定义属性（<c>--*</c>），
+/// 含从祖先继承的值；<c>definedOn</c> 是定义该值的节点 id，<c>ruleId</c> 是胜出声明所在的规则（内联样式没有）。按名称排序。</item>
 /// <item><c>forcePseudoState({ nodeId, states })</c>：需要 enable；状态名取自 <see cref="StyleInspector.ForceablePseudoStates"/>，
 /// 空数组取消。会话停用 Css 或断开时，它强制的状态被自动撤销。</item>
 /// </list>
@@ -49,6 +51,7 @@ public sealed class CssDevToolsDomain : DevToolsDomain
         InspectionProtocol.Add(methods, "getMatchedRules", GetMatchedRules);
         InspectionProtocol.Add(methods, "getInlineStyle", GetInlineStyle);
         InspectionProtocol.Add(methods, "getComputedStyle", GetComputedStyle);
+        InspectionProtocol.Add(methods, "getVariables", GetVariables);
         InspectionProtocol.Add(methods, "setStyleText", SetStyleText);
         InspectionProtocol.Add(methods, "addRule", AddRule);
         InspectionProtocol.Add(methods, "getStyleSheets", GetStyleSheets);
@@ -108,6 +111,33 @@ public sealed class CssDevToolsDomain : DevToolsDomain
             arr.Add(o);
         }
         return new JsonObject { ["properties"] = arr };
+    }
+
+    /// <summary>节点上生效的自定义属性：值、定义它的节点与胜出规则。按名称序数排序，继承来的值也包含在内。</summary>
+    JsonValue? GetVariables(DevToolsCallContext ctx)
+    {
+        var styles = InspectionProtocol.RequireStyles(ctx);
+        long nodeId = ctx.GetInt64("nodeId");
+        var props = styles.GetComputedStyle(nodeId) ?? throw InspectionProtocol.NodeNotFound(nodeId);
+        var variables = new List<ComputedStyleProperty>();
+        foreach (var p in props)
+            if (p.Name.Length > 2 && p.Name[0] == '-' && p.Name[1] == '-') variables.Add(p);
+        // GetComputedStyle 的条目顺序由实现决定（通常是属性名序数序 + 自定义属性映射序）：再排序一次保证确定性
+        variables.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+        var arr = new JsonArray();
+        foreach (var p in variables)
+        {
+            var o = new JsonObject
+            {
+                ["name"] = p.Name,
+                ["value"] = p.Value,
+                // 0 表示值就定义在该节点上；继承来的值指向最近的、含胜出声明的祖先
+                ["definedOn"] = p.FromNodeId != 0 ? p.FromNodeId : nodeId,
+            };
+            if (p.FromRuleId != null) o["ruleId"] = p.FromRuleId;
+            arr.Add(o);
+        }
+        return new JsonObject { ["variables"] = arr };
     }
 
     JsonValue? SetStyleText(DevToolsCallContext ctx)

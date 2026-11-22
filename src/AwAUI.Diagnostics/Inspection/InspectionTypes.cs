@@ -108,6 +108,64 @@ public readonly struct Quad : IEquatable<Quad>
 }
 
 /// <summary>
+/// 节点的布局信息快照（design/20 <c>Layout.getLayoutInfo</c>），由 <see cref="InspectableTree.GetLayoutInfo"/> 提供。
+/// </summary>
+/// <remarks>
+/// <para><b>限制</b>：目前包含计算样式中的 <see cref="Display"/>、固定像素的 min / max 约束、<see cref="IsLayoutBoundary"/>、
+/// 帧版本号，以及最近一次完整布局使用的轨道尺寸（<see cref="FlexTracksX"/> / <see cref="FlexTracksY"/> 与
+/// <see cref="GridColumns"/> / <see cref="GridRows"/>）。<see cref="InvalidatedByNodeId"/> / <see cref="InvalidatedByProperty"/>
+/// 来自 UI 层适配器记录的「最近一次标脏来源」（<c>Element</c> 的 <c>invalidatedBy</c>）：它是按元素脏标记传播得到的近似，
+/// 不是布局引擎内部的失效原因。来源在样式 / 布局阶段处理掉该失效后清除（帧末也会清除尚未处理的记录）；
+/// 在那之前若被新的来源覆盖则报告新来源。
+/// 无法表示为固定像素的约束（<c>auto</c>、<c>none</c>、百分比、<c>min-content</c> 等）为 null。</para>
+/// <para><see cref="LastLayoutFrame"/> 是快照生成时帧管线的帧版本（<c>RenderPipeline.FrameVersion</c>）。帧管线不单独记录
+/// 「该节点最后一次参与布局的帧」，因此它表示「最近一次管线推进到的帧」，不是在布局意义上精确的逐节点记录。</para>
+/// <para>轨道尺寸为逻辑像素，<b>不含间距</b>（间距不是轨道）；flex 容器只有主轴上的轨道（row -> X，column -> Y），
+/// grid 容器两轴都有。不是对应容器或尚未完成完整布局时相应字段为 null（协议层省略 <c>flex</c> / <c>grid</c>）。</para>
+/// </remarks>
+public sealed class LayoutInfo
+{
+    /// <summary>计算后的 <c>display</c>（<c>block</c>、<c>flex</c>、<c>none</c> ...）。</summary>
+    public string Display { get; set; } = "block";
+
+    /// <summary><c>min-width</c>（px）；不是固定像素值时为 null。</summary>
+    public float? MinWidth { get; set; }
+    /// <summary><c>max-width</c>（px）；不是固定像素值时为 null。</summary>
+    public float? MaxWidth { get; set; }
+    /// <summary><c>min-height</c>（px）；不是固定像素值时为 null。</summary>
+    public float? MinHeight { get; set; }
+    /// <summary><c>max-height</c>（px）；不是固定像素值时为 null。</summary>
+    public float? MaxHeight { get; set; }
+
+    /// <summary>
+    /// 是否是布局边界（自身布局与子树独立于外部尺寸）：根、绝对 / 固定定位元素（建立包含块）以及滚动容器
+    /// （<c>overflow</c> 非 <c>visible</c>）报告 true。flex / grid 容器不报告：计算样式阶段行内级容器会被块级化，
+    /// 无法可靠区分独立格式化上下文与随内容取尺寸的容器，因此保持 false。
+    /// </summary>
+    public bool IsLayoutBoundary { get; set; }
+
+    /// <summary>快照生成时的帧版本；含义见类型备注。</summary>
+    public long LastLayoutFrame { get; set; }
+
+    /// <summary>把节点标脏的节点 id；没有可得数据时为 0（省略 <c>invalidatedBy</c>）。含义是 UI 侧近似的最近标脏来源。</summary>
+    public long InvalidatedByNodeId { get; set; }
+    /// <summary><see cref="InvalidatedByNodeId"/> 上导致重排的属性名（<c>id</c>、<c>class</c>、<c>style</c>、自定义属性名等）；未知时为 null。</summary>
+    public string? InvalidatedByProperty { get; set; }
+
+    /// <summary>flex 容器主轴（row）上各项目的已用尺寸（px）；不是 flex 容器时为 null。协议形状 <c>flex.tracks.x</c>。</summary>
+    public IReadOnlyList<float>? FlexTracksX { get; set; }
+
+    /// <summary>flex 容器主轴（column）上各项目的已用尺寸（px）；不是 flex 容器时为 null。协议形状 <c>flex.tracks.y</c>。</summary>
+    public IReadOnlyList<float>? FlexTracksY { get; set; }
+
+    /// <summary>grid 容器各列轨道的已用尺寸（px）；不是 grid 容器时为 null。协议形状 <c>grid.columns</c>。</summary>
+    public IReadOnlyList<float>? GridColumns { get; set; }
+
+    /// <summary>grid 容器各行轨道的已用尺寸（px）；不是 grid 容器时为 null。协议形状 <c>grid.rows</c>。</summary>
+    public IReadOnlyList<float>? GridRows { get; set; }
+}
+
+/// <summary>
 /// 节点的盒模型（design/20 <c>Layout.getBoxModel</c>），窗口坐标、DIP。由 <see cref="InspectableTree.GetBoxModel"/> 提供。
 /// </summary>
 public sealed class BoxModelInfo

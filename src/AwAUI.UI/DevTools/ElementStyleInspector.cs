@@ -546,7 +546,10 @@ internal sealed class ElementStyleInspector : StyleInspector
         // 只替换声明块：会改变规则结构的文本（花括号、未闭合的注释 / 字符串 / 括号、末尾转义）视为无法解析
         ValidateDeclarationText(text, "A declaration block");
         var newText = sheetText.Substring(0, start) + text + sheetText.Substring(end);
-        var replacement = StyleSheet.Parse(newText, cs.Sheet.SourceName);
+        // 只改了一条规则的声明块：从它所在的最外层规则的起点增量解析，复用之前的前缀规则与诊断
+        var top = rule;
+        while (top.Parent is { } parent) top = parent;
+        var replacement = StyleSheet.ParseIncremental(newText, cs.Sheet.SourceName, cs.Sheet, top.Range.Start.Offset);
         var newTable = Rules(replacement);
         if (newTable.Rules.Count != rules.Rules.Count || newTable.Rules[index].Kind != rule.Kind)
         {
@@ -653,7 +656,8 @@ internal sealed class ElementStyleInspector : StyleInspector
         var cs = _devToolsSheet;
         var old = cs.Sheet.Text;
         var newText = old + (old.Length > 0 ? "\n" : "") + selector.Trim() + " { " + text + " }";
-        var replacement = StyleSheet.Parse(newText, "devtools");
+        // 只在末尾追加一条规则：前缀不变，增量解析
+        var replacement = StyleSheet.ParseIncremental(newText, "devtools", cs.Sheet, old.Length);
         var table = Rules(replacement);
         if (table.Rules.Count != Rules(cs.Sheet).Rules.Count + 1)
         {
